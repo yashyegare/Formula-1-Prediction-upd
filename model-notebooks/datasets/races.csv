@@ -1,0 +1,197 @@
+year,round,circuitId,name,date,time
+2018,1,albert_park,Australian Grand Prix,2018-03-25,05:10:00Z
+2018,2,bahrain,Bahrain Grand Prix,2018-04-08,15:10:00Z
+2018,3,shanghai,Chinese Grand Prix,2018-04-15,06:10:00Z
+2018,4,baku,Azerbaijan Grand Prix,2018-04-29,12:10:00Z
+2018,5,catalunya,Spanish Grand Prix,2018-05-13,13:10:00Z
+2018,6,monaco,Monaco Grand Prix,2018-05-27,13:10:00Z
+2018,7,villeneuve,Canadian Grand Prix,2018-06-10,18:10:00Z
+2018,8,ricard,French Grand Prix,2018-06-24,14:10:00Z
+2018,9,red_bull_ring,Austrian Grand Prix,2018-07-01,13:10:00Z
+2018,10,silverstone,British Grand Prix,2018-07-08,13:10:00Z
+2018,11,hockenheimring,German Grand Prix,2018-07-22,13:10:00Z
+2018,12,hungaroring,Hungarian Grand Prix,2018-07-29,13:10:00Z
+2018,13,spa,Belgian Grand Prix,2018-08-26,13:10:00Z
+2018,14,monza,Italian Grand Prix,2018-09-02,13:10:00Z
+2018,15,marina_bay,Singapore Grand Prix,2018-09-16,12:10:00Z
+2018,16,sochi,Russian Grand Prix,2018-09-30,11:10:00Z
+2018,17,suzuka,Japanese Grand Prix,2018-10-07,05:10:00Z
+2018,18,americas,United States Grand Prix,2018-10-21,18:10:00Z
+2018,19,rodriguez,Mexican Grand Prix,2018-10-28,19:10:00Z
+2018,20,interlagos,Brazilian Grand Prix,2018-11-11,17:10:00Z
+2018,21,yas_marina,Abu Dhabi Grand Prix,2018-11-25,13:10:00Z
+2019,1,albert_park,Australian Grand Prix,2019-03-17,05:10:00Z
+2019,2,bahrain,Bahrain Grand Prix,2019-03-31,15:10:00Z
+2019,3,shanghai,Chinese Grand Prix,2019-04-14,06:10:00Z
+2019,4,baku,Azerbaijan Grand Prix,2019-04-28,12:10:00Z
+2019,5,catalunya,Spanish Grand Prix,2019-05-12,13:10:00Z
+2019,6,monaco,Monaco Grand Prix,2019-05-26,13:10:00Z
+2019,7,villeneuve,Canadian Grand Prix,2019-06-09,18:10:00Z
+2019,8,ricard,French Grand Prix,2019-06-23,13:10:00Z
+2019,9,red_bull_ring,Austrian Grand Prix,2019-06-30,13:10:00Z
+2019,10,silverstone,British Grand Prix,2019-07-14,13:10:00Z
+2019,11,hockenheimring,German Grand Prix,2019-07-28,13:10:00Z
+2019,12,hungaroring,Hungarian Grand Prix,2019-08-04,13:10:00Z
+2019,13,spa,Belgian Grand Prix,2019-09-01,13:10:00Z
+2019,14,monza,Italian Grand Prix,2019-09-08,13:10:00Z
+2019,15,marina_bay,Singapore Grand Prix,2019-09-22,12:10:00Z
+2019,16,sochi,Russian Grand Prix,2019-09-29,11:10:00Z
+2019,17,suzuka,Japanese Grand Prix,2019-10-13,05:10:00Z
+2019,18,rodriguez,Mexican Grand Prix,2019-10-27,19:10:00Z
+2019,19,americas,United States Grand Prix,2019-11-03,19:10:00Z
+2019,20,interlagos,Brazilian Grand Prix,2019-11-17,17:10:00Z
+2019,21,yas_marina,Abu Dhabi Grand Prix,2019-12-01,13:10:00Z
+2020,1,red_bull_ring,Austrian Grand Prix,2020-07-05,13:10:00Z
+2020,2,red_bull_ring,Styrian Grand Prix,2020-07-12,13:10:00Z
+2020,3,hungaroring,Hungarian Grand Prix,2020-07-19,13:10:00Z
+2020,4,silverstone,British Grand Prix,2020-08-02,13:10:00Z
+2020,5,silverstone,70th Anniversary Grand Prix,2020-08-09,13:10:00Z
+2020,6,catalunya,Spanish Grand Prix,2020-08-16,13:10:00Z
+2020,7,spa,Belgian Grand Prix,2020-08-30,13:10:00Z
+2020,8,monza,Italian Grand Prix,2020-09-06,13:10:00Z
+2020,9,mugello,Tuscan Grand Prix,2020-09-13,13:10:00Z
+2020,10,sochi,Russian Grand Prix,2020-09-27,11:10:00Z
+2020,11,nurburgring,Eifel Grand Prix,2020-10-11,13:10:00Z
+2020,12,portimao,Portuguese Grand Prix,2020-10-25,12:10:00Z
+2020,13,imola,Emilia Romagna Grand Prix,2020-11-01,12:10:00Z
+2020,14,istanbul,Turkish Grand Prix,2020-11-15,10:10:00Z
+2020,15,bahrain,Bahrain Grand Prix,2020-11-29,14:10:00Z
+2020,16,bahrain,Sakhir Grand Prix,2020-12-06,17:10:00Z
+2020,17,yas_marina,Abu Dhabi Grand Prix,2020-12-13,13:10:00Z
+2021,1,bahrain,Bahrain Grand Prix,2021-03-28,15:00:00Z
+2021,2,imola,Emilia Romagna Grand Prix,2021-04-18,13:00:00Z
+2021,3,portimao,Portuguese Grand Prix,2021-05-02,14:00:00Z
+2021,4,catalunya,Spanish Grand Prix,2021-05-09,13:00:00Z
+2021,5,monaco,Monaco Grand Prix,2021-05-23,13:00:00Z
+2021,6,baku,Azerbaijan Grand Prix,2021-06-06,12:00:00Z
+2021,7,ricard,French Grand Prix,2021-06-20,13:00:00Z
+2021,8,red_bull_ring,Styrian Grand Prix,2021-06-27,13:00:00Z
+2021,9,red_bull_ring,Austrian Grand Prix,2021-07-04,13:00:00Z
+2021,10,silverstone,British Grand Prix,2021-07-18,14:00:00Z
+2021,11,hungaroring,Hungarian Grand Prix,2021-08-01,13:00:00Z
+2021,12,spa,Belgian Grand Prix,2021-08-29,13:00:00Z
+2021,13,zandvoort,Dutch Grand Prix,2021-09-05,13:00:00Z
+2021,14,monza,Italian Grand Prix,2021-09-12,13:00:00Z
+2021,15,sochi,Russian Grand Prix,2021-09-26,12:00:00Z
+2021,16,istanbul,Turkish Grand Prix,2021-10-10,12:00:00Z
+2021,17,americas,United States Grand Prix,2021-10-24,19:00:00Z
+2021,18,rodriguez,Mexico City Grand Prix,2021-11-07,19:00:00Z
+2021,19,interlagos,São Paulo Grand Prix,2021-11-14,17:00:00Z
+2021,20,losail,Qatar Grand Prix,2021-11-21,14:00:00Z
+2021,21,jeddah,Saudi Arabian Grand Prix,2021-12-05,17:30:00Z
+2021,22,yas_marina,Abu Dhabi Grand Prix,2021-12-12,13:00:00Z
+2022,1,bahrain,Bahrain Grand Prix,2022-03-20,15:00:00Z
+2022,2,jeddah,Saudi Arabian Grand Prix,2022-03-27,17:00:00Z
+2022,3,albert_park,Australian Grand Prix,2022-04-10,05:00:00Z
+2022,4,imola,Emilia Romagna Grand Prix,2022-04-24,13:00:00Z
+2022,5,miami,Miami Grand Prix,2022-05-08,19:30:00Z
+2022,6,catalunya,Spanish Grand Prix,2022-05-22,13:00:00Z
+2022,7,monaco,Monaco Grand Prix,2022-05-29,13:00:00Z
+2022,8,baku,Azerbaijan Grand Prix,2022-06-12,11:00:00Z
+2022,9,villeneuve,Canadian Grand Prix,2022-06-19,18:00:00Z
+2022,10,silverstone,British Grand Prix,2022-07-03,14:00:00Z
+2022,11,red_bull_ring,Austrian Grand Prix,2022-07-10,13:00:00Z
+2022,12,ricard,French Grand Prix,2022-07-24,13:00:00Z
+2022,13,hungaroring,Hungarian Grand Prix,2022-07-31,13:00:00Z
+2022,14,spa,Belgian Grand Prix,2022-08-28,13:00:00Z
+2022,15,zandvoort,Dutch Grand Prix,2022-09-04,13:00:00Z
+2022,16,monza,Italian Grand Prix,2022-09-11,13:00:00Z
+2022,17,marina_bay,Singapore Grand Prix,2022-10-02,12:00:00Z
+2022,18,suzuka,Japanese Grand Prix,2022-10-09,05:00:00Z
+2022,19,americas,United States Grand Prix,2022-10-23,19:00:00Z
+2022,20,rodriguez,Mexico City Grand Prix,2022-10-30,20:00:00Z
+2022,21,interlagos,São Paulo Grand Prix,2022-11-13,18:00:00Z
+2022,22,yas_marina,Abu Dhabi Grand Prix,2022-11-20,13:00:00Z
+2023,1,bahrain,Bahrain Grand Prix,2023-03-05,15:00:00Z
+2023,2,jeddah,Saudi Arabian Grand Prix,2023-03-19,17:00:00Z
+2023,3,albert_park,Australian Grand Prix,2023-04-02,05:00:00Z
+2023,4,baku,Azerbaijan Grand Prix,2023-04-30,11:00:00Z
+2023,5,miami,Miami Grand Prix,2023-05-07,19:30:00Z
+2023,6,monaco,Monaco Grand Prix,2023-05-28,13:00:00Z
+2023,7,catalunya,Spanish Grand Prix,2023-06-04,13:00:00Z
+2023,8,villeneuve,Canadian Grand Prix,2023-06-18,18:00:00Z
+2023,9,red_bull_ring,Austrian Grand Prix,2023-07-02,13:00:00Z
+2023,10,silverstone,British Grand Prix,2023-07-09,14:00:00Z
+2023,11,hungaroring,Hungarian Grand Prix,2023-07-23,13:00:00Z
+2023,12,spa,Belgian Grand Prix,2023-07-30,13:00:00Z
+2023,13,zandvoort,Dutch Grand Prix,2023-08-27,13:00:00Z
+2023,14,monza,Italian Grand Prix,2023-09-03,13:00:00Z
+2023,15,marina_bay,Singapore Grand Prix,2023-09-17,12:00:00Z
+2023,16,suzuka,Japanese Grand Prix,2023-09-24,05:00:00Z
+2023,17,losail,Qatar Grand Prix,2023-10-08,17:00:00Z
+2023,18,americas,United States Grand Prix,2023-10-22,19:00:00Z
+2023,19,rodriguez,Mexico City Grand Prix,2023-10-29,20:00:00Z
+2023,20,interlagos,São Paulo Grand Prix,2023-11-05,17:00:00Z
+2023,21,vegas,Las Vegas Grand Prix,2023-11-19,06:00:00Z
+2023,22,yas_marina,Abu Dhabi Grand Prix,2023-11-26,13:00:00Z
+2024,1,bahrain,Bahrain Grand Prix,2024-03-02,15:00:00Z
+2024,2,jeddah,Saudi Arabian Grand Prix,2024-03-09,17:00:00Z
+2024,3,albert_park,Australian Grand Prix,2024-03-24,04:00:00Z
+2024,4,suzuka,Japanese Grand Prix,2024-04-07,05:00:00Z
+2024,5,shanghai,Chinese Grand Prix,2024-04-21,07:00:00Z
+2024,6,miami,Miami Grand Prix,2024-05-05,20:00:00Z
+2024,7,imola,Emilia Romagna Grand Prix,2024-05-19,13:00:00Z
+2024,8,monaco,Monaco Grand Prix,2024-05-26,13:00:00Z
+2024,9,villeneuve,Canadian Grand Prix,2024-06-09,18:00:00Z
+2024,10,catalunya,Spanish Grand Prix,2024-06-23,13:00:00Z
+2024,11,red_bull_ring,Austrian Grand Prix,2024-06-30,13:00:00Z
+2024,12,silverstone,British Grand Prix,2024-07-07,14:00:00Z
+2024,13,hungaroring,Hungarian Grand Prix,2024-07-21,13:00:00Z
+2024,14,spa,Belgian Grand Prix,2024-07-28,13:00:00Z
+2024,15,zandvoort,Dutch Grand Prix,2024-08-25,13:00:00Z
+2024,16,monza,Italian Grand Prix,2024-09-01,13:00:00Z
+2024,17,baku,Azerbaijan Grand Prix,2024-09-15,11:00:00Z
+2024,18,marina_bay,Singapore Grand Prix,2024-09-22,12:00:00Z
+2024,19,americas,United States Grand Prix,2024-10-20,19:00:00Z
+2024,20,rodriguez,Mexico City Grand Prix,2024-10-27,20:00:00Z
+2024,21,interlagos,São Paulo Grand Prix,2024-11-03,17:00:00Z
+2024,22,vegas,Las Vegas Grand Prix,2024-11-23,06:00:00Z
+2024,23,losail,Qatar Grand Prix,2024-12-01,16:00:00Z
+2024,24,yas_marina,Abu Dhabi Grand Prix,2024-12-08,13:00:00Z
+2025,1,albert_park,Australian Grand Prix,2025-03-16,04:00:00Z
+2025,2,shanghai,Chinese Grand Prix,2025-03-23,07:00:00Z
+2025,3,suzuka,Japanese Grand Prix,2025-04-06,05:00:00Z
+2025,4,bahrain,Bahrain Grand Prix,2025-04-13,15:00:00Z
+2025,5,jeddah,Saudi Arabian Grand Prix,2025-04-20,17:00:00Z
+2025,6,miami,Miami Grand Prix,2025-05-04,20:00:00Z
+2025,7,imola,Emilia Romagna Grand Prix,2025-05-18,13:00:00Z
+2025,8,monaco,Monaco Grand Prix,2025-05-25,13:00:00Z
+2025,9,catalunya,Spanish Grand Prix,2025-06-01,13:00:00Z
+2025,10,villeneuve,Canadian Grand Prix,2025-06-15,18:00:00Z
+2025,11,red_bull_ring,Austrian Grand Prix,2025-06-29,13:00:00Z
+2025,12,silverstone,British Grand Prix,2025-07-06,14:00:00Z
+2025,13,spa,Belgian Grand Prix,2025-07-27,13:00:00Z
+2025,14,hungaroring,Hungarian Grand Prix,2025-08-03,13:00:00Z
+2025,15,zandvoort,Dutch Grand Prix,2025-08-31,13:00:00Z
+2025,16,monza,Italian Grand Prix,2025-09-07,13:00:00Z
+2025,17,baku,Azerbaijan Grand Prix,2025-09-21,11:00:00Z
+2025,18,marina_bay,Singapore Grand Prix,2025-10-05,12:00:00Z
+2025,19,americas,United States Grand Prix,2025-10-19,19:00:00Z
+2025,20,rodriguez,Mexico City Grand Prix,2025-10-26,20:00:00Z
+2025,21,interlagos,São Paulo Grand Prix,2025-11-09,17:00:00Z
+2025,22,vegas,Las Vegas Grand Prix,2025-11-23,04:00:00Z
+2025,23,losail,Qatar Grand Prix,2025-11-30,16:00:00Z
+2025,24,yas_marina,Abu Dhabi Grand Prix,2025-12-07,13:00:00Z
+2026,1,albert_park,Australian Grand Prix,2026-03-08,04:00:00Z
+2026,2,shanghai,Chinese Grand Prix,2026-03-15,07:00:00Z
+2026,3,suzuka,Japanese Grand Prix,2026-03-29,05:00:00Z
+2026,4,miami,Miami Grand Prix,2026-05-03,20:00:00Z
+2026,5,villeneuve,Canadian Grand Prix,2026-05-24,20:00:00Z
+2026,6,monaco,Monaco Grand Prix,2026-06-07,13:00:00Z
+2026,7,catalunya,Barcelona Grand Prix,2026-06-14,13:00:00Z
+2026,8,red_bull_ring,Austrian Grand Prix,2026-06-28,13:00:00Z
+2026,9,silverstone,British Grand Prix,2026-07-05,14:00:00Z
+2026,10,spa,Belgian Grand Prix,2026-07-19,13:00:00Z
+2026,11,hungaroring,Hungarian Grand Prix,2026-07-26,13:00:00Z
+2026,12,zandvoort,Dutch Grand Prix,2026-08-23,13:00:00Z
+2026,13,monza,Italian Grand Prix,2026-09-06,13:00:00Z
+2026,14,madring,Spanish Grand Prix,2026-09-13,13:00:00Z
+2026,15,baku,Azerbaijan Grand Prix,2026-09-26,11:00:00Z
+2026,16,sepang,Bahrain Grand Prix in Malaysia,2026-10-04,07:00:00Z
+2026,17,marina_bay,Singapore Grand Prix,2026-10-11,12:00:00Z
+2026,18,americas,United States Grand Prix,2026-10-25,20:00:00Z
+2026,19,rodriguez,Mexico City Grand Prix,2026-11-01,20:00:00Z
+2026,20,interlagos,Brazilian Grand Prix,2026-11-08,17:00:00Z
+2026,21,vegas,Las Vegas Grand Prix,2026-11-22,04:00:00Z
+2026,22,losail,Qatar Grand Prix,2026-11-29,16:00:00Z
+2026,23,yas_marina,Abu Dhabi Grand Prix,2026-12-06,13:00:00Z
