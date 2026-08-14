@@ -1,0 +1,45 @@
+driverId,driverRef,code,forename,surname,dob,nationality
+vettel,vettel,VET,Sebastian,Vettel,1987-07-03,German
+hamilton,hamilton,HAM,Lewis,Hamilton,1985-01-07,British
+raikkonen,raikkonen,RAI,Kimi,Räikkönen,1979-10-17,Finnish
+ricciardo,ricciardo,RIC,Daniel,Ricciardo,1989-07-01,Australian
+alonso,alonso,ALO,Fernando,Alonso,1981-07-29,Spanish
+max_verstappen,max_verstappen,VER,Max,Verstappen,1997-09-30,Dutch
+hulkenberg,hulkenberg,HUL,Nico,Hülkenberg,1987-08-19,German
+bottas,bottas,BOT,Valtteri,Bottas,1989-08-28,Finnish
+vandoorne,vandoorne,VAN,Stoffel,Vandoorne,1992-03-26,Belgian
+sainz,sainz,SAI,Carlos,Sainz,1994-09-01,Spanish
+perez,perez,PER,Sergio,Pérez,1990-01-26,Mexican
+ocon,ocon,OCO,Esteban,Ocon,1996-09-17,French
+leclerc,leclerc,LEC,Charles,Leclerc,1997-10-16,Monegasque
+stroll,stroll,STR,Lance,Stroll,1998-10-29,Canadian
+brendon_hartley,brendon_hartley,HAR,Brendon,Hartley,1989-11-10,New Zealander
+grosjean,grosjean,GRO,Romain,Grosjean,1986-04-17,French
+kevin_magnussen,kevin_magnussen,MAG,Kevin,Magnussen,1992-10-05,Danish
+gasly,gasly,GAS,Pierre,Gasly,1996-02-07,French
+ericsson,ericsson,ERI,Marcus,Ericsson,1990-09-02,Swedish
+sirotkin,sirotkin,SIR,Sergey,Sirotkin,1995-08-27,Russian
+kvyat,kvyat,KVY,Daniil,Kvyat,1994-04-26,Russian
+norris,norris,NOR,Lando,Norris,1999-11-13,British
+albon,albon,ALB,Alexander,Albon,1996-03-23,Thai
+giovinazzi,giovinazzi,GIO,Antonio,Giovinazzi,1993-12-14,Italian
+russell,russell,RUS,George,Russell,1998-02-15,British
+kubica,kubica,KUB,Robert,Kubica,1984-12-07,Polish
+latifi,latifi,LAT,Nicholas,Latifi,1995-06-29,Canadian
+aitken,aitken,AIT,Jack,Aitken,1995-09-23,British
+pietro_fittipaldi,pietro_fittipaldi,FIT,Pietro,Fittipaldi,1996-06-25,Brazilian
+tsunoda,tsunoda,TSU,Yuki,Tsunoda,2000-05-11,Japanese
+mick_schumacher,mick_schumacher,MSC,Mick,Schumacher,1999-03-22,German
+mazepin,mazepin,MAZ,Nikita,Mazepin,1999-03-02,Russian
+zhou,zhou,ZHO,Guanyu,Zhou,1999-05-30,Chinese
+de_vries,de_vries,DEV,Nyck,de Vries,1995-02-06,Dutch
+sargeant,sargeant,SAR,Logan,Sargeant,2000-12-31,American
+piastri,piastri,PIA,Oscar,Piastri,2001-04-06,Australian
+lawson,lawson,LAW,Liam,Lawson,2002-02-11,New Zealander
+bearman,bearman,BEA,Oliver,Bearman,2005-05-08,British
+colapinto,colapinto,COL,Franco,Colapinto,2003-05-27,Argentine
+doohan,doohan,DOO,Jack,Doohan,2003-01-20,Australian
+antonelli,antonelli,ANT,Andrea Kimi,Antonelli,2006-08-25,Italian
+bortoleto,bortoleto,BOR,Gabriel,Bortoleto,2004-10-14,Brazilian
+hadjar,hadjar,HAD,Isack,Hadjar,2004-09-28,French
+arvid_lindblad,arvid_lindblad,LIN,Arvid,Lindblad,2007-08-08,British
