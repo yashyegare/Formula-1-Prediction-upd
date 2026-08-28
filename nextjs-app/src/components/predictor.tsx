@@ -19,6 +19,7 @@ const Predictor = () => {
 
     const [prediction, setPrediction] = useState(-1);
     const [loading, setLoading] = useState(false);
+    const [coldStart, setColdStart] = useState(false);
 
     // fetch the live driver/GP list once on mount, instead of hardcoding
     // a season's roster that goes stale every year
@@ -40,7 +41,11 @@ const Predictor = () => {
         e.preventDefault();
 
         setLoading(true);
+        setColdStart(false);
         setPrediction(-2);
+
+        // Show cold-start warning after 5 seconds
+        const coldStartTimer = setTimeout(() => setColdStart(true), 5000);
 
         let myHeaders = new Headers();
         myHeaders.append("Content-Type", "application/json");
@@ -58,13 +63,17 @@ const Predictor = () => {
         })
             .then((response) => response.json())
             .then((result) => {
+                clearTimeout(coldStartTimer);
                 setPrediction(result[0]);
                 setLoading(false);
+                setColdStart(false);
             })
             .catch((error) => {
+                clearTimeout(coldStartTimer);
                 setPrediction(0);
                 console.log("error", error);
                 setLoading(false);
+                setColdStart(false);
             });
     };
 
@@ -159,6 +168,8 @@ const Predictor = () => {
                                     : prediction == 3
                                     ? "🅾️ Out of Points!"
                                     : "🛑 Something went wrong!!"
+                                : coldStart
+                                ? "⏳ Waking up the model server..."
                                 : "Loading..."}
                         </p>
                     </section>
