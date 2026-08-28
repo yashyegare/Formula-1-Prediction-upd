@@ -1,4 +1,5 @@
 import {ReactNode} from "react";
+import Link from "next/link";
 
 type Props = {
     children: ReactNode
@@ -17,9 +18,115 @@ const Container = ({ children }: Props) => {
         </section>
     )
 }
+
+const CANVA_VIEW_URL = "https://www.canva.com/design/DAFsVnyeZfw/view";
+const CANVA_EDIT_URL = "https://www.canva.com/design/DAFsVnyeZfw/HAKqZREsBBSWqrWKP_fMsQ/edit?utm_content=DAFsVnyeZfw&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton";
+
+const CanvaEmbed = () => {
+    return (
+        <>
+            <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-stone-700 bg-gradient-to-br from-stone-900 to-stone-800 p-8 my-4">
+                <div className="text-4xl">🏎️</div>
+                <h3 className="text-lg font-semibold text-white m-0">Presentation: Predicting Formula 1 Race Results</h3>
+                <p className="text-sm text-stone-400 text-center max-w-md m-0">
+                    The Canva presentation can&apos;t be embedded here directly. Click below to open it in Canva.
+                </p>
+                <div className="flex gap-3">
+                    <a
+                        href={CANVA_VIEW_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-lg bg-[#E6002B] px-4 py-2 text-sm font-medium text-white no-underline transition hover:bg-red-700"
+                    >
+                        🔗 View Presentation
+                    </a>
+                    <a
+                        href={CANVA_EDIT_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-lg border border-stone-600 px-4 py-2 text-sm font-medium text-stone-300 no-underline transition hover:border-stone-400 hover:text-white"
+                    >
+                        ✏️ Edit in Canva
+                    </a>
+                </div>
+            </div>
+            <div style={{position: 'relative', width: '100%', height: 0, overflow: 'hidden'}}>
+                <iframe
+                    loading="lazy"
+                    style={{position: 'absolute', width: '1px', height: '1px', top: 0, left: 0, border: 'none', opacity: 0, pointerEvents: 'none'}}
+                    src={CANVA_VIEW_URL}
+                    allowFullScreen={true}
+                    allow="encrypted-media; fullscreen; clipboard-write"
+                />
+            </div>
+        </>
+    );
+};
+
+const FeatureCard = ({ href, isExternal, emoji, title, subtitle, accentColor, delay }: {
+    href: string; isExternal?: boolean; emoji: string; title: string; subtitle: string;
+    accentColor: string; delay: string;
+}) => {
+    const Wrapper = isExternal ? 'a' : Link;
+    const wrapperProps = isExternal ? { href, target: '_blank', rel: 'noopener noreferrer' } : { href };
+    return (
+        <Wrapper
+            {...wrapperProps}
+            className="group relative flex items-center gap-3 rounded-xl border px-4 py-2.5 no-underline transition-all duration-300 hover:scale-[1.02]"
+            style={{
+                animation: `fadeInUp 0.6s ease-out ${delay} both`,
+                borderColor: `${accentColor}30`,
+                background: `linear-gradient(135deg, ${accentColor}08, ${accentColor}04)`,
+            }}
+        >
+            <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-lg"
+                style={{ background: `linear-gradient(135deg, ${accentColor}30, ${accentColor}15)` }}
+            >
+                {emoji}
+            </div>
+            <div className="flex-1 min-w-0">
+                <div className="font-bold text-white text-sm">{title}</div>
+            </div>
+            <div className="flex-shrink-0">
+                <svg className="w-4 h-4 text-zinc-600 group-hover:text-white group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+            </div>
+        </Wrapper>
+    );
+};
+
 const Docs = () => {
     return (
         <>
+            {/* Feature cards — Season Simulator & Draw Line Racing */}
+            <div className="mb-6 flex flex-col sm:flex-row gap-2">
+                    <FeatureCard
+                        href="http://localhost:5173"
+                        isExternal
+                        emoji="🏁"
+                        title="Season Simulator"
+                        subtitle=""
+                        accentColor="#dc2626"
+                        delay="0.1s"
+                    />
+                    <FeatureCard
+                        href="/racing"
+                        emoji="🏎️"
+                        title="Draw Line Racing"
+                        subtitle=""
+                        accentColor="#22c55e"
+                        delay="0.2s"
+                    />
+            </div>
+
+            <style jsx>{`
+                @keyframes fadeInUp {
+                    from { opacity: 0; transform: translateY(12px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+            `}</style>
+
             <header>
                 <h1 className="page-title">Predicting Formula 1 Race Results</h1>
                 <HeadingCaption>A Machine Learning approach to predict race results</HeadingCaption>
@@ -39,11 +146,7 @@ const Docs = () => {
             <div className="page-body">
 
                 <div>
-                    <div style={{position: 'relative', width: '100%', height: 0, paddingTop: '56.2500%', paddingBottom: 0, boxShadow: '0 2px 8px 0 rgba(63,69,81,0.16)', marginTop: '1.6em', marginBottom: '0.9em', overflow: 'hidden', borderRadius: '8px', willChange: 'transform'}}>
-                        <iframe loading="lazy" style={{position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, border: 'none', padding: 0, margin: 0}} src="https://www.canva.com/design/DAFsVnyeZfw/view" allowFullScreen={true} allow="fullscreen">
-                        </iframe>
-                    </div>
-                    <a href="https://www.canva.com/design/DAFsVnyeZfw/HAKqZREsBBSWqrWKP_fMsQ/edit?utm_content=DAFsVnyeZfw&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton" target="_blank" rel="noopener">Predicting Formula 1 Race Results</a>
+                    <CanvaEmbed />
                 </div>
                 <p id="ac8a8b58-76b6-4573-a111-529e2e4d262a">
             </p><h3 id="7c7d4c6c-4f3f-45f6-ad3e-58df8fca8b85">Abstract:</h3><p id="61139936-184e-4c80-91a9-8ce328f0c9c7" >The project presents a comprehensive approach to predicting the performance of drivers in Formula One races. I combined machine learning models, such as logistic regression, decision tree, random forest, support vector machine, Gaussian Naive Bayes, and K-Nearest Neighbors, with data analysis techniques to analyze the impact of various factors on the likelihood of a driver achieving a podium finish or scoring points.</p><p id="2d80ca01-ddc2-4a52-98c2-a6cc7d2dcf43" >Also conducted extensive exploratory data analysis on race data results, analyzing data on drivers, constructors, circuits, and other variables to identify the most significant factors affecting driver performance. I also examined the impact of circuit location, the number of races held at a particular circuit, driver experience, nationality, and constructor performance on the likelihood of a driver achieving a podium finish or scoring points.</p><p id="ed1e3271-84ef-4781-9125-0f5816739211" >The approach utilizes both one-hot encoding to transform categorical and numerical data into a format that can be used by the machine learning models. I also got to introduce the concepts of Driver DNF index and Constructor DNF index to quantify the impact of driver and constructor errors on race results. I bring in my understanding through the models and their results to actually see what are the factors contributing to a win.</p><p id="462c1543-dd97-45e1-927f-dd460567637e" >Overall, the approach provides a comprehensive methodology for predicting driver performance in Formula One races, and the results demonstrate the effectiveness of the approach. The findings can be used by teams and analysts to make informed decisions regarding driver selection, strategy, and overall race performance. </p><h2 id="ea352a10-1899-484c-b0a8-998fcd72f4f7" >Keywords: </h2><p id="7051dd0e-deb3-4632-ad21-192ac641bb1c" >motorsport, Formula One, data analysis, machine learning, classification, driver performance, constructor performance, podium prediction, points prediction, DNF index, home team effect, circuit analysis, race history, driver nationality, neural networks, statistical modeling, predictive modeling, feature engineering, exploratory data analysis, data visualization, data preprocessing, data cleaning, data transformation, feature selection, model evaluation.</p><h2 id="617a02a8-1b83-40dc-b69c-d020dd1bd145" >Introduction:</h2><p id="cc38e75f-677d-4ab1-ab6b-800274e84297" ><strong>Background:

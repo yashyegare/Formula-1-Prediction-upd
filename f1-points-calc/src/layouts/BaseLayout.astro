@@ -1,0 +1,170 @@
+---
+import '../index.css';
+
+interface Props {
+  title: string;
+  description: string;
+  keywords: string;
+  canonicalPath: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogType?: string;
+  schemaData?: object;
+  initialYear?: number;
+}
+
+const {
+  title,
+  description,
+  keywords,
+  canonicalPath,
+  ogTitle,
+  ogDescription,
+  ogType = 'website',
+  schemaData,
+  initialYear,
+} = Astro.props;
+
+const siteUrl = 'https://f1pointscalculator.yashyegare.com';
+const canonicalUrl = `${siteUrl}${canonicalPath}`;
+const ogTitleFinal = ogTitle || title;
+const ogDescFinal = ogDescription || description;
+const ogImage = `${siteUrl}/og-image.jpg`;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="keywords" content={keywords} />
+    <link rel="canonical" href={canonicalUrl} />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content={ogType} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:title" content={ogTitleFinal} />
+    <meta property="og:description" content={ogDescFinal} />
+    <meta property="og:image" content={ogImage} />
+
+    <!-- Twitter Card Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={ogTitleFinal} />
+    <meta name="twitter:description" content={ogDescFinal} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon.png" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#E10600" />
+
+    <!-- Preconnect to critical origins -->
+    <link rel="preconnect" href="https://api.f1pointscalculator.yashyegare.com" />
+    <link rel="preload" href="/fonts/archivo-var-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+    {schemaData && (
+      <script type="application/ld+json" set:html={JSON.stringify(schemaData)} />
+    )}
+
+    {initialYear && (
+      <script define:vars={{ initialYear }}>
+        window.INITIAL_YEAR = initialYear;
+      </script>
+    )}
+  </head>
+  <body class="bg-surface-sunken">
+    <slot />
+
+    <!-- Static footer for crawlers — visually hidden via sr-only, still in the DOM for SEO / a11y -->
+    <footer id="static-footer" class="sr-only" aria-label="Site navigation">
+      <div class="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row justify-between space-y-6 sm:space-y-0">
+        <div>
+          <h3 class="text-lg font-medium mb-3">Season Simulator</h3>
+          <p class="text-sm mb-2">
+            <a href="http://localhost:3000" class="inline-flex items-center text-gray-300 hover:text-white transition-colors">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Race Predictor
+            </a>
+          </p>
+          <p class="text-sm text-gray-400 mb-2"><a href="mailto:f1pointscalculator@yashyegare.com" class="text-gray-300 hover:text-white">Contact</a></p>
+          <p class="text-sm text-gray-400 mb-2"><a href="/changelog" class="text-gray-300 hover:text-white">Changelog</a></p>
+        </div>
+        <div>
+          <h3 class="text-lg font-medium mb-3">Seasons</h3>
+          <ul class="text-sm text-gray-400 space-y-1">
+            <li><a href="/" class="text-gray-300 hover:text-white">2026 Season</a></li>
+            <li><a href="/2025" class="text-gray-300 hover:text-white">2025 Season</a></li>
+            <li><a href="/2024" class="text-gray-300 hover:text-white">2024 Season</a></li>
+            <li><a href="/2023" class="text-gray-300 hover:text-white">2023 Season</a></li>
+            <li><a href="/2022" class="text-gray-300 hover:text-white">2022 Season</a></li>
+            <li><a href="/2021" class="text-gray-300 hover:text-white">2021 Season</a></li>
+            <li><a href="/2020" class="text-gray-300 hover:text-white">2020 Season</a></li>
+            <li><a href="/2019" class="text-gray-300 hover:text-white">2019 Season</a></li>
+            <li><a href="/2018" class="text-gray-300 hover:text-white">2018 Season</a></li>
+            <li><a href="/2017" class="text-gray-300 hover:text-white">2017 Season</a></li>
+            <li><a href="/2016" class="text-gray-300 hover:text-white">2016 Season</a></li>
+            <li><a href="/2015" class="text-gray-300 hover:text-white">2015 Season</a></li>
+            <li><a href="/2014" class="text-gray-300 hover:text-white">2014 Season</a></li>
+            <li><a href="/2013" class="text-gray-300 hover:text-white">2013 Season</a></li>
+            <li><a href="/2012" class="text-gray-300 hover:text-white">2012 Season</a></li>
+            <li><a href="/2011" class="text-gray-300 hover:text-white">2011 Season</a></li>
+            <li><a href="/2010" class="text-gray-300 hover:text-white">2010 Season</a></li>
+            <li><a href="/2009" class="text-gray-300 hover:text-white">2009 Season</a></li>
+            <li><a href="/2008" class="text-gray-300 hover:text-white">2008 Season</a></li>
+            <li><a href="/2007" class="text-gray-300 hover:text-white">2007 Season</a></li>
+            <li><a href="/2006" class="text-gray-300 hover:text-white">2006 Season</a></li>
+            <li><a href="/2005" class="text-gray-300 hover:text-white">2005 Season</a></li>
+            <li><a href="/2004" class="text-gray-300 hover:text-white">2004 Season</a></li>
+            <li><a href="/2003" class="text-gray-300 hover:text-white">2003 Season</a></li>
+            <li><a href="/2002" class="text-gray-300 hover:text-white">2002 Season</a></li>
+            <li><a href="/2001" class="text-gray-300 hover:text-white">2001 Season</a></li>
+            <li><a href="/2000" class="text-gray-300 hover:text-white">2000 Season</a></li>
+            <li><a href="/1999" class="text-gray-300 hover:text-white">1999 Season</a></li>
+            <li><a href="/1998" class="text-gray-300 hover:text-white">1998 Season</a></li>
+            <li><a href="/1997" class="text-gray-300 hover:text-white">1997 Season</a></li>
+            <li><a href="/1996" class="text-gray-300 hover:text-white">1996 Season</a></li>
+            <li><a href="/1995" class="text-gray-300 hover:text-white">1995 Season</a></li>
+            <li><a href="/1994" class="text-gray-300 hover:text-white">1994 Season</a></li>
+            <li><a href="/1993" class="text-gray-300 hover:text-white">1993 Season</a></li>
+            <li><a href="/1992" class="text-gray-300 hover:text-white">1992 Season</a></li>
+            <li><a href="/1991" class="text-gray-300 hover:text-white">1991 Season</a></li>
+            <li><a href="/1990" class="text-gray-300 hover:text-white">1990 Season</a></li>
+            <li><a href="/1989" class="text-gray-300 hover:text-white">1989 Season</a></li>
+            <li><a href="/1988" class="text-gray-300 hover:text-white">1988 Season</a></li>
+            <li><a href="/1987" class="text-gray-300 hover:text-white">1987 Season</a></li>
+            <li><a href="/1986" class="text-gray-300 hover:text-white">1986 Season</a></li>
+            <li><a href="/1985" class="text-gray-300 hover:text-white">1985 Season</a></li>
+            <li><a href="/1984" class="text-gray-300 hover:text-white">1984 Season</a></li>
+            <li><a href="/1983" class="text-gray-300 hover:text-white">1983 Season</a></li>
+            <li><a href="/1982" class="text-gray-300 hover:text-white">1982 Season</a></li>
+            <li><a href="/1981" class="text-gray-300 hover:text-white">1981 Season</a></li>
+          </ul>
+        </div>
+        <div>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Google Analytics - Deferred to not block rendering -->
+    <script is:inline>
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          var script = document.createElement('script');
+          script.src = 'https://www.googletagmanager.com/gtag/js?id=G-GJ61RX1FZJ';
+          script.async = true;
+          document.head.appendChild(script);
+
+          window.dataLayer = window.dataLayer || [];
+          function gtag() { dataLayer.push(arguments); }
+          window.gtag = gtag;
+          gtag('js', new Date());
+          gtag('config', 'G-GJ61RX1FZJ', { cookie_domain: 'f1pointscalculator.yashyegare.com' });
+        }, 100);
+      });
+    </script>
+  </body>
+</html>
