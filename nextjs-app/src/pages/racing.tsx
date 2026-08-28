@@ -13,55 +13,34 @@ interface TrackDef {
   flag: string;
   length: string;
   accent: string;
-  /** Centerline points — the track is drawn around these */
   centerline: [number, number][];
-  /** Track half-width in px */
   halfWidth: number;
-  /** Corner labels near specific points */
   corners: { label: string; at: number }[];
-  /** Par time in ms for scoring */
   parTime: number;
-  /** AI racing line (offset from centerline for realism) */
   aiLine?: [number, number][];
 }
 
-// Helper to offset a centerline to create AI line
 function offsetLine(pts: [number, number][], dx: number, dy: number): [number, number][] {
   return pts.map(([x, y]) => [x + dx, y + dy]);
 }
 
 // ─── MONACO ───
 const MONACO_CENTERLINE: [number, number][] = [
-  // Pit straight (west → east along harbor)
   [100, 390], [150, 380], [200, 370], [250, 360],
-  // Sainte Dévote (tight right-hander)
   [280, 345], [295, 325], [290, 305],
-  // Beau Rivage (fast uphill, heading northeast)
   [270, 275], [250, 245], [235, 215], [225, 185],
-  // Massenet (left-hander at top of hill)
   [225, 155], [240, 130], [265, 115],
-  // Casino Square (right-hander, northernmost point)
   [295, 108], [325, 115], [345, 135],
-  // Mirabeau Bas (descending right)
   [355, 160], [360, 190], [355, 220],
-  // Fairmont Hairpin (tightest corner in F1, 180° left)
   [345, 250], [325, 268], [300, 272], [280, 260],
   [275, 240], [285, 220],
-  // Portier (right, into tunnel)
   [305, 205], [335, 195], [370, 190],
-  // Tunnel (long straight, heading east under buildings)
   [410, 185], [450, 185], [490, 190],
-  // Nouvelle Chicane (tight left-right after tunnel)
   [515, 200], [525, 215], [520, 230], [510, 225],
-  // Tabac (left-hander)
   [500, 210], [495, 190], [500, 170],
-  // Swimming Pool first part (fast left-right)
   [510, 155], [525, 145], [540, 150], [545, 165],
-  // Swimming Pool second part (tight left-right)
   [540, 180], [525, 190], [515, 185],
-  // La Rascasse (tight right)
   [510, 195], [505, 215], [495, 230],
-  // Anthony Noghès (right, back to pit straight)
   [475, 245], [450, 255], [420, 265],
   [385, 285], [350, 310], [310, 340],
   [265, 360], [220, 372], [175, 380], [130, 386], [100, 390],
@@ -69,109 +48,71 @@ const MONACO_CENTERLINE: [number, number][] = [
 
 // ─── SILVERSTONE ───
 const SILVERSTONE_CENTERLINE: [number, number][] = [
-  // Village (right-hander, bottom-left area)
   [155, 370], [175, 355], [185, 335],
-  // The Loop (tight left)
   [180, 315], [165, 300], [150, 290],
-  // Aintree (left onto Wellington Straight)
   [140, 275], [135, 255],
-  // Wellington Straight (heading north)
   [140, 225], [150, 195], [165, 165],
-  // Copse (fast right-hander, top-left)
   [190, 140], [225, 120], [265, 108],
-  // Maggots (fast left-right S-curves)
   [305, 100], [335, 98], [355, 108],
-  // Becketts (tightening left-right)
   [370, 125], [380, 145], [385, 165],
-  // Chapel (right, onto Hangar Straight)
   [395, 180], [415, 185],
-  // Hangar Straight (heading southeast)
   [450, 180], [490, 170], [530, 165],
-  // Stowe (fast right-hander)
   [565, 165], [590, 178], [600, 200],
-  // Vale (left, into Club)
   [595, 225], [578, 245], [555, 258],
-  // Club (right, onto International Straight)
   [530, 265], [505, 268],
-  // International Pits Straight (heading west)
   [470, 275], [430, 285], [390, 295],
-  // Abbey (fast left)
   [350, 305], [315, 315], [285, 325],
-  // Farm (right, heading back south)
   [255, 340], [225, 355], [195, 365], [155, 370],
 ];
 
 // ─── SUZUKA ───
 const SUZUKA_CENTERLINE: [number, number][] = [
-  // Pit straight (heading north, bottom-right)
-  [530, 400], [520, 370], [510, 340], [500, 310],
-  // Turn 1-2 (sweeping right, top-right)
-  [485, 280], [460, 255], [430, 235], [400, 220],
-  // S Curves (fast left-right weaving, top section)
-  [375, 210], [355, 200], [340, 185],
-  [330, 170], [340, 155], [355, 145],
-  [370, 138], [380, 125], [375, 110],
-  // Dunlop Curve (long left, top-left)
-  [360, 95], [340, 85], [315, 80],
-  // Degner 1 (sharp right, left side)
-  [290, 82], [270, 92], [258, 108],
-  // Degner 2 (sharp right, under bridge)
-  [255, 128], [260, 148], [268, 165],
-  // Hairpin (tight right, bottom-left)
-  [270, 185], [265, 205], [250, 218],
-  [230, 222], [215, 212], [210, 195],
-  // 200R (sweeping left, heading east)
-  [215, 175], [230, 158], [250, 145],
-  // Spoon (double left, bottom-center)
-  [275, 135], [300, 130], [325, 128],
-  [345, 132], [358, 142], [360, 158],
-  // Back straight (heading northeast)
-  [370, 178], [390, 195], [415, 208],
-  [445, 218], [478, 225],
-  // 130R (very fast left, right side)
-  [505, 228], [525, 218], [538, 200],
-  // Casio Triangle chicane (right-left, near crossover)
-  [542, 180], [535, 165], [520, 158],
-  [505, 162], [498, 175],
-  // Final corner (sweeping right, back to pit straight)
-  [500, 195], [510, 225], [518, 260],
-  [522, 300], [526, 340], [530, 400],
+  [530, 400], [520, 365], [500, 325], [480, 290], [455, 260],
+  [425, 238],
+  [400, 225], [378, 215], [362, 208],
+  [352, 200],
+  [340, 190], [322, 178],
+  [300, 170],
+  [278, 165], [258, 160], [240, 152],
+  [222, 148],
+  [206, 158], [196, 175], [190, 195], [188, 213],
+  [196, 228],
+  [212, 236], [230, 233], [248, 220],
+  [263, 204],
+  [280, 192],
+  [300, 183],
+  [320, 178], [338, 178], [352, 184], [360, 193],
+  [352, 200],
+  [368, 196], [400, 206], [438, 216],
+  [478, 224],
+  [505, 222],
+  [528, 208], [538, 188],
+  [536, 168],
+  [520, 158], [505, 162], [498, 178], [500, 200],
+  [510, 240], [518, 285], [524, 330], [528, 368], [530, 400],
 ];
 
 // ─── SPA ───
 const SPA_CENTERLINE: [number, number][] = [
-  // La Source hairpin (top-left, tight right)
   [110, 100], [130, 115], [140, 138], [135, 160],
-  // Downhill to Eau Rouge (heading south)
   [125, 185], [118, 210], [115, 235],
-  // Eau Rouge (compression, left-right at bottom)
   [118, 260], [130, 278], [148, 288],
-  // Raidillon (steep uphill, heading northeast)
   [172, 290], [198, 280], [225, 265], [250, 245],
-  // Kemmel Straight (long, heading northeast)
   [285, 220], [325, 198], [368, 180], [415, 168],
-  // Les Combes (right-left-right, top-right)
   [455, 162], [485, 165], [505, 178],
   [510, 198], [500, 215], [485, 228],
-  // Bruxelles (long 180° right, right side)
   [475, 248], [468, 272], [455, 295],
   [438, 312], [418, 322],
-  // Pouhon (fast double-left, center-right)
   [395, 328], [368, 330], [342, 328],
   [318, 322], [298, 312],
-  // Fagnes (right-left, bottom-center)
   [282, 298], [272, 278], [268, 258],
   [275, 242], [290, 232],
-  // Campus → Stavelot (heading east, bottom)
   [312, 228], [338, 230], [365, 238],
   [392, 252], [415, 270],
-  // Blanchimont (very fast left, heading north)
   [435, 290], [448, 315], [455, 342],
   [455, 368], [448, 390],
-  // Bus Stop chicane (tight right-left, bottom-right)
   [435, 405], [418, 412], [400, 408],
   [390, 395], [395, 378],
-  // Back to La Source (heading northwest)
   [395, 355], [388, 328], [375, 298],
   [355, 265], [330, 235], [300, 210],
   [265, 190], [228, 172], [192, 155],
@@ -180,32 +121,21 @@ const SPA_CENTERLINE: [number, number][] = [
 
 // ─── INTERLAGOS ───
 const INTERLAGOS_CENTERLINE: [number, number][] = [
-  // Main straight / Reta Oposta (heading south, right side)
   [540, 100], [535, 135], [528, 170], [518, 205],
-  // Senna S (iconic downhill S-bend, bottom-right)
   [505, 235], [488, 258], [465, 272],
   [440, 278], [418, 270], [402, 255],
-  // Curva do Sol (long sweeping right, bottom)
   [385, 238], [365, 228], [342, 225],
-  // Ferradura (double right, left side)
   [318, 230], [298, 242], [285, 260],
   [280, 282], [285, 302],
-  // Laranjinha (right, heading north)
   [295, 318], [308, 330], [325, 335],
-  // Pinheirinho (tight left-right, center)
   [342, 332], [355, 320], [360, 305],
-  // Bico de Pato (tight right hairpin)
   [358, 288], [348, 272], [335, 262],
-  // Mergulho (downhill left)
   [320, 258], [308, 265], [298, 278],
-  // Junção (critical right-hander, bottom-left)
   [295, 298], [298, 320], [308, 340],
-  // Subida dos Boxes (long uphill, heading northeast)
   [325, 355], [348, 365], [375, 370],
   [405, 370], [435, 362], [462, 348],
   [485, 328], [502, 305], [515, 278],
   [525, 248], [532, 215],
-  // Back onto main straight (heading north)
   [538, 180], [540, 145], [540, 100],
 ];
 
@@ -319,11 +249,8 @@ interface AIOpponent {
   name: string;
   color: string;
   emoji: string;
-  /** Speed multiplier (1.0 = baseline, higher = faster) */
   speedFactor: number;
-  /** Line offset from player's line (mimics different racing lines) */
   lineOffset: [number, number];
-  /** Consistency (0-1, higher = less variation) */
   consistency: number;
 }
 
@@ -364,11 +291,84 @@ function formatTime(ms: number) {
   return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
 }
 
-function drawPath(ctx: CanvasRenderingContext2D, pts: [number, number][]) {
-  pts.forEach(([x, y], i) => {
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
+/** Real F1-style kerbs: alternating red/white blocks at the OUTER edges of
+ * the track surface at each named corner, oriented along the direction of
+ * travel there. */
+function drawCurbs(
+  ctx: CanvasRenderingContext2D,
+  cl: [number, number][],
+  corners: { label: string; at: number }[],
+  hw: number
+) {
+  const blockLen = 14;
+  const blocksPerSide = 5;
+  for (const c of corners) {
+    const idx = Math.min(c.at * 3, cl.length - 1);
+    const p0 = cl[Math.max(0, idx - 2)];
+    const p1 = cl[idx];
+    const p2 = cl[Math.min(cl.length - 1, idx + 2)];
+    if (!p0 || !p1 || !p2) continue;
+
+    const dx = p2[0] - p0[0];
+    const dy = p2[1] - p0[1];
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len;
+    const uy = dy / len;
+    const nx = -uy;
+    const ny = ux;
+    const angle = Math.atan2(uy, ux);
+
+    for (const side of [1, -1]) {
+      const edgeX = p1[0] + nx * hw * side;
+      const edgeY = p1[1] + ny * hw * side;
+      for (let b = 0; b < blocksPerSide; b++) {
+        const offset = (b - (blocksPerSide - 1) / 2) * blockLen;
+        const bx = edgeX + ux * offset;
+        const by = edgeY + uy * offset;
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.rotate(angle);
+        ctx.fillStyle = b % 2 === 0 ? "#dc2626" : "#f5f5f5";
+        ctx.fillRect(-blockLen / 2, -4, blockLen, 8);
+        ctx.restore();
+      }
+    }
+  }
+}
+
+/** Checkered start/finish line, perpendicular to the track direction at the
+ * first centerline point. */
+function drawStartFinishLine(
+  ctx: CanvasRenderingContext2D,
+  cl: [number, number][],
+  hw: number
+) {
+  const p0 = cl[0];
+  const p1 = cl[1];
+  if (!p0 || !p1) return;
+
+  const dx = p1[0] - p0[0];
+  const dy = p1[1] - p0[1];
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const nx = -uy;
+  const ny = ux;
+  const angle = Math.atan2(uy, ux);
+
+  const squares = 8;
+  const sqSize = (hw * 2) / squares;
+  for (let i = 0; i < squares; i++) {
+    const t = -hw + i * sqSize + sqSize / 2;
+    const cx = p0[0] + nx * t;
+    const cy = p0[1] + ny * t;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    ctx.fillStyle = i % 2 === 0 ? "#111111" : "#ffffff";
+    ctx.fillRect(-4, -sqSize / 2, 8, sqSize);
+    ctx.restore();
+  }
 }
 
 /** Smooth a centerline using Catmull-Rom → Bezier */
@@ -380,7 +380,6 @@ function smoothLine(pts: [number, number][], tension = 0.3): [number, number][] 
     const p1 = pts[i]!;
     const p2 = pts[Math.min(pts.length - 1, i + 1)]!;
     const p3 = pts[Math.min(pts.length - 1, i + 2)]!;
-    // Subdivide each segment into 3 points
     for (let t = 0; t < 3; t++) {
       const f = t / 3;
       const tt = f * f;
@@ -460,13 +459,12 @@ const RacingPage: NextPage = () => {
   const [scores, setScores] = useState<Record<string, number>>({});
   const [ghostLine, setGhostLine] = useState<{ x: number; y: number }[] | null>(null);
   const [aiEnabled, setAiEnabled] = useState(true);
-  const [selectedAI, setSelectedAI] = useState(1); // Sunny default
+  const [selectedAI, setSelectedAI] = useState(1);
 
   const track = TRACKS[trackIdx] as TrackDef;
   const smoothed = useRef<[number, number][][]>(TRACKS.map((t) => smoothLine(t.centerline)));
   const smoothedAI = useRef<[number, number][][]>(TRACKS.map((t) => smoothLine(t.aiLine || t.centerline)));
 
-  // Game state
   const stateRef = useRef({
     drawing: false,
     line: [] as { x: number; y: number }[],
@@ -476,11 +474,9 @@ const RacingPage: NextPage = () => {
     bestTime: null as number | null,
     laps: 0,
     avgSpeed: 0,
-    // AI state
     aiProgress: 0,
     aiFinished: false,
     aiTime: null as number | null,
-    // Result state
     showResult: false,
     resultTime: 0,
     resultAIName: "",
@@ -490,7 +486,6 @@ const RacingPage: NextPage = () => {
   const animRef = useRef<number>(0);
   const [, forceUpdate] = useState(0);
 
-  /* ─── Modal handlers ─── */
   const handleNameSubmit = () => {
     const name = nameInput.trim() || "Racer";
     setUserName(name);
@@ -507,7 +502,6 @@ const RacingPage: NextPage = () => {
     setTimeout(() => drawCanvas(), 100);
   };
 
-  /* ─── Pointer events ─── */
   const getPos = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
       const canvas = canvasRef.current!;
@@ -566,7 +560,7 @@ const RacingPage: NextPage = () => {
     ctx.fillStyle = grassGrad;
     ctx.fillRect(0, 0, W, H);
 
-    // Grass texture (subtle dots)
+    // Grass texture
     ctx.fillStyle = "rgba(30, 140, 50, 0.3)";
     for (let i = 0; i < 200; i++) {
       const gx = (i * 137.5) % W;
@@ -594,7 +588,6 @@ const RacingPage: NextPage = () => {
     ctx.globalAlpha = 1;
 
     // ── Track surface ──
-    // Draw thick centerline for track surface
     ctx.strokeStyle = "#3a3a3a";
     ctx.lineWidth = hw * 2;
     ctx.lineCap = "round";
@@ -619,16 +612,11 @@ const RacingPage: NextPage = () => {
     cl.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
     ctx.stroke();
 
-    // ── Curb strips ──
-    ctx.strokeStyle = track.accent;
-    ctx.lineWidth = 3;
-    ctx.globalAlpha = 0.6;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    cl.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.globalAlpha = 1;
+    // ── Curb strips (real kerbs: red/white blocks at the track EDGES) ──
+    drawCurbs(ctx, cl, track.corners, hw);
+
+    // ── Start/finish line (checkered, perpendicular to track direction) ──
+    drawStartFinishLine(ctx, cl, hw);
 
     // ── Corner labels ──
     ctx.font = "bold 9px Inter, sans-serif";
@@ -637,7 +625,6 @@ const RacingPage: NextPage = () => {
       const idx = Math.min(c.at * 3, cl.length - 1);
       const pt = cl[idx];
       if (pt) {
-        // Label background
         const tw = ctx.measureText(c.label).width;
         ctx.fillStyle = "rgba(0,0,0,0.7)";
         ctx.beginPath();
@@ -646,31 +633,6 @@ const RacingPage: NextPage = () => {
         ctx.fillStyle = track.accent;
         ctx.fillText(c.label, pt[0], pt[1] - hw - 8);
       }
-    }
-
-    // ── Start/Finish line ──
-    const sfIdx = 0;
-    const sfPt = cl[sfIdx]!;
-    const sfNext = cl[Math.min(2, cl.length - 1)]!;
-    const sfAngle = Math.atan2(sfNext[1] - sfPt[1], sfNext[0] - sfPt[0]);
-    const perpX = Math.cos(sfAngle + Math.PI / 2) * hw;
-    const perpY = Math.sin(sfAngle + Math.PI / 2) * hw;
-
-    // Checkered flag pattern
-    ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(sfPt[0] - perpX, sfPt[1] - perpY);
-    ctx.lineTo(sfPt[0] + perpX, sfPt[1] + perpY);
-    ctx.stroke();
-
-    // Checkered squares
-    for (let i = 0; i < 4; i++) {
-      const t = (i - 1.5) / 3;
-      const cx = sfPt[0] + perpX * t * 2;
-      const cy = sfPt[1] + perpY * t * 2;
-      ctx.fillStyle = i % 2 === 0 ? "#fff" : "#000";
-      ctx.fillRect(cx - 3, cy - 3, 6, 6);
     }
 
     // ── Pit lane indicator ──
@@ -705,7 +667,6 @@ const RacingPage: NextPage = () => {
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
 
-      // Ghost start dot
       ctx.fillStyle = "#a78bfa";
       ctx.globalAlpha = 0.5;
       ctx.beginPath();
@@ -716,7 +677,6 @@ const RacingPage: NextPage = () => {
 
     // ── Player racing line ──
     if (s.line.length > 1) {
-      // Glow
       ctx.shadowColor = "#22c55e";
       ctx.shadowBlur = 12;
       ctx.strokeStyle = "#22c55e";
@@ -729,7 +689,6 @@ const RacingPage: NextPage = () => {
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      // Start dot
       ctx.fillStyle = "#22c55e";
       ctx.beginPath();
       ctx.arc(s.line[0]!.x, s.line[0]!.y, 6, 0, Math.PI * 2);
@@ -746,7 +705,6 @@ const RacingPage: NextPage = () => {
       const gPrev = ghostLine[Math.max(0, gIdx - 8)]!;
       const gAngle = Math.atan2(gPos.y - gPrev.y, gPos.x - gPrev.x);
 
-      // Ghost trail
       ctx.globalAlpha = 0.08;
       for (let i = 1; i <= 4; i++) {
         const ti = Math.max(0, gIdx - i * 6);
@@ -759,7 +717,6 @@ const RacingPage: NextPage = () => {
       }
       ctx.globalAlpha = 1;
 
-      // Ghost car body
       ctx.globalAlpha = 0.4;
       ctx.shadowColor = "#a78bfa";
       ctx.shadowBlur = 12;
@@ -769,13 +726,11 @@ const RacingPage: NextPage = () => {
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      // Ghost direction
       ctx.fillStyle = "#c4b5fd";
       ctx.beginPath();
       ctx.arc(gPos.x + Math.cos(gAngle) * 4, gPos.y + Math.sin(gAngle) * 4, 3, 0, Math.PI * 2);
       ctx.fill();
 
-      // Ghost outline
       ctx.strokeStyle = "#fff";
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -783,7 +738,6 @@ const RacingPage: NextPage = () => {
       ctx.stroke();
       ctx.globalAlpha = 1;
 
-      // Ghost name tag
       ctx.fillStyle = "#a78bfa";
       ctx.font = "bold 8px Inter, sans-serif";
       ctx.textAlign = "center";
@@ -799,7 +753,6 @@ const RacingPage: NextPage = () => {
       const prev = s.line[Math.max(0, idx - 8)]!;
       const angle = Math.atan2(pos.y - prev.y, pos.x - prev.x);
 
-      // Speed trail
       ctx.globalAlpha = 0.2;
       for (let i = 1; i <= 5; i++) {
         const ti = Math.max(0, idx - i * 6);
@@ -812,7 +765,6 @@ const RacingPage: NextPage = () => {
       }
       ctx.globalAlpha = 1;
 
-      // Car glow
       ctx.shadowColor = "#22c55e";
       ctx.shadowBlur = 20;
       ctx.fillStyle = "#22c55e";
@@ -821,13 +773,11 @@ const RacingPage: NextPage = () => {
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      // Direction indicator
       ctx.fillStyle = "#bbf7d0";
       ctx.beginPath();
       ctx.arc(pos.x + Math.cos(angle) * 5, pos.y + Math.sin(angle) * 5, 4, 0, Math.PI * 2);
       ctx.fill();
 
-      // Outline
       ctx.strokeStyle = "#fff";
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -840,10 +790,8 @@ const RacingPage: NextPage = () => {
       const aiCl = smoothedAI.current[trackIdx]!;
       const aiIdx = Math.min(Math.floor(s.aiProgress * (aiCl.length - 1)), aiCl.length - 1);
       const aiPt = aiCl[aiIdx]!;
-      const aiPrev = aiCl[Math.max(0, aiIdx - 8)]!;
       const aiColor = AI_OPPONENTS[selectedAI]!.color;
 
-      // AI trail
       ctx.globalAlpha = 0.15;
       for (let i = 1; i <= 4; i++) {
         const ti = Math.max(0, aiIdx - i * 6);
@@ -856,7 +804,6 @@ const RacingPage: NextPage = () => {
       }
       ctx.globalAlpha = 1;
 
-      // AI car glow
       ctx.shadowColor = aiColor;
       ctx.shadowBlur = 18;
       ctx.fillStyle = aiColor;
@@ -865,14 +812,12 @@ const RacingPage: NextPage = () => {
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      // AI outline
       ctx.strokeStyle = "#fff";
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(aiPt[0], aiPt[1], 9, 0, Math.PI * 2);
       ctx.stroke();
 
-      // AI name tag
       ctx.fillStyle = aiColor;
       ctx.font = "bold 9px Inter, sans-serif";
       ctx.textAlign = "center";
@@ -904,11 +849,9 @@ const RacingPage: NextPage = () => {
 
     // ── Result overlay ──
     if (s.showResult) {
-      // Dim background
       ctx.fillStyle = "rgba(0,0,0,0.7)";
       ctx.fillRect(0, 0, W, H);
 
-      // Result card
       const cardW = 400;
       const cardH = 260;
       const cardX = (W - cardW) / 2;
@@ -922,14 +865,12 @@ const RacingPage: NextPage = () => {
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Position
       ctx.textAlign = "center";
       const posText = s.resultPosition === 1 ? "🏆 P1 — YOU WIN!" : `P${s.resultPosition} — ${s.resultAIName} wins`;
       ctx.fillStyle = s.resultPosition === 1 ? "#22c55e" : "#ef4444";
       ctx.font = "bold 22px Inter, sans-serif";
       ctx.fillText(posText, W / 2, cardY + 40);
 
-      // Your time
       ctx.fillStyle = "#fff";
       ctx.font = "14px Inter, sans-serif";
       ctx.fillText("Your Time", W / 2, cardY + 75);
@@ -937,7 +878,6 @@ const RacingPage: NextPage = () => {
       ctx.fillStyle = "#22c55e";
       ctx.fillText(formatTime(s.resultTime), W / 2, cardY + 108);
 
-      // AI time
       if (aiEnabled) {
         ctx.fillStyle = "#aaa";
         ctx.font = "14px Inter, sans-serif";
@@ -947,7 +887,6 @@ const RacingPage: NextPage = () => {
         ctx.fillText(formatTime(s.resultAITime), W / 2, cardY + 168);
       }
 
-      // Gap
       const gap = s.resultTime - s.resultAITime;
       ctx.fillStyle = gap < 0 ? "#22c55e" : "#ef4444";
       ctx.font = "bold 14px Inter, sans-serif";
@@ -957,12 +896,11 @@ const RacingPage: NextPage = () => {
         cardY + (aiEnabled ? 200 : 170)
       );
 
-      // Close hint
       ctx.fillStyle = "#666";
       ctx.font = "12px Inter, sans-serif";
       ctx.fillText("Click anywhere to continue", W / 2, cardY + cardH - 15);
     }
-  }, [trackIdx, showModal, aiEnabled, selectedAI, track]);
+  }, [trackIdx, showModal, aiEnabled, selectedAI, track, ghostLine]);
 
   /* ─── Race animation ─── */
   const animate = useCallback(() => {
@@ -973,7 +911,6 @@ const RacingPage: NextPage = () => {
     const aiCl = smoothedAI.current[trackIdx]!;
     const aiOpp = AI_OPPONENTS[selectedAI]!;
 
-    // Player speed (variable based on line curvature)
     const pIdx = Math.floor(s.raceProgress * (lineLen - 1));
     const pAhead = Math.min(pIdx + 10, lineLen - 1);
     const pBehind = Math.max(pIdx - 10, 0);
@@ -981,7 +918,6 @@ const RacingPage: NextPage = () => {
     const pSpeed = Math.max(0.3, Math.min(1.2, pSegLen / 80));
     s.raceProgress += 0.005 * pSpeed;
 
-    // AI speed (with slight randomness for consistency)
     const aIdx = Math.floor(s.aiProgress * (aiCl.length - 1));
     const aAhead = Math.min(aIdx + 10, aiCl.length - 1);
     const aBehind = Math.max(aIdx - 10, 0);
@@ -990,10 +926,8 @@ const RacingPage: NextPage = () => {
     const jitter = (1 - aiOpp.consistency) * 0.15 * Math.sin(Date.now() / 200);
     s.aiProgress += 0.005 * aBaseSpeed * aiOpp.speedFactor * (1 + jitter);
 
-    // Update timer
     forceUpdate((n) => n + 1);
 
-    // Check finish
     const playerDone = s.raceProgress >= 1;
     const aiDone = s.aiProgress >= 1;
 
@@ -1004,23 +938,20 @@ const RacingPage: NextPage = () => {
 
       if (aiDone && !s.aiFinished) {
         s.aiFinished = true;
-        s.aiTime = playerTime / aiOpp.speedFactor; // AI finishes relative to its speed
+        s.aiTime = playerTime / aiOpp.speedFactor;
       }
 
-      // If player finished, compute AI time
       if (playerDone) {
         s.resultAITime = s.aiTime || Math.round(playerTime / aiOpp.speedFactor);
         s.resultPosition = playerTime < s.resultAITime ? 1 : 2;
         s.resultAIName = aiOpp.name;
         s.showResult = true;
 
-        // Save score and ghost line
         if (s.resultPosition === 1) {
           saveScore(track.name, playerTime);
           saveGhostLine(track.name, s.line);
           setScores(loadScores());
         }
-        // Update best time
         if (!s.bestTime || playerTime < s.bestTime) {
           s.bestTime = playerTime;
         }
@@ -1035,9 +966,8 @@ const RacingPage: NextPage = () => {
 
     drawCanvas();
     animRef.current = requestAnimationFrame(animate);
-  }, [trackIdx, selectedAI, drawCanvas]);
+  }, [trackIdx, selectedAI, drawCanvas, track]);
 
-  /* ─── Button handlers ─── */
   const startRace = () => {
     const s = stateRef.current;
     if (s.line.length < 15) {
@@ -1075,7 +1005,6 @@ const RacingPage: NextPage = () => {
     }
   };
 
-  /* ─── Init ─── */
   useEffect(() => {
     setScores(loadScores());
     const savedName = loadUserName();
@@ -1126,7 +1055,6 @@ const RacingPage: NextPage = () => {
           <title>Draw Line Racing - F1 Race Predictor</title>
         </Head>
         <div className="min-h-screen bg-[#0c0f1a] text-white flex flex-col">
-          {/* Header */}
           <header className="bg-black/40 backdrop-blur-lg border-b border-white/5 px-4 py-3">
             <div className="max-w-5xl mx-auto flex items-center justify-between">
               <Link href="/" className="flex items-center gap-2 text-zinc-400 hover:text-white transition group">
@@ -1143,7 +1071,6 @@ const RacingPage: NextPage = () => {
 
           <main className="flex-1 flex items-center justify-center p-4">
             <div className="max-w-4xl w-full">
-              {/* Greeting */}
               <div className="text-center mb-8">
                 <h2 className="text-4xl font-bold mb-2">
                   Welcome back, <span className="text-green-400">{userName}</span>! 👋
@@ -1151,7 +1078,6 @@ const RacingPage: NextPage = () => {
                 <p className="text-zinc-400 text-lg">Select a track to start racing</p>
               </div>
 
-              {/* Name input */}
               <div className="flex justify-center mb-8">
                 <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2">
                   <span className="text-zinc-500 text-sm">Name:</span>
@@ -1167,7 +1093,6 @@ const RacingPage: NextPage = () => {
                 </div>
               </div>
 
-              {/* AI toggle */}
               <div className="flex justify-center mb-8">
                 <button
                   onClick={() => setAiEnabled(!aiEnabled)}
@@ -1182,7 +1107,6 @@ const RacingPage: NextPage = () => {
                 </button>
               </div>
 
-              {/* Track grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                 {TRACKS.map((t, i) => {
                   const bestTime = scores[t.name];
@@ -1192,7 +1116,6 @@ const RacingPage: NextPage = () => {
                       onClick={() => selectTrack(i)}
                       className="group relative bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-2xl p-4 transition-all hover:scale-[1.03] active:scale-[0.98]"
                     >
-                      {/* Track visual */}
                       <div className="aspect-square mb-3 flex items-center justify-center">
                         <svg viewBox="0 0 200 150" className="w-full h-full opacity-40 group-hover:opacity-70 transition">
                           <polyline
@@ -1205,7 +1128,6 @@ const RacingPage: NextPage = () => {
                           />
                         </svg>
                       </div>
-                      {/* Info */}
                       <div className="text-center">
                         <div className="text-lg mb-1">{t.flag}</div>
                         <div className="font-bold text-sm group-hover:text-white transition">{t.name}</div>
@@ -1214,7 +1136,6 @@ const RacingPage: NextPage = () => {
                           <div className="text-xs text-yellow-400 mt-1 font-mono">Best: {formatTime(bestTime)}</div>
                         )}
                       </div>
-                      {/* Play badge */}
                       <div className="absolute top-3 right-3 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition">
                         Play
                       </div>
@@ -1238,7 +1159,6 @@ const RacingPage: NextPage = () => {
         <title>{track.name} - Draw Line Racing</title>
       </Head>
       <div className="min-h-screen bg-[#0c0f1a] text-white">
-        {/* Header */}
         <header className="sticky top-0 z-50 bg-black/40 backdrop-blur-lg border-b border-white/5">
           <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
             <button
@@ -1267,9 +1187,7 @@ const RacingPage: NextPage = () => {
 
         <main className="max-w-7xl mx-auto p-4 sm:p-6">
           <div className="grid lg:grid-cols-[1fr_280px] gap-6">
-            {/* Left */}
             <div className="space-y-4">
-              {/* Canvas */}
               <div className="relative rounded-2xl border border-zinc-800 overflow-hidden shadow-2xl bg-[#0a0d16]">
                 <canvas
                   ref={canvasRef}
@@ -1297,7 +1215,6 @@ const RacingPage: NextPage = () => {
                 </div>
               </div>
 
-              {/* Controls */}
               <div className="flex flex-wrap gap-3">
                 <button onClick={clearLine} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-semibold transition-all border border-zinc-700">
                   Clear
@@ -1305,7 +1222,6 @@ const RacingPage: NextPage = () => {
                 <button onClick={startRace} disabled={s.racing} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 rounded-xl font-bold transition-all shadow-lg shadow-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed">
                   {s.racing ? "Racing..." : "🏁 Start Race"}
                 </button>
-                {/* AI opponent selector */}
                 {aiEnabled && (
                   <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3">
                     <span className="text-xs text-zinc-500">vs</span>
@@ -1331,7 +1247,6 @@ const RacingPage: NextPage = () => {
               </p>
             </div>
 
-            {/* Right - Stats */}
             <div className="space-y-4">
               <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-5 text-center">
                 <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Lap Time</div>
@@ -1367,7 +1282,6 @@ const RacingPage: NextPage = () => {
                 ))}
               </div>
 
-              {/* All-time best scores */}
               <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-4">
                 <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Best Times</h3>
                 {TRACKS.map((t) => (
