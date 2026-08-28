@@ -25,7 +25,7 @@ const CANVA_EDIT_URL = "https://www.canva.com/design/DAFsVnyeZfw/HAKqZREsBBSWqrW
 const CanvaEmbed = () => {
     return (
         <>
-            <div style={{position: 'relative', width: '100%', paddingTop: '45%', paddingBottom: 0, boxShadow: '0 2px 8px 0 rgba(63,69,81,0.16)', marginTop: '0.5em', marginBottom: '0.5em', overflow: 'hidden', borderRadius: '8px', willChange: 'transform'}}>
+            <div style={{position: 'relative', width: '100%', paddingTop: '65%', paddingBottom: 0, boxShadow: '0 2px 8px 0 rgba(63,69,81,0.16)', marginTop: '0.5em', marginBottom: '0.3em', overflow: 'hidden', borderRadius: '8px', willChange: 'transform'}}>
                 <iframe
                     loading="lazy"
                     style={{position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, border: 'none', padding: 0, margin: 0}}
@@ -91,7 +91,7 @@ const Docs = () => {
             </header>
 
             {/* Feature cards — Season Simulator & Draw Line Racing */}
-            <div className="mb-4 flex flex-row gap-3">
+            <div className="mb-3 flex flex-row gap-3">
                     <FeatureCard
                         href="https://formula-1-prediction-upd-fxzg.vercel.app"
                         isExternal
@@ -110,17 +110,13 @@ const Docs = () => {
                         delay="0.2s"
                     />
             </div>
-            <Container>
-                <h3 className="text-xl font-medium">Developed By:</h3>
-                <section className="flex flex-col md:flex-row gap-4 mb-8 justify-center w-full">
-                    <section className="w-full flex flex-col items-center gap-1 px-4 py-2 rounded-xl bg-orange-100 border-2 border-orange-600">
-                        <p className="text-md font-bold">Yash Yegare</p>
-                        <section>
-                            <a className="no-underline p-1 hover:bg-orange-300 rounded" href={"https://github.com/yashyegare"} target="_blank">Github</a>
-                        </section>
-                    </section>
-                </section>
-            </Container>
+            <div className="flex flex-col sm:flex-row items-center gap-3 mb-3">
+                <h3 className="text-sm font-semibold text-zinc-400 m-0">Developed By:</h3>
+                <div className="flex items-center gap-3">
+                    <span className="text-sm font-bold text-white">Yash Yegare</span>
+                    <a className="no-underline text-sm font-medium text-orange-600 hover:text-orange-800 hover:underline px-2 py-0.5 rounded hover:bg-orange-100 transition-colors" href="https://github.com/yashyegare" target="_blank">Github</a>
+                </div>
+            </div>
             <div className="page-body">
 
                 <div>
