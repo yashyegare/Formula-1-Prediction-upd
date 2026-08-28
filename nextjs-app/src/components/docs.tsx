@@ -24,15 +24,20 @@ const CANVA_EDIT_URL = "https://www.canva.com/design/DAFsVnyeZfw/HAKqZREsBBSWqrW
 
 const CanvaEmbed = () => {
     return (
-        <div style={{position: 'relative', width: '100%', paddingBottom: '56.25%', height: 0, overflow: 'hidden'}}>
-            <iframe
-                loading="lazy"
-                style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none'}}
-                src={CANVA_VIEW_URL}
-                allowFullScreen={true}
-                allow="encrypted-media; fullscreen; clipboard-write"
-            />
-        </div>
+        <>
+            <div style={{position: 'relative', width: '100%', paddingTop: '56.2500%', paddingBottom: 0, boxShadow: '0 2px 8px 0 rgba(63,69,81,0.16)', marginTop: '1.6em', marginBottom: '0.9em', overflow: 'hidden', borderRadius: '8px', willChange: 'transform'}}>
+                <iframe
+                    loading="lazy"
+                    style={{position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, border: 'none', padding: 0, margin: 0}}
+                    src="https://www.canva.com/design/DAFsVnyeZfw/view?embed"
+                    allowFullScreen={true}
+                    allow="fullscreen"
+                />
+            </div>
+            <a href={CANVA_EDIT_URL} target="_blank" rel="noopener">
+                Predicting Formula 1 Race Results
+            </a>
+        </>
     );
 };
 
@@ -108,12 +113,13 @@ const Docs = () => {
                     />
             </div>
             <Container>
-                <section className="flex flex-row items-center justify-center gap-3 mb-4 w-full">
-                    <section className="flex items-center justify-center gap-3 w-full px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg">
-                        <p className="text-base font-bold m-0">Yash Yegare</p>
-                        <span className="text-base">
-                            <a className="no-underline text-white hover:text-orange-100 p-1.5 hover:bg-white/20 rounded transition font-semibold" href={"https://github.com/yashyegare"} target="_blank">Github</a>
-                        </span>
+                <h3 className="text-xl font-medium">Developed By:</h3>
+                <section className="flex flex-col md:flex-row gap-4 mb-8 justify-center w-full">
+                    <section className="w-full flex flex-col items-center gap-1 px-4 py-2 rounded-xl bg-orange-100 border-2 border-orange-600">
+                        <p className="text-md font-bold">Yash Yegare</p>
+                        <section>
+                            <a className="no-underline p-1 hover:bg-orange-300 rounded" href={"https://github.com/yashyegare"} target="_blank">Github</a>
+                        </section>
                     </section>
                 </section>
             </Container>
