@@ -17,7 +17,7 @@ export const env = createEnv({
    */
   client: {
     // NEXT_PUBLIC_CLIENTVAR: z.string().min(1),
-    NEXT_PUBLIC_API_URL: z.string().min(1),
+    NEXT_PUBLIC_API_URL: z.string().min(1).default('http://localhost:8000'),
   },
 
   /**
