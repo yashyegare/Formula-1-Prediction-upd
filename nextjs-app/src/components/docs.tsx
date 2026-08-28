@@ -50,10 +50,10 @@ const CanvaEmbed = () => {
                     </a>
                 </div>
             </div>
-            <div style={{position: 'relative', width: '100%', height: 0, overflow: 'hidden'}}>
+            <div className="my-4 rounded-lg overflow-hidden border border-stone-700" style={{width: '100%', aspectRatio: '16 / 10'}}>
                 <iframe
                     loading="lazy"
-                    style={{position: 'absolute', width: '1px', height: '1px', top: 0, left: 0, border: 'none', opacity: 0, pointerEvents: 'none'}}
+                    style={{width: '100%', height: '100%', border: 'none'}}
                     src={CANVA_VIEW_URL}
                     allowFullScreen={true}
                     allow="encrypted-media; fullscreen; clipboard-write"
