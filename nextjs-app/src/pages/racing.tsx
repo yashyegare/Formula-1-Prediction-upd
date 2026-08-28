@@ -2,6 +2,7 @@ import { type NextPage } from "next";
 import Head from "next/head";
 import Link from "next/link";
 import { useEffect, useRef, useState, useCallback } from "react";
+import TrackSelection from "../components/TrackSelection";
 
 /* ═══════════════════════════════════════════════
    TRACK DATA — realistic F1 circuit centerlines
@@ -550,6 +551,7 @@ const RacingPage: NextPage = () => {
   const [showModal, setShowModal] = useState(true);
   const [userName, setUserName] = useState("Racer");
   const [nameInput, setNameInput] = useState("");
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [trackIdx, setTrackIdx] = useState(0);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [ghostLine, setGhostLine] = useState<{ x: number; y: number }[] | null>(null);
@@ -586,6 +588,20 @@ const RacingPage: NextPage = () => {
     setUserName(name);
     saveUserName(name);
   };
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
 
   const selectTrack = (idx: number) => {
     setTrackIdx(idx);
@@ -1149,98 +1165,13 @@ const RacingPage: NextPage = () => {
         <Head>
           <title>Draw Line Racing - F1 Race Predictor</title>
         </Head>
-        <div className="min-h-screen bg-[#0c0f1a] text-white flex flex-col">
-          <header className="bg-black/40 backdrop-blur-lg border-b border-white/5 px-4 py-3">
-            <div className="max-w-5xl mx-auto flex items-center justify-between">
-              <Link href="/" className="flex items-center gap-2 text-zinc-400 hover:text-white transition group">
-                <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                <span className="font-medium">Race Predictor</span>
-              </Link>
-              <h1 className="text-lg font-bold">
-                <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">🏎️ Draw Line Racing</span>
-              </h1>
-            </div>
-          </header>
-
-          <main className="flex-1 flex items-center justify-center p-4">
-            <div className="max-w-4xl w-full">
-              <div className="text-center mb-8">
-                <h2 className="text-4xl font-bold mb-2">
-                  Welcome back, <span className="text-green-400">{userName}</span>! 👋
-                </h2>
-                <p className="text-zinc-400 text-lg">Select a track to start racing</p>
-              </div>
-
-              <div className="flex justify-center mb-8">
-                <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2">
-                  <span className="text-zinc-500 text-sm">Name:</span>
-                  <input
-                    type="text"
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    onBlur={handleNameSubmit}
-                    onKeyDown={(e) => e.key === "Enter" && handleNameSubmit()}
-                    className="bg-transparent text-white font-semibold outline-none w-40"
-                    placeholder="Your name..."
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-center mb-8">
-                <button
-                  onClick={() => setAiEnabled(!aiEnabled)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition ${
-                    aiEnabled
-                      ? "bg-green-500/10 border-green-500/30 text-green-400"
-                      : "bg-white/5 border-white/10 text-zinc-500"
-                  }`}
-                >
-                  <div className={`w-2 h-2 rounded-full ${aiEnabled ? "bg-green-400" : "bg-zinc-600"}`} />
-                  {aiEnabled ? "AI Opponents ON" : "AI Opponents OFF"}
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                {TRACKS.map((t, i) => {
-                  const bestTime = scores[t.name];
-                  return (
-                    <button
-                      key={t.name}
-                      onClick={() => selectTrack(i)}
-                      className="group relative bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-2xl p-4 transition-all hover:scale-[1.03] active:scale-[0.98]"
-                    >
-                      <div className="aspect-square mb-3 flex items-center justify-center">
-                        <svg viewBox="0 0 200 150" className="w-full h-full opacity-40 group-hover:opacity-70 transition">
-                          <polyline
-                            points={t.centerline.map(([x, y]) => `${x * 0.28 + 20},${y * 0.24 + 10}`).join(" ")}
-                            fill="none"
-                            stroke={t.accent}
-                            strokeWidth="3"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-lg mb-1">{t.flag}</div>
-                        <div className="font-bold text-sm group-hover:text-white transition">{t.name}</div>
-                        <div className="text-xs text-zinc-500">{t.length}</div>
-                        {bestTime && (
-                          <div className="text-xs text-yellow-400 mt-1 font-mono">Best: {formatTime(bestTime)}</div>
-                        )}
-                      </div>
-                      <div className="absolute top-3 right-3 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition">
-                        Play
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </main>
-        </div>
+        <TrackSelection
+          onSelectTrack={(trackName) => {
+            const idx = TRACKS.findIndex((t) => t.name === trackName);
+            if (idx >= 0) selectTrack(idx);
+          }}
+          onFullscreen={toggleFullscreen}
+        />
       </>
     );
   }
@@ -1272,6 +1203,16 @@ const RacingPage: NextPage = () => {
                   {s.racing ? "Racing..." : s.line.length > 0 ? "Ready to race" : "Draw your line"}
                 </span>
               </div>
+              <button
+                onClick={toggleFullscreen}
+                className="bg-white/90 hover:bg-white text-slate-700 w-9 h-9 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110"
+                title="Toggle Fullscreen"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                </svg>
+              </button>
               <h1 className="text-lg font-bold">
                 <span style={{ color: track.accent }}>🏎️</span>{" "}
                 <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">Draw Line Racing</span>
