@@ -133,11 +133,11 @@ const Docs = () => {
                 <p className="text-sm opacity-60 m-0 mb-3">A Machine Learning approach to predict race results</p>
             </header>
             <Container>
-                <section className="flex flex-row items-center gap-3 mb-4 w-full">
-                    <section className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md">
-                        <p className="text-sm font-bold m-0">Yash Yegare</p>
-                        <span className="text-sm">
-                            <a className="no-underline text-white hover:text-orange-100 p-1 hover:bg-white/20 rounded transition" href={"https://github.com/yashyegare"} target="_blank">Github</a>
+                <section className="flex flex-row items-center justify-center gap-3 mb-4 w-full">
+                    <section className="flex items-center justify-center gap-3 w-full px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg">
+                        <p className="text-base font-bold m-0">Yash Yegare</p>
+                        <span className="text-base">
+                            <a className="no-underline text-white hover:text-orange-100 p-1.5 hover:bg-white/20 rounded transition font-semibold" href={"https://github.com/yashyegare"} target="_blank">Github</a>
                         </span>
                     </section>
                 </section>
