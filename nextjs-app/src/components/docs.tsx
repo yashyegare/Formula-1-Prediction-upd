@@ -24,15 +24,42 @@ const CANVA_EDIT_URL = "https://www.canva.com/design/DAFsVnyeZfw/HAKqZREsBBSWqrW
 
 const CanvaEmbed = () => {
     return (
-        <div className="my-4 rounded-lg overflow-hidden border border-stone-700" style={{width: '100%', aspectRatio: '16 / 10'}}>
-            <iframe
-                loading="lazy"
-                style={{width: '100%', height: '100%', border: 'none'}}
-                src={CANVA_VIEW_URL}
-                allowFullScreen={true}
-                allow="encrypted-media; fullscreen; clipboard-write"
-            />
-        </div>
+        <>
+            <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-stone-700 bg-gradient-to-br from-stone-900 to-stone-800 p-8 my-4">
+                <div className="text-4xl">🏎️</div>
+                <h3 className="text-lg font-semibold text-white m-0">Presentation: Predicting Formula 1 Race Results</h3>
+                <p className="text-sm text-stone-400 text-center max-w-md m-0">
+                    The Canva presentation can&apos;t be embedded here directly. Click below to open it in Canva.
+                </p>
+                <div className="flex gap-3">
+                    <a
+                        href={CANVA_VIEW_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-lg bg-[#E6002B] px-4 py-2 text-sm font-medium text-white no-underline transition hover:bg-red-700"
+                    >
+                        🔗 View Presentation
+                    </a>
+                    <a
+                        href={CANVA_EDIT_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-lg border border-stone-600 px-4 py-2 text-sm font-medium text-stone-300 no-underline transition hover:border-stone-400 hover:text-white"
+                    >
+                        ✏️ Edit in Canva
+                    </a>
+                </div>
+            </div>
+            <div style={{position: 'relative', width: '100%', height: 0, overflow: 'hidden'}}>
+                <iframe
+                    loading="lazy"
+                    style={{position: 'absolute', width: '1px', height: '1px', top: 0, left: 0, border: 'none', opacity: 0, pointerEvents: 'none'}}
+                    src={CANVA_VIEW_URL}
+                    allowFullScreen={true}
+                    allow="encrypted-media; fullscreen; clipboard-write"
+                />
+            </div>
+        </>
     );
 };
 
@@ -83,6 +110,8 @@ const Docs = () => {
             <header>
                 <h1 className="text-2xl font-bold mt-0 mb-1">Predicting Formula 1 Race Results</h1>
                 <p className="text-sm opacity-60 m-0 mb-3">A Machine Learning approach to predict race results</p>
+                <br />
+                <br />
             </header>
 
             {/* Feature cards — Season Simulator & Draw Line Racing */}
