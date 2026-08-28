@@ -1,0 +1,33 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Page Not Found (404) - Season Simulator"
+  description="The page you were looking for doesn't exist. Head back to the Season Simulator."
+  keywords="404, page not found, F1 season simulator"
+  canonicalPath="/404"
+>
+  <div class="min-h-[100dvh] bg-surface-sunken flex items-center justify-center px-4">
+    <div class="w-full max-w-md text-center">
+      <span class="inline-block bg-brand text-white text-sm px-2.5 py-1 rounded-md font-display font-bold mb-6">F1</span>
+
+      <h1 class="text-3xl font-display font-bold text-ink tracking-tight">404</h1>
+      <p class="text-lg font-display font-semibold text-ink mt-2">Page not found</p>
+      <p class="text-sm text-ink-secondary mt-3 leading-relaxed">
+        This page took a wrong turn off the track. The link may be broken or the
+        page may have moved.
+      </p>
+
+      <a
+        href="http://localhost:3000"
+        class="inline-flex items-center justify-center h-10 px-5 rounded-md bg-brand text-white font-semibold text-sm hover:opacity-90 transition-opacity mt-6"
+      >
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Race Predictor
+      </a>
+    </div>
+  </div>
+</BaseLayout>

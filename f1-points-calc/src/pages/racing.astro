@@ -1,0 +1,608 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Draw Line Racing - Race Simulator"
+  description="Draw your racing line and race against the clock!"
+  keywords="F1, racing, draw line, racing game, simulator"
+  canonicalPath="/racing"
+>
+  <div class="min-h-[100dvh] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+    <!-- Header -->
+    <header class="bg-black/30 backdrop-blur-md border-b border-white/10 px-4 py-3 sticky top-0 z-50">
+      <div class="max-w-5xl mx-auto flex items-center justify-between">
+        <a href="http://localhost:5173" class="flex items-center gap-2 text-slate-400 hover:text-white transition-all group">
+          <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          <span class="font-medium">Season Simulator</span>
+        </a>
+        <div class="flex items-center gap-3">
+          <div class="hidden sm:flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+            <div class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+            <span class="text-sm text-slate-300" id="statusText">Ready to race</span>
+          </div>
+          <h1 class="text-lg sm:text-xl font-bold">
+            <span class="text-red-500">🏎️</span>
+            <span class="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">Draw Line Racing</span>
+          </h1>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-5xl mx-auto p-4 sm:p-6">
+      <div class="grid lg:grid-cols-[1fr_280px] gap-6">
+        <!-- Left Column - Canvas -->
+        <div class="space-y-4">
+          <!-- Instructions Banner -->
+          <div class="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-4">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="font-semibold text-green-400 mb-1">How to Play</h2>
+                <p class="text-sm text-slate-400">Draw a racing line on the track, then hit <strong class="text-white">Start Race</strong> to watch your car follow it. Shorter, smoother lines = faster lap times!</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Canvas Container -->
+          <div class="relative bg-slate-950 rounded-2xl border border-slate-700/50 overflow-hidden shadow-2xl">
+            <!-- Track label -->
+            <div class="absolute top-3 left-3 z-10 flex items-center gap-2 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
+              <span class="text-xs font-medium text-slate-400">TRACK</span>
+              <span class="text-sm font-bold text-white">Monaco</span>
+            </div>
+            
+            <!-- Line length indicator -->
+            <div class="absolute top-3 right-3 z-10 flex items-center gap-2 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
+              <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <span class="text-xs font-bold text-white" id="lineLengthDisplay">0px</span>
+            </div>
+
+            <canvas id="racingCanvas" class="w-full cursor-crosshair" style="height: 450px;"></canvas>
+            
+            <!-- Drawing indicator -->
+            <div id="drawingIndicator" class="absolute bottom-3 left-3 z-10 hidden">
+              <div class="flex items-center gap-2 bg-green-500/90 px-3 py-1.5 rounded-full">
+                <div class="w-2 h-2 rounded-full bg-white animate-pulse"></div>
+                <span class="text-xs font-bold text-white">DRAWING</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Controls -->
+          <div class="flex flex-wrap gap-3">
+            <button id="clearBtn" class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] border border-slate-600">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <span>Clear Line</span>
+            </button>
+            
+            <button id="startBtn" class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 rounded-xl font-bold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-green-500/25">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Start Race</span>
+            </button>
+            
+            <button id="resetBtn" class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 rounded-xl font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] border border-red-500/30">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>Reset</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Column - Stats & Info -->
+        <div class="space-y-4">
+          <!-- Live Timer -->
+          <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-5">
+            <div class="text-center">
+              <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Lap Time</div>
+              <div class="text-5xl font-bold font-mono text-white tabular-nums" id="lapTime">00:00.00</div>
+              <div class="text-xs text-slate-500 mt-2">MM:SS.ms</div>
+            </div>
+          </div>
+
+          <!-- Best Time -->
+          <div class="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 rounded-2xl border border-yellow-500/20 p-4">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+                <svg class="w-6 h-6 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+              </div>
+              <div>
+                <div class="text-xs font-semibold text-yellow-500/70 uppercase tracking-wider">Best Time</div>
+                <div class="text-2xl font-bold font-mono text-yellow-400" id="bestTime">--:--</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Race Stats -->
+          <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-4 space-y-3">
+            <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Race Stats</h3>
+            
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-slate-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+                <span class="text-sm">Line Length</span>
+              </div>
+              <span class="font-mono font-bold text-white" id="lineLength">0px</span>
+            </div>
+            
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-slate-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="text-sm">Laps Completed</span>
+              </div>
+              <span class="font-mono font-bold text-white" id="lapsCompleted">0</span>
+            </div>
+            
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-slate-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="text-sm">Avg Speed</span>
+              </div>
+              <span class="font-mono font-bold text-white" id="avgSpeed">0 km/h</span>
+            </div>
+          </div>
+
+          <!-- Tips -->
+          <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-4">
+            <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Pro Tips</h3>
+            <ul class="space-y-2">
+              <li class="flex items-start gap-2 text-sm text-slate-400">
+                <span class="text-green-400 mt-0.5">•</span>
+                <span>Keep your line smooth through corners</span>
+              </li>
+              <li class="flex items-start gap-2 text-sm text-slate-400">
+                <span class="text-green-400 mt-0.5">•</span>
+                <span>Shorter distance = faster time</span>
+              </li>
+              <li class="flex items-start gap-2 text-sm text-slate-400">
+                <span class="text-green-400 mt-0.5">•</span>
+                <span>Race pace is fixed, only your line matters</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script is:inline>
+    const canvas = document.getElementById('racingCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Game state
+    let isDrawing = false;
+    let racingLine = [];
+    let isRacing = false;
+    let raceProgress = 0;
+    let bestTime = null;
+    let startTime = null;
+    let lapsCompleted = 0;
+    let animFrame = null;
+
+    // Format time as MM:SS.ms
+    function formatTime(ms) {
+      const totalSeconds = ms / 1000;
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = Math.floor(totalSeconds % 60);
+      const milliseconds = Math.floor((totalSeconds % 1) * 100);
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(2, '0')}`;
+    }
+
+    // Track dimensions
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = 450 * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      drawTrack();
+    }
+
+    // Draw the track
+    function drawTrack() {
+      const w = canvas.width / window.devicePixelRatio;
+      const h = canvas.height / window.devicePixelRatio;
+
+      // Background gradient
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+      bgGrad.addColorStop(0, '#0f172a');
+      bgGrad.addColorStop(1, '#1e293b');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Grass areas
+      ctx.fillStyle = '#166534';
+      ctx.fillRect(0, 0, 40, h);
+      ctx.fillRect(w - 40, 0, 40, h);
+      ctx.fillRect(0, 0, w, 35);
+      ctx.fillRect(0, h - 35, w, 35);
+
+      // Track boundaries (outer)
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 3;
+
+      // Outer track path
+      ctx.beginPath();
+      ctx.moveTo(60, 45);
+      ctx.lineTo(w - 60, 45);
+      ctx.quadraticCurveTo(w - 45, 45, w - 45, 60);
+      ctx.lineTo(w - 45, h - 60);
+      ctx.quadraticCurveTo(w - 45, h - 45, w - 60, h - 45);
+      ctx.lineTo(60, h - 45);
+      ctx.quadraticCurveTo(45, h - 45, 45, h - 60);
+      ctx.lineTo(45, 60);
+      ctx.quadraticCurveTo(45, 45, 60, 45);
+      ctx.closePath();
+      ctx.stroke();
+
+      // Track surface
+      ctx.fillStyle = '#334155';
+      ctx.beginPath();
+      ctx.moveTo(60, 45);
+      ctx.lineTo(w - 60, 45);
+      ctx.quadraticCurveTo(w - 45, 45, w - 45, 60);
+      ctx.lineTo(w - 45, h - 60);
+      ctx.quadraticCurveTo(w - 45, h - 45, w - 60, h - 45);
+      ctx.lineTo(60, h - 45);
+      ctx.quadraticCurveTo(45, h - 45, 45, h - 60);
+      ctx.lineTo(45, 60);
+      ctx.quadraticCurveTo(45, 45, 60, 45);
+      ctx.closePath();
+      ctx.fill();
+
+      // Inner area (grass)
+      ctx.fillStyle = '#166534';
+      ctx.beginPath();
+      ctx.moveTo(140, 120);
+      ctx.lineTo(w - 140, 120);
+      ctx.quadraticCurveTo(w - 120, 120, w - 120, 140);
+      ctx.lineTo(w - 120, h - 140);
+      ctx.quadraticCurveTo(w - 120, h - 120, w - 140, h - 120);
+      ctx.lineTo(140, h - 120);
+      ctx.quadraticCurveTo(120, h - 120, 120, h - 140);
+      ctx.lineTo(120, 140);
+      ctx.quadraticCurveTo(120, 120, 140, 120);
+      ctx.closePath();
+      ctx.fill();
+
+      // Inner track boundary
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(140, 120);
+      ctx.lineTo(w - 140, 120);
+      ctx.quadraticCurveTo(w - 120, 120, w - 120, 140);
+      ctx.lineTo(w - 120, h - 140);
+      ctx.quadraticCurveTo(w - 120, h - 120, w - 140, h - 120);
+      ctx.lineTo(140, h - 120);
+      ctx.quadraticCurveTo(120, h - 120, 120, h - 140);
+      ctx.lineTo(120, 140);
+      ctx.quadraticCurveTo(120, 120, 140, 120);
+      ctx.closePath();
+      ctx.stroke();
+
+      // Curb strips (red and white)
+      const drawCurb = (x, y, w, h) => {
+        const stripeW = 8;
+        for (let i = 0; i < Math.floor(w / stripeW); i++) {
+          ctx.fillStyle = i % 2 === 0 ? '#ef4444' : '#ffffff';
+          ctx.fillRect(x + i * stripeW, y, stripeW, h);
+        }
+      };
+      
+      // Top curb
+      drawCurb(140, 114, w - 280, 6);
+      // Bottom curb
+      drawCurb(140, h - 120, w - 280, 6);
+      // Left curb
+      ctx.save();
+      ctx.translate(114, 140);
+      ctx.rotate(Math.PI / 2);
+      drawCurb(0, 0, h - 280, 6);
+      ctx.restore();
+      // Right curb
+      ctx.save();
+      ctx.translate(w - 120, 140);
+      ctx.rotate(Math.PI / 2);
+      drawCurb(0, 0, h - 280, 6);
+      ctx.restore();
+
+      // Start/Finish line
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([12, 12]);
+      ctx.beginPath();
+      ctx.moveTo(90, 45);
+      ctx.lineTo(90, 120);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Start/Finish flag pattern
+      const flagSize = 8;
+      for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 2; col++) {
+          ctx.fillStyle = (row + col) % 2 === 0 ? '#000000' : '#ffffff';
+          ctx.fillRect(80 + col * flagSize, 50 + row * flagSize, flagSize, flagSize);
+        }
+      }
+
+      // Racing line
+      if (racingLine.length > 1) {
+        // Glow effect
+        ctx.shadowColor = '#22c55e';
+        ctx.shadowBlur = 8;
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(racingLine[0].x, racingLine[0].y);
+        for (let i = 1; i < racingLine.length; i++) {
+          ctx.lineTo(racingLine[i].x, racingLine[i].y);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Start marker
+        ctx.fillStyle = '#22c55e';
+        ctx.beginPath();
+        ctx.arc(racingLine[0].x, racingLine[0].y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Car during race
+      if (isRacing && racingLine.length > 0) {
+        const idx = Math.floor(raceProgress * (racingLine.length - 1));
+        const carPos = racingLine[Math.min(idx, racingLine.length - 1)];
+        
+        // Car glow
+        ctx.shadowColor = '#ef4444';
+        ctx.shadowBlur = 15;
+        
+        // Car body
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(carPos.x, carPos.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Car highlight
+        ctx.fillStyle = '#fca5a5';
+        ctx.beginPath();
+        ctx.arc(carPos.x - 2, carPos.y - 2, 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.shadowBlur = 0;
+        
+        // Car outline
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(carPos.x, carPos.y, 10, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Speed lines
+        if (idx > 0) {
+          const prevPos = racingLine[Math.max(0, idx - 5)];
+          const angle = Math.atan2(carPos.y - prevPos.y, carPos.x - prevPos.x);
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+          ctx.lineWidth = 2;
+          for (let i = 0; i < 3; i++) {
+            const offset = (i - 1) * 5;
+            ctx.beginPath();
+            ctx.moveTo(carPos.x - Math.cos(angle) * 15, carPos.y - Math.sin(angle) * 15 + offset);
+            ctx.lineTo(carPos.x - Math.cos(angle) * 25, carPos.y - Math.sin(angle) * 25 + offset);
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    // Mouse events
+    canvas.addEventListener('mousedown', (e) => {
+      if (isRacing) return;
+      isDrawing = true;
+      racingLine = [];
+      const rect = canvas.getBoundingClientRect();
+      racingLine.push({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      });
+      document.getElementById('drawingIndicator').classList.remove('hidden');
+      document.getElementById('statusText').textContent = 'Drawing...';
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isDrawing || isRacing) return;
+      const rect = canvas.getBoundingClientRect();
+      racingLine.push({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      });
+      updateLineStats();
+      drawTrack();
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      isDrawing = false;
+      document.getElementById('drawingIndicator').classList.add('hidden');
+      if (racingLine.length > 0) {
+        document.getElementById('statusText').textContent = 'Line drawn - ready to race!';
+      }
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      isDrawing = false;
+      document.getElementById('drawingIndicator').classList.add('hidden');
+    });
+
+    // Touch events
+    canvas.addEventListener('touchstart', (e) => {
+      if (isRacing) return;
+      e.preventDefault();
+      isDrawing = true;
+      racingLine = [];
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches[0];
+      racingLine.push({
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      });
+      document.getElementById('drawingIndicator').classList.remove('hidden');
+      document.getElementById('statusText').textContent = 'Drawing...';
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (!isDrawing || isRacing) return;
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches[0];
+      racingLine.push({
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      });
+      updateLineStats();
+      drawTrack();
+    });
+
+    canvas.addEventListener('touchend', () => {
+      isDrawing = false;
+      document.getElementById('drawingIndicator').classList.add('hidden');
+      if (racingLine.length > 0) {
+        document.getElementById('statusText').textContent = 'Line drawn - ready to race!';
+      }
+    });
+
+    // Update line stats
+    function updateLineStats() {
+      if (racingLine.length > 1) {
+        let length = 0;
+        for (let i = 1; i < racingLine.length; i++) {
+          const dx = racingLine[i].x - racingLine[i-1].x;
+          const dy = racingLine[i].y - racingLine[i-1].y;
+          length += Math.sqrt(dx * dx + dy * dy);
+        }
+        const lengthText = Math.round(length) + 'px';
+        document.getElementById('lineLength').textContent = lengthText;
+        document.getElementById('lineLengthDisplay').textContent = lengthText;
+      }
+    }
+
+    // Clear button
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      racingLine = [];
+      drawTrack();
+      document.getElementById('lineLength').textContent = '0px';
+      document.getElementById('lineLengthDisplay').textContent = '0px';
+      document.getElementById('statusText').textContent = 'Ready to race';
+    });
+
+    // Start race
+    document.getElementById('startBtn').addEventListener('click', () => {
+      if (racingLine.length < 10) {
+        alert('Draw a racing line first!');
+        return;
+      }
+      
+      isRacing = true;
+      raceProgress = 0;
+      startTime = Date.now();
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('statusText').textContent = 'Racing...';
+      document.getElementById('statusText').classList.add('text-green-400');
+      animateRace();
+    });
+
+    // Reset button
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      isRacing = false;
+      raceProgress = 0;
+      racingLine = [];
+      lapsCompleted = 0;
+      bestTime = null;
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('statusText').textContent = 'Ready to race';
+      document.getElementById('statusText').classList.remove('text-green-400');
+      document.getElementById('lapTime').textContent = '00:00.00';
+      document.getElementById('bestTime').textContent = '--:--';
+      document.getElementById('lapsCompleted').textContent = '0';
+      document.getElementById('avgSpeed').textContent = '0 km/h';
+      document.getElementById('lineLength').textContent = '0px';
+      document.getElementById('lineLengthDisplay').textContent = '0px';
+      drawTrack();
+    });
+
+    // Animate race
+    function animateRace() {
+      if (!isRacing) return;
+      
+      raceProgress += 0.01;
+      
+      // Update time display
+      const currentTime = Date.now() - startTime;
+      document.getElementById('lapTime').textContent = formatTime(currentTime);
+      
+      if (raceProgress >= 1) {
+        // Race finished
+        const lapTime = currentTime;
+        lapsCompleted++;
+        document.getElementById('lapsCompleted').textContent = lapsCompleted;
+        
+        // Calculate average speed (simplified)
+        let lineLength = 0;
+        for (let i = 1; i < racingLine.length; i++) {
+          const dx = racingLine[i].x - racingLine[i-1].x;
+          const dy = racingLine[i].y - racingLine[i-1].y;
+          lineLength += Math.sqrt(dx * dx + dy * dy);
+        }
+        const avgSpeed = Math.round((lineLength / (lapTime / 1000)) * 0.1);
+        document.getElementById('avgSpeed').textContent = avgSpeed + ' km/h';
+        
+        if (bestTime === null || lapTime < bestTime) {
+          bestTime = lapTime;
+          document.getElementById('bestTime').textContent = formatTime(bestTime);
+          document.getElementById('bestTime').classList.add('text-yellow-300');
+        }
+        
+        isRacing = false;
+        raceProgress = 0;
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('statusText').textContent = 'Lap completed!';
+        document.getElementById('statusText').classList.remove('text-green-400');
+        drawTrack();
+        return;
+      }
+
+      drawTrack();
+      animFrame = requestAnimationFrame(animateRace);
+    }
+
+    // Initialize
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+  </script>
+</BaseLayout>

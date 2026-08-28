@@ -1,0 +1,86 @@
+import React, { useMemo } from 'react';
+import { useSelector } from 'react-redux';
+import type { TeamStanding } from '../../types';
+import type { RootState } from '../../store';
+import { selectTeamsByIdMap } from '../../store/selectors/dataSelectors';
+import { useStandingsAnimation } from '../../hooks/useStandingsAnimation';
+import { teamFillStyle } from '../../utils/color';
+
+interface TeamStandingsTableProps {
+  standings: TeamStanding[];
+}
+
+const TeamStandingsTable: React.FC<TeamStandingsTableProps> = ({ standings }) => {
+  const teamById = useSelector(selectTeamsByIdMap);
+  const showDelta = useSelector((state: RootState) => state.ui.teamShowDelta);
+
+  const animationOptions = useMemo(() => ({
+    getItemId: (standing: TeamStanding) => standing.teamId
+  }), []);
+
+  const animatedTeams = useStandingsAnimation(standings, animationOptions);
+
+  return (
+    <div>
+      {standings.length === 0 ? (
+        <div className="text-center p-4 text-ink-muted text-sm">
+          No constructor standings available yet. Try placing drivers in race positions.
+        </div>
+      ) : (
+        <table className="w-full min-w-full table-auto">
+          <thead>
+            <tr className="text-ink-muted">
+              <th className="w-10 text-left py-1 px-2 font-medium text-2xs uppercase tracking-wider">Pos</th>
+              <th className="text-left py-1 font-medium text-2xs uppercase tracking-wider">Constructor</th>
+              <th className="text-right py-1 pr-2 font-medium text-2xs uppercase tracking-wider">Points</th>
+            </tr>
+          </thead>
+          <tbody>
+            {standings.map((standing) => {
+              const team = teamById[standing.teamId];
+              if (!team) return null;
+              
+              return (
+                <tr 
+                  key={standing.teamId} 
+                  className={`
+                    hover:bg-carbon-50
+                    ${animatedTeams[standing.teamId] === 'up' ? 'animate-position-up' : ''}
+                    ${animatedTeams[standing.teamId] === 'down' ? 'animate-position-down' : ''}
+                  `}
+                >
+                  <td className="py-1.5 px-2 text-center font-bold text-sm w-10 tnum font-display">
+                    <span className={`${standing.position <= 3 ? 'bg-gradient-to-br from-slate-600 to-slate-800 text-white w-6 h-6 rounded-full flex items-center justify-center' : 'text-slate-600'}`}>{standing.position}</span>
+                  </td>
+                  <td className="py-1.5">
+                    <div className="flex items-center">
+                      <div
+                        className="h-3.5 w-1 mr-2 rounded-full shrink-0"
+                        style={teamFillStyle(team)}
+                      />
+                      <div className="font-medium text-sm text-slate-800">{team.name}</div>
+                    </div>
+                  </td>
+                  <td
+                    className={`py-1.5 px-2 font-bold text-sm text-right tnum font-display ${animatedTeams[standing.teamId] ? 'animate-points-update' : ''}`}
+                  >
+                    <div className="flex items-center justify-end gap-2">
+                      <span className="text-slate-800">{standing.points} pts</span>
+                      {showDelta && standing.predictionPointsGained > 0 && (
+                        <span className="text-2xs font-semibold text-success bg-green-50 px-1.5 py-0.5 rounded-sm tnum">
+                          +{standing.predictionPointsGained}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+};
+
+export default TeamStandingsTable;

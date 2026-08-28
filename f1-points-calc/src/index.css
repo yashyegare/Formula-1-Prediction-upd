@@ -1,0 +1,558 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* cache bust */
+
+/* ================================================================
+   Design tokens — single source of truth for the UI palette.
+   Channels-only values (R G B) so Tailwind opacity modifiers work:
+   rgb(var(--x) / <alpha-value>). Mapped to utilities in
+   tailwind.config.js. Team colors come from the API at runtime and
+   are applied inline — they are intentionally NOT tokens.
+   A future dark theme overrides these under [data-theme='dark'].
+   ================================================================ */
+:root {
+  /* Brand — F1 red anchor */
+  --brand: 225 6 0;          /* #E10600 */
+  --brand-strong: 184 5 0;   /* #B80500 hover/active */
+  --brand-subtle: 253 233 232;
+
+  /* Carbon neutral scale (cool gray) */
+  --carbon-50: 247 248 249;
+  --carbon-100: 238 240 242;
+  --carbon-200: 223 227 230;
+  --carbon-300: 201 206 212;
+  --carbon-400: 154 163 172;
+  --carbon-500: 110 119 128;
+  --carbon-600: 79 87 96;
+  --carbon-700: 55 62 70;
+  --carbon-800: 35 40 46;
+  --carbon-900: 21 24 28;
+
+  /* Semantic */
+  --surface: 255 255 255;
+  --surface-sunken: var(--carbon-50);
+  --surface-inverse: var(--carbon-900);
+  --border: var(--carbon-200);
+  --border-strong: var(--carbon-300);
+  --text-primary: var(--carbon-900);
+  --text-secondary: var(--carbon-600);
+  --text-muted: var(--carbon-500);
+  --interactive: 37 99 235;  /* blue = selection/placement; red = brand only */
+  --success: 14 138 77;
+  --warning: 180 83 9;
+  --danger: 185 28 28;
+}
+
+/* Display face for headings, race headers, and numerals only.
+   Body text stays on the system stack. */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/archivo-var-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Metric-compatible fallback to minimise CLS while Archivo loads */
+@font-face {
+  font-family: 'Archivo-fallback';
+  src: local('Arial');
+  size-adjust: 98%;
+  ascent-override: 89%;
+  descent-override: 22%;
+  line-gap-override: 0%;
+}
+
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Animation Keyframes */
+@keyframes toastIn {
+  0% { opacity: 0; transform: translateX(20px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes cardPlacement {
+  0% { transform: scale(1.05); opacity: 0.8; }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Compositor-friendly highlight animation using transform/opacity */
+@keyframes slotHighlightFade {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.02); }
+}
+
+/* Compositor-friendly points update using opacity */
+@keyframes pointsUpdateFade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes moveUp {
+  0% { transform: translateY(40px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes moveDown {
+  0% { transform: translateY(-40px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+/* Compositor-friendly pulse using transform/opacity */
+@keyframes pulseGlowFade {
+  0% { opacity: 0.4; transform: scale(1); }
+  70% { opacity: 0; transform: scale(1.15); }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+@keyframes gridRowEntry {
+  0% { transform: translateX(-20px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Drag and Drop Styles */
+/* Drop target styles */
+.race-slot.can-drop {
+  box-shadow: inset 0 0 0 2px rgb(0 0 0 / 0.08);
+}
+
+.race-slot.drag-over {
+  background-color: rgb(var(--interactive) / 0.08);
+  box-shadow: inset 0 0 0 2px rgb(var(--interactive) / 0.5);
+}
+
+/* App shell — viewport lock for app-like feel (scoped to .app pages only) */
+html, body { height: 100%; margin: 0; }
+body:has(.app) { overflow: hidden; }
+.app { height: 100vh; height: 100dvh; overflow: hidden; }
+
+/* Base styles */
+body {
+  @apply text-ink bg-surface-sunken;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Visible keyboard focus everywhere; the blue interactive token, never brand red */
+:focus-visible {
+  outline: 2px solid rgb(var(--interactive));
+  outline-offset: 2px;
+}
+
+/* Respect users who opt out of motion: kill decorative animations and
+   transitions, keep state changes instant */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Custom component classes */
+@layer components {
+  /* Animation Classes */
+  .animate-placement {
+    animation: cardPlacement 0.4s ease-out;
+  }
+  
+  /* Slot highlight using pseudo-element for GPU acceleration */
+  .animate-slot-highlight {
+    position: relative;
+    overflow: visible;
+  }
+  .animate-slot-highlight::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border: 2px solid rgba(59, 130, 246, 0.5);
+    border-radius: inherit;
+    pointer-events: none;
+    animation: slotHighlightFade 0.8s ease-out forwards;
+  }
+
+  .animate-toast-in {
+    animation: toastIn 0.3s ease-out forwards;
+  }
+
+  /* Points update using pseudo-element for GPU acceleration */
+  .animate-points-update {
+    position: relative;
+  }
+  .animate-points-update::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: rgba(37, 99, 235, 0.15);
+    border-radius: inherit;
+    pointer-events: none;
+    animation: pointsUpdateFade 1.5s ease-out forwards;
+  }
+
+  .animate-position-up {
+    animation: moveUp 0.5s ease-out;
+  }
+
+  .animate-position-down {
+    animation: moveDown 0.5s ease-out;
+  }
+
+  /* Tabular numerals for points/positions so values don't jitter */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Pulse glow using pseudo-element for GPU acceleration.
+     (Named -ring to avoid shadowing Tailwind's animate-pulse.) */
+  .animate-pulse-ring {
+    position: relative;
+    overflow: visible;
+  }
+  .animate-pulse-ring::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 2px solid rgba(59, 130, 246, 0.4);
+    border-radius: inherit;
+    pointer-events: none;
+    animation: pulseGlowFade 2s infinite;
+  }
+  
+  .animate-grid-entry {
+    animation: gridRowEntry 0.5s ease-out;
+    animation-fill-mode: both;
+  }
+
+  .animate-fadeInScale {
+    animation: fadeInScale 0.15s ease-out;
+  }
+
+  /* Apply staggered animations to grid rows */
+  .grid-row-1 { animation-delay: 0.05s; }
+  .grid-row-2 { animation-delay: 0.1s; }
+  .grid-row-3 { animation-delay: 0.15s; }
+  .grid-row-4 { animation-delay: 0.2s; }
+  .grid-row-5 { animation-delay: 0.25s; }
+  .grid-row-6 { animation-delay: 0.3s; }
+  .grid-row-7 { animation-delay: 0.35s; }
+  .grid-row-8 { animation-delay: 0.4s; }
+  .grid-row-9 { animation-delay: 0.45s; }
+  .grid-row-10 { animation-delay: 0.5s; }
+
+  /* Context Menu */
+  .context-menu {
+    user-select: none;
+  }
+
+  .context-submenu {
+    animation-delay: 0.05s;
+  }
+
+  .context-menu-item {
+    cursor: pointer;
+    font-size: 0.875rem;
+  }
+
+  .context-menu-item:focus {
+    outline: none;
+  }
+
+  .context-menu-item:disabled {
+    pointer-events: none;
+  }
+
+  .context-menu-divider {
+    height: 1px;
+  }
+  
+  /* Driver Card Styling — flat at rest; the board is hundreds of these,
+     so elevation is reserved for interaction states */
+  .driver-card {
+    @apply flex items-center px-1.5 py-1 rounded-md bg-surface border relative w-full transition-[border-color,box-shadow] duration-200;
+  }
+
+  .driver-card:hover {
+    @apply border-strong shadow-xs;
+  }
+
+  .driver-card.selected {
+    @apply ring-2 ring-interactive border-transparent shadow-sm;
+  }
+  
+  /* Single overlay shimmer - replaces 500+ individual animations with 1 */
+  .skeleton-shimmer-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.4) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmerOverlay 1.5s infinite;
+  }
+
+  @keyframes shimmerOverlay {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Race Grid Components */
+  .race-grid {
+    @apply p-6 rounded-lg min-w-full gap-2;
+  }
+
+  /* Empty slot = quiet dashed drop target; a filled slot hands its surface
+     over to the card inside it */
+  .race-slot {
+    @apply p-1 rounded-md border border-dashed bg-surface-sunken flex items-center justify-center transition-colors duration-200;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+  }
+
+  .race-slot:hover {
+    @apply border-strong;
+  }
+
+  .race-slot.sprint {
+    @apply bg-carbon-100;
+  }
+
+  .race-slot:has(.grid-card-wrapper) {
+    @apply border-solid border-transparent bg-transparent;
+  }
+
+  .race-slot.highlight-slot {
+    @apply ring-1 ring-interactive/30;
+    background-color: rgb(var(--interactive) / 0.06);
+    border-color: rgb(var(--interactive) / 0.5);
+  }
+
+  /* Enhanced slot highlighting for mobile tap-to-place */
+  .race-slot.highlight-slot:active {
+    @apply transition-transform duration-100;
+    background-color: rgb(var(--interactive) / 0.15);
+    transform: scale(0.97);
+  }
+
+  /* Enhanced visual cue for tappable slots on mobile */
+  @media (max-width: theme('screens.sm')) {
+    .race-slot.highlight-slot {
+      @apply relative;
+    }
+
+    .race-slot.highlight-slot::after {
+      content: '';
+      @apply absolute inset-0 w-full h-full rounded-md pointer-events-none z-0;
+      background-color: rgb(var(--interactive) / 0.08);
+      animation: pulseHighlight 1.5s infinite;
+    }
+
+    @keyframes pulseHighlight {
+      0% { opacity: 0.2; }
+      50% { opacity: 0.5; }
+      100% { opacity: 0.2; }
+    }
+  }
+  
+  .race-header.sprint {
+    @apply text-ink-secondary;
+  }
+
+  /* Consensus hint for empty slots — clearly a suggestion, never a card */
+  .consensus-hint {
+    @apply flex items-center justify-center text-ink-muted pointer-events-none select-none;
+  }
+
+  /* Official results carry a small success corner tick on the card */
+  .official-result-styling {
+    @apply relative;
+  }
+
+  .driver-card.official-result-styling::after {
+    content: '';
+    @apply absolute top-0 right-0 pointer-events-none;
+    border-top: 9px solid rgb(var(--success) / 0.75);
+    border-left: 9px solid transparent;
+    border-radius: 0 4px 0 0;
+  }
+
+  /* Completed Race Styling — signalled in the header check + card ticks,
+     not by tinting the whole column */
+  .completed-race {
+    @apply relative;
+  }
+
+  .completed-race-header {
+    @apply relative;
+  }
+
+  .completed-indicator {
+    @apply absolute top-1 right-1 text-2xs text-success w-4 h-4 flex items-center justify-center rounded-full font-bold bg-green-50;
+  }
+
+  /* The one dark anchor of the board — reads as the timing-tower mast */
+  .position-header {
+    @apply text-white font-display font-semibold text-center p-1 rounded-lg transition-all duration-200 bg-gradient-to-b from-slate-800 to-slate-900 select-none shadow-md;
+  }
+
+  .position-header:hover {
+    @apply from-slate-700 to-slate-800 shadow-lg;
+  }
+
+  .race-header {
+    @apply bg-gradient-to-b from-white to-slate-50 text-slate-800 border border-slate-200 font-display font-semibold text-center p-1 rounded-lg flex flex-col items-center justify-center shadow-sm;
+    box-sizing: border-box;
+  }
+
+  .race-header:hover {
+    @apply from-slate-50 to-slate-100 shadow-md;
+  }
+
+  .position {
+    @apply flex items-center justify-center font-display font-bold rounded-md bg-carbon-100 text-carbon-700;
+    font-variant-numeric: tabular-nums;
+    box-sizing: border-box;
+  }
+
+  /* Podium positions anchor the eye like the mobile card view's pills */
+  .position.position-podium {
+    @apply bg-carbon-900 text-white;
+  }
+
+  /* Grid Card Wrapper */
+  .grid-card-wrapper {
+    @apply w-full h-full overflow-hidden;
+  }
+  
+  .grid-card-wrapper .driver-card {
+    @apply h-full max-h-full w-full m-0 shadow-none;
+    transform: none !important; /* Prevent hover transform effects in grid */
+  }
+
+  .grid-card-wrapper .driver-card:hover {
+    @apply shadow-none;
+    transform: none !important;
+  }
+  
+  .team-color {
+    @apply w-3 h-5 rounded-sm mr-2 inline-block;
+  }
+}
+
+/* Flag styling */
+.flag {
+  @apply inline-block w-6 h-4 mr-1 bg-no-repeat bg-contain;
+}
+
+/* Chart Container Styling */
+.chart-container {
+  @apply w-full h-full min-h-[300px] relative;
+}
+
+/* Chart Responsive Breakpoints */
+@media (min-width: theme('screens.md')) and (max-width: theme('screens.lg')) {
+  .chart-container {
+    @apply min-h-[250px];
+  }
+}
+
+/* Draw Line Racing link styling */
+.draw-line-link {
+  color: #16a34a;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.draw-line-link:hover {
+  color: #15803d;
+  transform: translateX(2px);
+}
+
+/* Enhanced Season Simulator Styles */
+:root {
+  /* Vibrant accent colors */
+  --accent-red: #e11d48;
+  --accent-blue: #2563eb;
+  --accent-green: #16a34a;
+  --accent-orange: #ea580c;
+  --accent-purple: #9333ea;
+}
+
+/* Gradient backgrounds for better visual appeal */
+.bg-gradient-brand {
+  background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+}
+
+.bg-gradient-surface {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+/* Enhanced shadows */
+.shadow-glow-brand {
+  box-shadow: 0 0 20px rgba(225, 6, 0, 0.3), 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.shadow-glow-success {
+  box-shadow: 0 0 15px rgba(22, 163, 74, 0.3);
+}
+
+/* Improved text contrast */
+.text-brand-bright {
+  color: #e11d48;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Better button states */
+.btn-brand {
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  transition: all 0.2s ease;
+}
+
+.btn-brand:hover {
+  background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(225, 6, 0, 0.4);
+}
+
+/* Improved card styling */
+.card-enhanced {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+}
+
+.card-enhanced:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+

@@ -1,0 +1,334 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import TrackResultsIsland from '../../components/tracks/TrackResultsIsland';
+import { COUNTRY_CODE_MAP } from '../../utils/constants';
+import type { CircuitHistory, CircuitListItem } from '../../types/track';
+
+const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL;
+
+// ---------------------------------------------------------------------------
+// Which track pages to generate. getStaticPaths pulls the full circuit list from
+// the Worker and renders a page per circuit. If the Worker is unreachable or
+// returns no circuits at build time, we FAIL THE BUILD rather than silently
+// shipping a near-empty set of pages — a partial build would 404 every track
+// link in the calculator. Re-run the deploy once the Worker is healthy.
+// ---------------------------------------------------------------------------
+export async function getStaticPaths() {
+  let circuits: CircuitListItem[];
+  try {
+    const res = await fetch(`${import.meta.env.PUBLIC_API_BASE_URL}/api/circuits`);
+    if (!res.ok) {
+      throw new Error(`/api/circuits returned HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    // API returns either {circuits: [...]} or {"2026_r1": "albert_park", ...} map
+    if (Array.isArray(data?.circuits)) {
+      circuits = data.circuits;
+    } else if (typeof data === 'object' && data !== null) {
+      // Convert {raceId: slug} map to CircuitListItem[]
+      circuits = Object.entries(data).map(([raceId, slug]) => ({
+        slug: slug as string,
+        circuitId: slug as string,
+        fullName: (slug as string).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        country: '',
+      }));
+    } else {
+      circuits = [];
+    }
+  } catch (err) {
+    // During build, if Flask backend isn't reachable, use hardcoded circuit list
+    console.warn(`[tracks] API unreachable at build time, using fallback circuit list`);
+    const FALLBACK_CIRCUITS: CircuitListItem[] = [
+      { slug: 'albert_park', circuitId: 'albert_park', fullName: 'Albert Park Grand Prix Circuit', country: 'Australia' },
+      { slug: 'shanghai', circuitId: 'shanghai', fullName: 'Shanghai International Circuit', country: 'China' },
+      { slug: 'suzuka', circuitId: 'suzuka', fullName: 'Suzuka International Racing Course', country: 'Japan' },
+      { slug: 'bahrain', circuitId: 'bahrain', fullName: 'Bahrain International Circuit', country: 'Bahrain' },
+      { slug: 'jeddah', circuitId: 'jeddah', fullName: 'Jeddah Corniche Circuit', country: 'Saudi Arabia' },
+      { slug: 'miami', circuitId: 'miami', fullName: 'Miami International Autodrome', country: 'USA' },
+      { slug: 'imola', circuitId: 'imola', fullName: 'Autodromo Enzo e Dino Ferrari', country: 'Italy' },
+      { slug: 'monaco', circuitId: 'monaco', fullName: 'Circuit de Monaco', country: 'Monaco' },
+      { slug: 'villeneuve', circuitId: 'villeneuve', fullName: 'Circuit Gilles Villeneuve', country: 'Canada' },
+      { slug: 'catalunya', circuitId: 'catalunya', fullName: 'Circuit de Barcelona-Catalunya', country: 'Spain' },
+      { slug: 'spielberg', circuitId: 'spielberg', fullName: 'Red Bull Ring', country: 'Austria' },
+      { slug: 'silverstone', circuitId: 'silverstone', fullName: 'Silverstone Circuit', country: 'UK' },
+      { slug: 'hungaroring', circuitId: 'hungaroring', fullName: 'Hungaroring', country: 'Hungary' },
+      { slug: 'spa', circuitId: 'spa', fullName: 'Circuit de Spa-Francorchamps', country: 'Belgium' },
+      { slug: 'zandvoort', circuitId: 'zandvoort', fullName: 'Circuit Zandvoort', country: 'Netherlands' },
+      { slug: 'monza', circuitId: 'monza', fullName: 'Autodromo Nazionale Monza', country: 'Italy' },
+      { slug: 'baku', circuitId: 'baku', fullName: 'Baku City Circuit', country: 'Azerbaijan' },
+      { slug: 'marina_bay', circuitId: 'marina_bay', fullName: 'Marina Bay Street Circuit', country: 'Singapore' },
+      { slug: 'americas', circuitId: 'americas', fullName: 'Circuit of the Americas', country: 'USA' },
+      { slug: 'rodriguez', circuitId: 'rodriguez', fullName: 'Autódromo Hermanos Rodríguez', country: 'Mexico' },
+      { slug: 'interlagos', circuitId: 'interlagos', fullName: 'Autódromo José Carlos Pace', country: 'Brazil' },
+      { slug: 'losail', circuitId: 'losail', fullName: 'Lusail International Circuit', country: 'Qatar' },
+      { slug: 'yas_marina', circuitId: 'yas_marina', fullName: 'Yas Marina Circuit', country: 'UAE' },
+    ];
+    circuits = FALLBACK_CIRCUITS;
+  }
+
+  if (circuits.length === 0) {
+    throw new Error(
+      `[tracks] Cannot build track pages: /api/circuits returned an empty list. ` +
+      `Refusing to ship a track-page-less build.`
+    );
+  }
+
+  return circuits.map((c) => ({ params: { track: c.slug }, props: c }));
+}
+
+const { circuitId, fullName, country } = Astro.props as CircuitListItem;
+const slug = Astro.params.track;
+
+// Build-time fetch (unauthenticated): free years full, premium years locked.
+let history: CircuitHistory | null = null;
+try {
+  const res = await fetch(`${API_BASE_URL}/api/circuit?circuitId=${circuitId}`);
+  if (res.ok) history = (await res.json()) as CircuitHistory;
+} catch {
+  history = null;
+}
+
+const editions = history?.editions ?? [];
+const locality = history?.locality ?? '';
+const circuitName = history?.fullName ?? fullName;
+const seasons = editions.map((e) => e.season);
+const latestSeason = seasons.length ? Math.max(...seasons) : null;
+const earliestSeason = seasons.length ? Math.min(...seasons) : null;
+const countryCode = COUNTRY_CODE_MAP[country.toLowerCase()] ?? '';
+// flagcdn keys by ISO 3166-1 alpha-2 — the UK is 'gb' there, not 'uk'. The
+// calculator grid uses a local /flags/uk.webp, so the shared map keeps 'uk';
+// translate only for the flagcdn URL below.
+const flagCode = countryCode === 'uk' ? 'gb' : countryCode;
+
+// Aggregate trivia computed server-side over the full history (incl. premium years).
+const stats = history?.stats;
+const latestEdition = editions.find((e) => e.season === latestSeason);
+const latestWinner = latestEdition?.results?.find((p) => p.position === 1);
+
+// Names this circuit previously raced under (e.g. Imola: the "San Marino Grand
+// Prix" before today's "Emilia Romagna"). Derived from each edition's historical
+// name; the Worker now names the page after the most recent RACED edition, so
+// anything else here is genuinely a FORMER name (no provisional future round
+// leaks in). Empty for circuits that never renamed.
+const canonicalName = fullName.replace(/\s+Grand Prix$/i, '');
+const formerRanges = new Map<string, { min: number; max: number }>();
+for (const e of editions) {
+  if (!e.name || e.name === canonicalName) continue;
+  const r = formerRanges.get(e.name);
+  if (!r) formerRanges.set(e.name, { min: e.season, max: e.season });
+  else {
+    r.min = Math.min(r.min, e.season);
+    r.max = Math.max(r.max, e.season);
+  }
+}
+const formerNames = [...formerRanges.entries()]
+  .sort((a, b) => b[1].max - a[1].max)
+  .map(([name, r]) => ({
+    label: `${name} Grand Prix`,
+    range: r.min === r.max ? `${r.min}` : `${r.min}–${r.max}`,
+  }));
+// "the San Marino Grand Prix (2002–2006) and the European Grand Prix (2016)"
+const formerlyPhrase = formerNames.map((f) => `the ${f.label} (${f.range})`).join(' and ');
+
+const title = `${fullName} Winners & Results by Year | F1 Points Calculator`;
+const yearRange = earliestSeason && latestSeason ? `${earliestSeason}–${latestSeason}` : '';
+const description = `Every ${fullName} winner and podium at ${circuitName}${locality ? `, ${locality}` : ''}. Full Formula 1 results year by year${yearRange ? ` (${yearRange})` : ''}.${formerNames.length ? ` Previously ${formerlyPhrase}.` : ''}`;
+
+const schemaData = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: title,
+  description,
+  about: {
+    '@type': 'Place',
+    name: circuitName,
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: locality,
+      addressCountry: country,
+    },
+  },
+};
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={`${fullName}, ${circuitName}, ${fullName} winners, ${country} grand prix results, F1 podium history, Formula 1 results by year${formerNames.length ? `, ${formerNames.map((f) => f.label).join(', ')}` : ''}`}
+  canonicalPath={`/tracks/${slug}`}
+  schemaData={schemaData}
+>
+  {/* Responsive shell. Mobile (single column): identity → results → records,
+      stacked in source order with natural page scroll. Desktop (sm+): a CSS
+      grid reassembles the left rail (identity pinned over scrolling records) and
+      a full-height results pane on the right — the locked, calculator-style
+      viewport split. Earlier this was one h-[100dvh]+overflow-hidden flex row,
+      which on phones let the sidebar eat the viewport and starved the grid. */}
+  <div
+    class="grid grid-cols-1 min-h-[100dvh] text-ink
+           sm:grid-cols-[20rem_minmax(0,1fr)] sm:grid-rows-[auto_minmax(0,1fr)]
+           sm:h-[100dvh] sm:min-h-0 sm:overflow-hidden"
+  >
+    {/* Identity — circuit name + at-a-glance facts. Top of the left rail on
+        desktop; first thing on mobile. */}
+    <header class="bg-surface border-b sm:border-b-0 sm:border-r p-4 flex flex-col gap-3 sm:col-start-1 sm:row-start-1">
+      <nav class="text-xs text-ink-muted" aria-label="Breadcrumb">
+        <a href="/" class="hover:text-ink">Calculator</a>
+        <span class="mx-1">/</span>
+        <span class="text-ink-secondary">Tracks</span>
+      </nav>
+
+      <div>
+        <div class="flex items-center gap-2 mb-1.5">
+          {countryCode && (
+            <img
+              src={`https://flagcdn.com/w40/${flagCode}.png`}
+              width="28"
+              height="21"
+              alt={`${country} flag`}
+              class="rounded shadow-sm"
+              loading="eager"
+            />
+          )}
+          <h1 class="text-xl font-bold font-display tracking-tight leading-tight">{fullName}</h1>
+        </div>
+        <p class="text-xs text-ink-secondary">{[circuitName, locality, country].filter(Boolean).join(' · ')}</p>
+        <p class="text-xs text-ink-muted mt-0.5">Results by year{yearRange ? ` · ${yearRange}` : ''}</p>
+        {formerNames.length > 0 && (
+          <p class="text-2xs text-ink-muted mt-1 italic">Formerly {formerlyPhrase}.</p>
+        )}
+      </div>
+    </header>
+
+    {/* Main — the results. Right pane (full height) on desktop; the hero, right
+        after the identity, on mobile. */}
+    <main class="min-w-0 flex flex-col p-2 sm:p-3 bg-surface-sunken min-h-[80dvh] sm:min-h-0 sm:col-start-2 sm:row-start-1 sm:row-span-2 sm:overflow-hidden">
+      {/* Static, crawlable results — full classification per free year (premium
+          excluded). Server-rendered for SEO / no-JS; the island replaces it. */}
+      <div id="track-results-static" class="flex-1 min-h-0 overflow-auto bg-surface rounded-lg border p-3">
+        {editions.length === 0 ? (
+          <div class="p-4 text-ink-secondary">Results are temporarily unavailable. Please check back soon.</div>
+        ) : (
+          <div class="flex flex-col gap-4">
+            {[...editions].sort((a, b) => b.season - a.season).map((e) => (
+              <section>
+                {/* Use the season's HISTORICAL race name (e.name), not the
+                    circuit's current canonical name — Imola 2005 was the "San
+                    Marino Grand Prix", not "Emilia Romagna". Keeps the crawlable
+                    headings factually correct and SEO-relevant per year. */}
+                <h2 class="text-sm font-semibold mb-1">{e.name} Grand Prix {e.season} — result</h2>
+                {e.locked || !e.results ? (
+                  <p class="text-xs text-ink-muted">
+                    🔒 Archive season — <a href="/" class="text-brand hover:underline">unlock to view the full classification</a>.
+                  </p>
+                ) : (
+                  <ol class="text-xs text-ink-secondary list-decimal pl-5 space-y-0.5">
+                    {e.results.map((p) => (
+                      <li>
+                        <span class="text-ink font-medium">{p.driverName}</span>
+                        <span class="text-ink-muted"> — {p.teamName}</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {editions.length > 0 && (
+        <div class="flex-1 min-h-0">
+          <TrackResultsIsland
+            client:only="react"
+            circuitId={circuitId}
+            initialEditions={editions}
+            staticContainerId="track-results-static"
+            country={country}
+            flagCode={flagCode}
+          />
+        </div>
+      )}
+    </main>
+
+    {/* Records — track trivia + CTA. Below the identity in the left rail on
+        desktop (scrolls); below the results on mobile. */}
+    <aside class="bg-surface border-t sm:border-t-0 sm:border-r p-4 flex flex-col gap-5 sm:col-start-1 sm:row-start-2 sm:overflow-y-auto">
+        {editions.length > 0 && (
+          <div class="flex flex-col gap-2">
+            {latestWinner && (
+              <div class="rounded-lg border bg-surface-sunken p-3">
+                <div class="text-2xs uppercase tracking-wide text-ink-muted">Latest winner</div>
+                <div class="text-base font-semibold leading-tight">{latestWinner.driverName}</div>
+                <div class="text-xs text-ink-muted">{latestSeason} · {latestWinner.teamName}</div>
+              </div>
+            )}
+            {stats?.mostWinsDriver && (
+              <div class="rounded-lg border bg-surface-sunken p-3">
+                <div class="text-2xs uppercase tracking-wide text-ink-muted">Most wins</div>
+                <div class="text-base font-semibold leading-tight">{stats.mostWinsDriver.name}</div>
+                <div class="text-xs text-ink-muted">{stats.mostWinsDriver.count} wins</div>
+              </div>
+            )}
+            <div class="grid grid-cols-2 gap-2">
+              {stats?.mostPodiumsDriver && (
+                <div class="rounded-lg border bg-surface-sunken p-3">
+                  <div class="text-2xs uppercase tracking-wide text-ink-muted">Most podiums</div>
+                  <div class="text-sm font-semibold leading-tight">{stats.mostPodiumsDriver.name}</div>
+                  <div class="text-xs text-ink-muted">{stats.mostPodiumsDriver.count}</div>
+                </div>
+              )}
+              {stats?.mostTopTensDriver && (
+                <div class="rounded-lg border bg-surface-sunken p-3">
+                  <div class="text-2xs uppercase tracking-wide text-ink-muted">Most top 10s</div>
+                  <div class="text-sm font-semibold leading-tight">{stats.mostTopTensDriver.name}</div>
+                  <div class="text-xs text-ink-muted">{stats.mostTopTensDriver.count}</div>
+                </div>
+              )}
+              {stats?.mostWinsTeam && (
+                <div class="rounded-lg border bg-surface-sunken p-3">
+                  <div class="text-2xs uppercase tracking-wide text-ink-muted">Top team</div>
+                  <div class="text-sm font-semibold leading-tight">{stats.mostWinsTeam.name}</div>
+                  <div class="text-xs text-ink-muted">{stats.mostWinsTeam.count} wins</div>
+                </div>
+              )}
+              {stats?.mostOneTwoTeam && (
+                <div class="rounded-lg border bg-surface-sunken p-3">
+                  <div class="text-2xs uppercase tracking-wide text-ink-muted">Most 1–2 finishes</div>
+                  <div class="text-sm font-semibold leading-tight">{stats.mostOneTwoTeam.name}</div>
+                  <div class="text-xs text-ink-muted">{stats.mostOneTwoTeam.count}</div>
+                </div>
+              )}
+            </div>
+            {stats && (
+              <div class="flex flex-wrap gap-2 text-xs text-ink-secondary">
+                {stats.mostAppearances && (
+                  <span class="rounded-md bg-surface-sunken border px-2 py-1">
+                    Most starts: <strong class="text-ink">{stats.mostAppearances.name}</strong> ({stats.mostAppearances.count})
+                  </span>
+                )}
+                {stats.longestWinStreak && (
+                  <span class="rounded-md bg-surface-sunken border px-2 py-1">
+                    Win streak: <strong class="text-ink">{stats.longestWinStreak.name}</strong> ×{stats.longestWinStreak.count}
+                  </span>
+                )}
+                <span class="rounded-md bg-surface-sunken border px-2 py-1"><strong class="text-ink">{stats.uniqueWinners}</strong> first-time winners</span>
+                <span class="rounded-md bg-surface-sunken border px-2 py-1"><strong class="text-ink">{stats.totalEditions}</strong> races</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <p class="text-xs text-ink-secondary leading-relaxed">
+          Every {fullName} at {circuitName}, with the full classification year by year.
+        </p>
+
+        <a
+          href="/"
+          class="inline-flex items-center justify-center h-10 rounded-md bg-brand text-white font-semibold text-sm hover:opacity-90 transition-opacity mt-auto"
+        >
+          Open the Points Calculator
+        </a>
+    </aside>
+  </div>
+</BaseLayout>

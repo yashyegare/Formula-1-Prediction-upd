@@ -1,0 +1,174 @@
+import { useCallback, useRef } from 'react';
+import { useDrop, useDrag } from 'react-dnd';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
+import { type DriverDragItem, ItemTypes } from '../types/dragTypes';
+import { useGridContext } from '../contexts/GridContext';
+import { toastService } from '../components/common/ToastContainer';
+import { selectDriversByIdMap, selectTeamsByIdMap } from '../store/selectors/dataSelectors';
+import { trackDriverDrop, incrementPredictionCount, updateUserProperties, trackEvent, GA_EVENTS } from '../utils/analytics';
+
+interface UseDriverDropParams {
+  raceId: string;
+  position: number;
+}
+
+export function useDriverDrop({ raceId, position }: UseDriverDropParams) {
+  const { positions, moveDriver } = useGridContext();
+  const driverById = useSelector(selectDriversByIdMap);
+  const teamById = useSelector(selectTeamsByIdMap);
+  const currentDriverId = positions.find(p => p.raceId === raceId && p.position === position)?.driverId ?? null;
+
+  const races = useSelector((state: RootState) => state.seasonData.races);
+
+  const recentDropRef = useRef<{driverId: string, timestamp: number} | null>(null);
+
+  const handleDrop = useCallback((item: DriverDragItem) => {
+    const { driverId, sourceRaceId, sourcePosition } = item;
+
+    const now = Date.now();
+    if (recentDropRef.current &&
+        recentDropRef.current.driverId === driverId &&
+        now - recentDropRef.current.timestamp < 300) {
+      return;
+    }
+
+    recentDropRef.current = { driverId, timestamp: now };
+
+    if (currentDriverId === driverId) return;
+
+    const currentDriver = currentDriverId ? driverById[currentDriverId] : null;
+    const newDriver = driverById[driverId];
+
+    const teamColor = newDriver ? teamById[newDriver.team]?.color || '#ccc' : '#ccc';
+
+    const currentRace = races.find(r => r.id === raceId);
+    const sourceRace = sourceRaceId ? races.find(r => r.id === sourceRaceId) : null;
+    const currentRaceName = currentRace?.name || 'Unknown Race';
+    const sourceRaceName = sourceRace?.name || 'Unknown Race';
+
+    if (sourceRaceId && sourcePosition && sourceRaceId === raceId && currentDriverId) {
+      if (currentDriver && newDriver) {
+        toastService.addToast(
+          `${newDriver.givenName} ${newDriver.familyName} swapped with ${currentDriver.givenName} ${currentDriver.familyName} at P${position} in ${currentRaceName}`,
+          'info',
+          3000,
+          teamColor
+        );
+      }
+    }
+    else if (sourceRaceId && sourceRaceId !== raceId) {
+      if (newDriver) {
+        if (currentDriverId) {
+          toastService.addToast(
+            `${newDriver.givenName} ${newDriver.familyName} moved from ${sourceRaceName} P${sourcePosition} to ${currentRaceName} P${position}` +
+            (currentDriver ? `, replacing ${currentDriver.givenName} ${currentDriver.familyName}` : ''),
+            'warning',
+            3000,
+            teamColor
+          );
+        } else {
+          toastService.addToast(
+            `${newDriver.givenName} ${newDriver.familyName} moved from ${sourceRaceName} P${sourcePosition} to ${currentRaceName} P${position}`,
+            'info',
+            3000,
+            teamColor
+          );
+        }
+      }
+    }
+    else if (currentDriverId && (!sourceRaceId || !sourcePosition)) {
+      if (currentDriver && newDriver) {
+        toastService.addToast(
+          `${currentDriver.givenName} ${currentDriver.familyName} was replaced by ${newDriver.givenName} ${newDriver.familyName} in ${currentRaceName} P${position}`,
+          'warning',
+          3000,
+          teamColor
+        );
+      }
+    }
+    else if (!sourceRaceId && !sourcePosition && !currentDriverId) {
+      if (newDriver) {
+        toastService.addToast(
+          `${newDriver.givenName} ${newDriver.familyName} placed in ${currentRaceName} P${position}`,
+          'success',
+          3000,
+          teamColor
+        );
+      }
+    }
+    else if (sourceRaceId && sourcePosition && sourceRaceId === raceId) {
+      if (newDriver) {
+        toastService.addToast(
+          `${newDriver.givenName} ${newDriver.familyName} was moved from P${sourcePosition} to P${position} in ${currentRaceName}`,
+          'info',
+          3000,
+          teamColor
+        );
+      }
+    }
+
+    moveDriver({
+      driverId,
+      toRaceId: raceId,
+      toPosition: position,
+      fromRaceId: sourceRaceId,
+      fromPosition: sourcePosition
+    });
+
+    trackDriverDrop(driverId, raceId, position);
+
+    const totalPredictions = incrementPredictionCount();
+    const filledPositions = positions.filter(p => p.driverId).length + 1; // +1 for the one just placed
+    const completionRate = Math.round((filledPositions / 480) * 100);
+
+    updateUserProperties({
+      total_predictions: totalPredictions,
+      completion_rate: completionRate
+    });
+
+    if (completionRate >= 100) {
+      trackEvent(GA_EVENTS.GRID_ACTIONS.GRID_COMPLETE, 'Grid Actions');
+    }
+
+    return { driverId, raceId, position };
+  }, [raceId, position, currentDriverId, moveDriver, races, driverById, teamById, recentDropRef, positions]);
+
+  const [{ isOver, canDrop }, drop] = useDrop({
+    accept: ItemTypes.DRIVER,
+    drop: handleDrop,
+    collect: monitor => ({
+      isOver: monitor.isOver(),
+      canDrop: monitor.canDrop(),
+    }),
+  });
+
+  return {
+    drop,
+    isOver,
+    canDrop,
+    currentDriverId
+  };
+}
+
+export function useDriverDrag(driverId: string, raceId?: string, position?: number) {
+  const [{ isDragging }, drag] = useDrag(() => ({
+    type: ItemTypes.DRIVER,
+    item: {
+      type: ItemTypes.DRIVER,
+      driverId,
+      sourceRaceId: raceId,
+      sourcePosition: position
+    },
+    collect: monitor => ({
+      isDragging: monitor.isDragging(),
+    }),
+    end: () => {
+    },
+  }), [driverId, raceId, position]);
+
+  return {
+    drag,
+    isDragging
+  };
+}

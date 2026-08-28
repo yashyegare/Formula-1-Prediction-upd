@@ -1,0 +1,343 @@
+import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import type { Race } from '../../types';
+import type { RootState } from '../../store';
+import { selectDriversByIdMap, selectTeamsByIdMap, getDriverLastName, getDriverDisplayName } from '../../store/selectors/dataSelectors';
+import DriverCard from '../drivers/DriverCard';
+import { selectDriver, copyDriver } from '../../store/slices/uiSlice';
+import { useConsensus, getTopConsensusDriver } from '../../hooks/useConsensus';
+import { useGridContext } from '../../contexts/GridContext';
+import { selectDriverStandings } from '../../store/selectors/resultsSelectors';
+import { useAppDispatch } from '../../store';
+import { useDriverDrop } from '../../hooks/useDriverDragDrop';
+import { useContextMenu, useLongPress } from '../../hooks/useContextMenu';
+import ContextMenu from '../common/ContextMenu';
+import type { ContextMenuItem } from '../../types/contextMenu';
+import { toastService } from '../common/ToastContainer';
+import { getActiveSeason } from '../../utils/constants';
+import { hasFastestLapPoint } from '../../data/seasonRules';
+
+interface RaceColumnProps {
+  race: Race;
+  position: number;
+  style?: React.CSSProperties;
+}
+
+const RaceColumn: React.FC<RaceColumnProps> = ({ race, position, style }) => {
+  const dispatch = useAppDispatch();
+  const {
+    positions,
+    sliceName,
+    placeDriver,
+    clearPosition,
+    fillRestOfSeason,
+    resetGrid,
+    clearEverything,
+    setFastestLap,
+  } = useGridContext();
+
+  const driverId = (() => {
+    const pos = positions.find(p => p.raceId === race.id && p.position === position);
+    return pos ? pos.driverId : null;
+  })();
+
+  const selectedDriverId = useSelector((state: RootState) => state.ui.selectedDriver);
+  const copiedDriverId = useSelector((state: RootState) => state.ui.copiedDriver);
+  const showConsensus = useSelector((state: RootState) => state.ui.showConsensus) && sliceName !== 'competeGrid';
+  const driverById = useSelector(selectDriversByIdMap);
+  const teamById = useSelector(selectTeamsByIdMap);
+  const driverStandings = useSelector(selectDriverStandings);
+  const races = useSelector((state: RootState) => state.seasonData.races);
+
+  // Consensus data for hints
+  const { data: consensusData } = useConsensus(race.id, showConsensus && !driverId);
+  const topConsensus = getTopConsensusDriver(consensusData, position);
+
+  const [isHighlighted, setIsHighlighted] = useState(false);
+  const [prevDriverId, setPrevDriverId] = useState<string | null>(null);
+
+  const contextMenu = useContextMenu();
+
+  const { drop, isOver, canDrop } = useDriverDrop({
+    raceId: race.id,
+    position,
+  });
+
+  useEffect(() => {
+    if (driverId && driverId !== prevDriverId) {
+      setIsHighlighted(true);
+      const timer = setTimeout(() => setIsHighlighted(false), 800);
+      return () => clearTimeout(timer);
+    }
+    setPrevDriverId(driverId);
+  }, [driverId, prevDriverId]);
+
+  const gridPosition = positions.find(p =>
+    p.raceId === race.id && p.position === position
+  );
+  const isOfficialResult = gridPosition?.isOfficialResult || false;
+
+  const driver = driverId ? driverById[driverId] : null;
+
+  const buildContextMenuItems = (): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = [];
+
+    if (driverId && driver) {
+      items.push({
+        id: 'copy',
+        label: 'Copy Driver',
+        icon: '📋',
+        onClick: () => {
+          dispatch(copyDriver(driverId));
+          toastService.addToast(`Copied ${getDriverDisplayName(driver)}`, 'info');
+        },
+      });
+
+      if (hasFastestLapPoint(getActiveSeason())) {
+        const hasFastestLap = gridPosition?.hasFastestLap || false;
+        if (!hasFastestLap) {
+          items.push({
+            id: 'fastest-lap',
+            label: 'Set Fastest Lap',
+            icon: '⚡',
+            onClick: () => {
+              setFastestLap({
+                raceId: race.id,
+                driverId: driverId
+              });
+              toastService.addToast(
+                `Set fastest lap for ${getDriverDisplayName(driver)}`,
+                'info'
+              );
+            },
+          });
+        }
+      }
+
+      if (!isOfficialResult) {
+        items.push({
+          id: 'remove',
+          label: 'Remove Driver',
+          icon: '✕',
+          onClick: () => {
+            clearPosition({ raceId: race.id, position });
+            toastService.addToast(`Removed ${getDriverDisplayName(driver)} from P${position}`, 'info');
+          },
+        });
+
+        items.push({
+          id: 'fill-rest',
+          label: 'Repeat for Remaining Races',
+          icon: '📅',
+          onClick: () => {
+            const raceIds = races.map(r => r.id);
+            fillRestOfSeason({
+              driverId,
+              position,
+              startRaceId: race.id,
+              raceIds,
+            });
+
+            const remainingCount = raceIds.slice(raceIds.indexOf(race.id)).length;
+            toastService.addToast(
+              `Filled ${getDriverDisplayName(driver)} at P${position} for ${remainingCount} remaining races`,
+              'success'
+            );
+          },
+        });
+      }
+    } else if (!driverId && !isOfficialResult) {
+      if (copiedDriverId) {
+        const copiedDriver = driverById[copiedDriverId];
+        if (copiedDriver) {
+          items.push({
+            id: 'paste',
+            label: 'Paste Driver',
+            icon: '📋',
+            onClick: () => {
+              placeDriver({
+                raceId: race.id,
+                position,
+                driverId: copiedDriverId,
+              });
+              toastService.addToast(`Pasted ${getDriverDisplayName(copiedDriver)} at P${position}`, 'success');
+            },
+          });
+        }
+      }
+
+      const driverSubmenu: ContextMenuItem[] = [];
+      const groupBoundaries = [5, 10, 15];
+
+      driverStandings.forEach((standing, index) => {
+        if (groupBoundaries.includes(index)) {
+          driverSubmenu.push({
+            id: `divider-${index}`,
+            label: '',
+            divider: true,
+          });
+        }
+
+        const standingDriver = driverById[standing.driverId];
+        const team = standingDriver ? teamById[standingDriver.team] : null;
+        driverSubmenu.push({
+          id: `place-p${standing.position}`,
+          label: getDriverDisplayName(standingDriver),
+          groupLabel: `P${standing.position} · ${standing.points} pts`,
+          icon: team?.color,
+          onClick: () => {
+            placeDriver({
+              raceId: race.id,
+              position,
+              driverId: standing.driverId,
+            });
+            toastService.addToast(
+              `Placed ${getDriverDisplayName(standingDriver)} at P${position}`,
+              'success'
+            );
+          },
+        });
+      });
+
+      items.push({
+        id: 'place-driver',
+        label: 'Place Driver',
+        icon: '🏁',
+        submenu: driverSubmenu,
+        searchable: true,
+      });
+    }
+
+    if (items.length > 0) {
+      items.push({
+        id: 'divider-clear',
+        label: '',
+        divider: true,
+        onClick: () => {},
+      });
+
+      items.push({
+        id: 'clear-all',
+        label: 'Clear All...',
+        icon: '🗑️',
+        submenu: [
+          {
+            id: 'clear-predictions',
+            label: 'Clear Predictions Only',
+            onClick: () => {
+              resetGrid();
+              toastService.addToast('Cleared all predictions', 'info');
+            },
+          },
+          {
+            id: 'clear-everything',
+            label: 'Clear Everything (Including Official Results)',
+            onClick: () => {
+              clearEverything();
+              toastService.addToast('Cleared everything', 'warning');
+            },
+          },
+        ],
+      });
+    }
+
+    return items;
+  };
+
+  const handleContextMenu = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const items = buildContextMenuItems();
+    if (items.length > 0) {
+      contextMenu.open(event, items);
+    }
+  };
+
+  const longPressHandlers = useLongPress((event: React.TouchEvent) => {
+    const items = buildContextMenuItems();
+    if (items.length > 0) {
+      contextMenu.open(event, items);
+    }
+  });
+
+  const handleSlotClick = () => {
+    if (selectedDriverId) {
+      placeDriver({
+        raceId: race.id,
+        position,
+        driverId: selectedDriverId
+      });
+
+      dispatch(selectDriver(null));
+    }
+  };
+
+  const slotClasses = [
+    'race-slot',
+    race.isSprint ? 'sprint' : '',
+    selectedDriverId ? 'highlight-slot' : '',
+    isOfficialResult ? 'official-result-styling' : '',
+    race.completed ? 'completed-race' : '',
+    isHighlighted ? 'animate-slot-highlight' : '',
+    isOver ? 'drag-over' : '',
+    canDrop ? 'can-drop' : '',
+    selectedDriverId ? 'cursor-pointer' : '',
+  ].filter(Boolean).join(' ');
+
+  const hasFastestLap = gridPosition?.hasFastestLap || false;
+  const shouldShowFastestLapBorder = hasFastestLap && hasFastestLapPoint(getActiveSeason());
+
+  return (
+    <>
+      <div
+        className={slotClasses}
+        data-testid="race-slot"
+        data-race-id={race.id}
+        data-position={position}
+        onClick={handleSlotClick}
+        onContextMenu={handleContextMenu}
+        {...longPressHandlers}
+        ref={drop}
+        role="button"
+        aria-label={driver ? `Position ${position}: ${getDriverLastName(driver.id)}` : `Empty position ${position}`}
+        tabIndex={0}
+        style={{
+          ...style,
+          ...(shouldShowFastestLapBorder ? { border: '3px solid #7D428E' } : {})
+        }}
+      >
+        {driver ? (
+          <div className="animate-placement grid-card-wrapper">
+            <DriverCard
+              driver={driver}
+              isOfficialResult={isOfficialResult}
+              raceId={race.id}
+              position={position}
+              hideCode={true}
+              overrideTeamId={gridPosition?.teamId}
+            />
+          </div>
+        ) : showConsensus && topConsensus && driverById[topConsensus.driverId] ? (
+          <div className="consensus-hint">
+            <span className="text-xs font-medium">
+              {getDriverLastName(topConsensus.driverId)}
+            </span>
+            <span className="text-2xs ml-1 tnum">
+              {topConsensus.percentage}%
+            </span>
+          </div>
+        ) : null}
+      </div>
+
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        position={contextMenu.position}
+        items={contextMenu.items}
+        onClose={contextMenu.close}
+      />
+    </>
+  );
+};
+
+export default React.memo(RaceColumn);

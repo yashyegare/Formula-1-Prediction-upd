@@ -8,15 +8,27 @@ await import("./src/env.mjs");
 const config = {
   reactStrictMode: true,
 
-  /**
-   * If you have `experimental: { appDir: true }` set, then you must comment the below `i18n` config
-   * out.
-   *
-   * @see https://github.com/vercel/next.js/issues/41980
-   */
   i18n: {
     locales: ["en"],
     defaultLocale: "en",
+  },
+
+  async rewrites() {
+    const backend = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${backend}/api/:path*`,
+      },
+      {
+        source: '/predictGrid',
+        destination: `${backend}/predictGrid`,
+      },
+      {
+        source: '/roster',
+        destination: `${backend}/roster`,
+      },
+    ];
   },
 };
 export default config;

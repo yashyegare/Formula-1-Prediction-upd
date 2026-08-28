@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd nextjs-app && npm install && npm run build",
+  "outputDirectory": "nextjs-app/.next",
+  "framework": "nextjs",
+  "installCommand": "npm install --prefix nextjs-app",
+  "rewrites": []
+}

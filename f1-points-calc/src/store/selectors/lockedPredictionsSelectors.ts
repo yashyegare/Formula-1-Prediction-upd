@@ -1,0 +1,113 @@
+import { createSelector } from '@reduxjs/toolkit';
+import type { RootState } from '../index';
+
+export const selectLockedPredictions = (state: RootState) =>
+  state.lockedPredictions.lockedPredictions;
+
+// Overall accuracy across all scored races
+export const selectOverallAccuracy = createSelector(
+  [selectLockedPredictions],
+  (lockedPredictions) => {
+    const scored = Object.values(lockedPredictions).filter(lp => lp.score);
+    if (scored.length === 0) return { exact: 0, total: 0, percentage: 0 };
+
+    const totalExact = scored.reduce((sum, lp) => sum + (lp.score?.exact || 0), 0);
+    const totalPredictions = scored.reduce((sum, lp) => sum + (lp.score?.total || 0), 0);
+    const percentage = totalPredictions > 0 ? Math.round((totalExact / totalPredictions) * 100) : 0;
+
+    return { exact: totalExact, total: totalPredictions, percentage };
+  }
+);
+
+export const selectLockedRaceCount = createSelector(
+  [selectLockedPredictions],
+  (lockedPredictions) => Object.keys(lockedPredictions).length
+);
+
+export const selectScoredRaceCount = createSelector(
+  [selectLockedPredictions],
+  (lockedPredictions) => {
+    return Object.values(lockedPredictions)
+      .filter(lp => lp.score).length;
+  }
+);
+
+export const selectNextRaceToLock = createSelector(
+  [(state: RootState) => state.seasonData.races, selectLockedPredictions],
+  (races, lockedPredictions) => {
+    const now = new Date();
+    return races.find(race =>
+      !race.completed &&
+      !lockedPredictions[race.id] &&
+      race.date &&
+      new Date(race.date) > now
+    );
+  }
+);
+
+// All races for the next weekend that can be predicted (grouped by round)
+// Returns empty if there are locked races still awaiting results (previous weekend not done yet)
+export const selectNextWeekendRacesToLock = createSelector(
+  [(state: RootState) => state.seasonData.races, selectLockedPredictions],
+  (races, lockedPredictions) => {
+    const now = new Date();
+
+    // Find the first upcoming, unlocked, not-completed race
+    const firstUnlocked = races.find(race =>
+      !race.completed &&
+      !lockedPredictions[race.id] &&
+      race.date &&
+      new Date(race.date) > now
+    );
+
+    if (!firstUnlocked || !firstUnlocked.round) return [];
+
+    // Don't open the next weekend if there are locked races still awaiting results
+    // from a different round (previous weekend not scored yet)
+    const hasAwaitingResults = races.some(race =>
+      lockedPredictions[race.id] &&
+      !race.completed &&
+      race.round !== firstUnlocked.round
+    );
+    if (hasAwaitingResults) return [];
+
+    // Return ALL races in that same round that are not completed and in the future
+    // Includes already-locked races so the UI can show them as locked tabs
+    return races
+      .filter(race =>
+        race.round === firstUnlocked.round &&
+        !race.completed &&
+        race.date &&
+        new Date(race.date) > now
+      )
+      .sort((a, b) => a.order - b.order);
+  }
+);
+
+// Races that are locked but not yet completed (awaiting results)
+export const selectAwaitingResultsRaces = createSelector(
+  [(state: RootState) => state.seasonData.races, selectLockedPredictions],
+  (races, lockedPredictions) => {
+    return races
+      .filter(race => lockedPredictions[race.id] && !race.completed)
+      .map(race => ({
+        race,
+        lockedPrediction: lockedPredictions[race.id],
+      }))
+      .sort((a, b) => a.race.order - b.race.order);
+  }
+);
+
+// Races that are locked and completed (scored)
+export const selectScoredRaces = createSelector(
+  [(state: RootState) => state.seasonData.races, selectLockedPredictions],
+  (races, lockedPredictions) => {
+    return races
+      .filter(race => lockedPredictions[race.id] && race.completed && lockedPredictions[race.id].score !== undefined)
+      .map(race => ({
+        race,
+        lockedPrediction: lockedPredictions[race.id],
+      }))
+      .sort((a, b) => b.race.order - a.race.order); // Most recent first
+  }
+);
