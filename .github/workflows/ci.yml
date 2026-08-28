@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  flask:
+    name: Flask Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flask-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Verify app loads
+        run: python -c "from app import app; print('Flask OK')"
+      - name: Verify database
+        run: python -c "from database import init_db, is_seeded; init_db(); print('DB OK, seeded:', is_seeded())"
+
+  nextjs:
+    name: Next.js Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nextjs-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+          cache-dependency-path: nextjs-app/package-lock.json
+      - run: npm ci
+      - run: npx next build
+
+  astro:
+    name: Season Simulator
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: f1-points-calc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+          cache-dependency-path: f1-points-calc/package-lock.json
+      - run: npm ci
+      - run: npm run build
