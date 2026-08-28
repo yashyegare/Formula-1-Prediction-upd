@@ -1,61 +1,26 @@
 import React, { useEffect, useRef, useState } from "react";
 
-/* ── Track SVG outlines (simplified but recognizable) ── */
-const TRACK_SVGS: Record<string, { path: string; viewBox: string; flag: string; country: string; length: string }> = {
-    Monaco: {
-        viewBox: "0 0 200 160",
-        flag: "🇲🇨",
-        country: "Monaco",
-        length: "3.337 km",
-        // Tight harbor loop: Ste Devote up, hairpin center, tunnel east, swimming pool right
-        path: "M100,145 L85,130 L75,110 L70,90 L68,75 L72,60 L80,48 L92,40 L105,38 L118,42 L128,50 L132,62 L130,75 L122,85 L110,90 L100,92 L92,88 L88,80 L90,70 L96,62 L105,58 L112,62 L115,70 L112,78 L105,82 L100,85 L118,90 L128,95 L135,105 L132,118 L122,130 L110,140 L100,145 Z",
-    },
-    Silverstone: {
-        viewBox: "0 0 220 160",
-        flag: "🇬🇧",
-        country: "United Kingdom",
-        length: "5.891 km",
-        // Rounded triangle: Copse top-right, Maggotts-Becketts right, Stowe bottom-right, Club bottom, Abbey left
-        path: "M80,30 L110,25 L140,28 L165,38 L180,55 L185,75 L178,95 L165,110 L145,125 L120,135 L95,138 L70,132 L50,120 L38,105 L32,85 L35,65 L45,48 L58,36 L80,30 Z",
-    },
-    Suzuka: {
-        viewBox: "0 0 200 180",
-        flag: "🇯🇵",
-        country: "Japan",
-        length: "5.807 km",
-        // Figure-8: S-curves left, hairpin bottom, Spoon right, crossover center, 130R top
-        path: "M60,30 L80,40 L95,55 L85,70 L70,75 L60,68 L55,55 L60,42 L75,38 L90,45 L100,58 L105,75 L100,90 L88,100 L75,108 L65,118 L60,132 L65,145 L80,152 L100,150 L118,142 L130,130 L135,115 L130,100 L118,92 L108,88 L115,78 L125,70 L140,65 L155,68 L165,78 L168,92 L162,105 L150,112 L138,108 L130,100 L135,88 L145,80 L155,78 L162,85 L160,95 L152,102 L142,100 L135,92 L130,85 L125,75 L118,65 L110,55 L100,48 L88,42 L75,38 L65,35 L60,30 Z",
-    },
-    Spa: {
-        viewBox: "0 0 140 220",
-        flag: "🇧🇪",
-        country: "Belgium",
-        length: "7.004 km",
-        // Long narrow N-S: La Source top, Eau Rouge compression, Kemmel straight, Les Combes, Pouhon, Bus Stop
-        path: "M50,20 L65,18 L75,25 L78,38 L75,50 L68,58 L60,62 L55,70 L52,82 L48,95 L42,108 L38,122 L40,135 L48,145 L58,150 L68,148 L78,142 L85,132 L88,120 L85,108 L78,100 L68,95 L58,92 L50,88 L45,80 L42,70 L45,58 L52,50 L60,45 L68,42 L75,45 L78,55 L75,65 L68,72 L58,75 L50,72 L45,65 L42,55 L45,45 L52,38 L60,35 L68,38 L72,45 L70,55 L62,60 L55,58 L50,50 L48,40 L52,30 L58,25 L65,22 L72,25 L78,32 L82,42 L80,55 L72,62 L62,65 L55,62 L50,55 L48,45 L52,38 L60,35 L68,38 Z",
-    },
-    Interlagos: {
-        viewBox: "0 0 200 160",
-        flag: "🇧🇷",
-        country: "Brazil",
-        length: "4.309 km",
-        // Counter-clockwise: Senna S downhill, Ferradura, Bico de Pato, Junção, uphill back straight
-        path: "M155,45 L140,50 L125,58 L112,68 L105,80 L100,92 L95,105 L85,115 L72,120 L58,118 L48,110 L42,98 L40,85 L44,72 L52,62 L62,55 L75,50 L88,48 L100,50 L112,55 L122,62 L128,72 L125,82 L118,88 L108,90 L98,88 L90,82 L85,72 L85,62 L90,52 L100,48 L112,46 L125,48 L138,52 L148,58 L155,45 Z",
-    },
+/* ── Track data ── */
+const TRACKS = [
+    { name: "Monaco", flag: "🇲🇨", country: "Monaco", length: "3.337 km", status: "play" as const },
+    { name: "Silverstone", flag: "🇬🇧", country: "United Kingdom", length: "5.891 km", status: "play" as const },
+    { name: "Suzuka", flag: "🇯🇵", country: "Japan", length: "5.807 km", status: "play" as const },
+    { name: "Spa", flag: "🇧🇪", country: "Belgium", length: "7.004 km", status: "play" as const },
+    { name: "Interlagos", flag: "🇧🇷", country: "Brazil", length: "4.309 km", status: "play" as const },
+];
+
+/* ── SVG track outlines for previews ── */
+const TRACK_SVGS: Record<string, string> = {
+    Monaco: "M100,145 L85,130 L75,110 L70,90 L68,75 L72,60 L80,48 L92,40 L105,38 L118,42 L128,50 L132,62 L130,75 L122,85 L110,90 L100,92 L92,88 L88,80 L90,70 L96,62 L105,58 L112,62 L115,70 L112,78 L105,82 L100,85 L118,90 L128,95 L135,105 L132,118 L122,130 L110,140 L100,145 Z",
+    Silverstone: "M80,30 L110,25 L140,28 L165,38 L180,55 L185,75 L178,95 L165,110 L145,125 L120,135 L95,138 L70,132 L50,120 L38,105 L32,85 L35,65 L45,48 L58,36 L80,30 Z",
+    Suzuka: "M60,30 L80,40 L95,55 L85,70 L70,75 L60,68 L55,55 L60,42 L75,38 L90,45 L100,58 L105,75 L100,90 L88,100 L75,108 L65,118 L60,132 L65,145 L80,152 L100,150 L118,142 L130,130 L135,115 L130,100 L118,92 L108,88 L115,78 L125,70 L140,65 L155,68 L165,78 L168,92 L162,105 L150,112 L138,108 L130,100",
+    Spa: "M50,20 L65,18 L75,25 L78,38 L75,50 L68,58 L60,62 L55,70 L52,82 L48,95 L42,108 L38,122 L40,135 L48,145 L58,150 L68,148 L78,142 L85,132 L88,120 L85,108 L78,100 L68,95 L58,92 L50,88 L45,80 L42,70 L45,58 L52,50 L60,45 L68,42 L75,45 L78,55 L75,65 L68,72 L58,75 L50,72 L45,65 L42,55 L45,45 L52,38 L60,35 L68,38",
+    Interlagos: "M155,45 L140,50 L125,58 L112,68 L105,80 L100,92 L95,105 L85,115 L72,120 L58,118 L48,110 L42,98 L40,85 L44,72 L52,62 L62,55 L75,50 L88,48 L100,50 L112,55 L122,62 L128,72 L125,82 L118,88 L108,90 L98,88 L90,82 L85,72 L85,62 L90,52 L100,48 L112,46 L125,48 L138,52 L148,58 L155,45 Z",
 };
 
 /* ── Animated SVG Track Preview ── */
-interface TrackData {
-    path: string;
-    viewBox: string;
-    flag: string;
-    country: string;
-    length: string;
-}
-
-const TrackPreview = ({ trackName, track, isSelected, onClick }: {
-    trackName: string;
-    track: TrackData;
+const TrackCard = ({ track, isSelected, onClick }: {
+    track: typeof TRACKS[0];
     isSelected: boolean;
     onClick: () => void;
 }) => {
@@ -76,13 +41,10 @@ const TrackPreview = ({ trackName, track, isSelected, onClick }: {
             if (!lastTime) lastTime = time;
             const delta = time - lastTime;
             lastTime = time;
-
-            // Speed: traverse the full path in ~3 seconds
-            progressRef.current = (progressRef.current + delta / 3000) % 1;
+            progressRef.current = (progressRef.current + delta / 2500) % 1;
             const point = path.getPointAtLength(progressRef.current * totalLength);
             dot.setAttribute("cx", String(point.x));
             dot.setAttribute("cy", String(point.y));
-
             animRef.current = requestAnimationFrame(animate);
         };
 
@@ -90,85 +52,63 @@ const TrackPreview = ({ trackName, track, isSelected, onClick }: {
         return () => cancelAnimationFrame(animRef.current);
     }, []);
 
+    const svgPath = TRACK_SVGS[track.name];
+
     return (
         <button
             onClick={onClick}
-            className={`group relative flex flex-col items-center gap-3 rounded-2xl border-2 p-5 transition-all duration-300 cursor-pointer ${
+            className={`group relative flex flex-col items-center rounded-2xl border-2 p-4 transition-all duration-200 cursor-pointer ${
                 isSelected
-                    ? "border-red-500 bg-red-500/10 shadow-lg shadow-red-500/20 scale-[1.02]"
-                    : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-600 hover:bg-zinc-900"
+                    ? "border-green-500 bg-green-500/10 shadow-lg shadow-green-500/20"
+                    : "border-zinc-800 bg-zinc-900/60 hover:border-zinc-600 hover:bg-zinc-900"
             }`}
         >
             {/* Track SVG */}
-            <div className="relative w-full aspect-[4/3] flex items-center justify-center">
-                <svg
-                    viewBox={track.viewBox}
-                    className="w-full h-full"
-                    fill="none"
-                >
-                    {/* Track surface */}
+            <div className="w-full aspect-[4/3] mb-3 flex items-center justify-center">
+                <svg viewBox="0 0 200 160" className="w-full h-full" fill="none">
+                    {/* Track surface (glow) */}
                     <path
-                        d={track.path}
-                        stroke={isSelected ? "#ef4444" : "#52525b"}
-                        strokeWidth="8"
+                        d={svgPath}
+                        stroke={isSelected ? "#22c55e" : "#52525b"}
+                        strokeWidth="10"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         fill="none"
-                        opacity={isSelected ? 0.3 : 0.15}
+                        opacity={isSelected ? 0.2 : 0.1}
                     />
                     {/* Track outline */}
                     <path
                         ref={pathRef}
-                        d={track.path}
-                        stroke={isSelected ? "#ef4444" : "#71717a"}
-                        strokeWidth="3"
+                        d={svgPath}
+                        stroke={isSelected ? "#22c55e" : "#71717a"}
+                        strokeWidth="2.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         fill="none"
-                        className="transition-all duration-300"
                     />
                     {/* Animated racing dot */}
-                    <circle
-                        ref={dotRef}
-                        r="4"
-                        fill={isSelected ? "#ef4444" : "#a1a1aa"}
-                        className="transition-all duration-300"
-                    />
-                    {/* Glow effect on dot */}
-                    <circle
-                        r="8"
-                        fill={isSelected ? "#ef4444" : "#a1a1aa"}
-                        opacity="0.3"
-                        className="animate-pulse"
-                    >
-                        <animate attributeName="r" values="6;10;6" dur="1.5s" repeatCount="indefinite" />
-                        <animate attributeName="opacity" values="0.3;0.1;0.3" dur="1.5s" repeatCount="indefinite" />
+                    <circle ref={dotRef} r="3.5" fill={isSelected ? "#22c55e" : "#a1a1aa"} />
+                    {/* Glow */}
+                    <circle r="6" fill={isSelected ? "#22c55e" : "#a1a1aa"} opacity="0.25">
+                        <animate attributeName="r" values="5;8;5" dur="1.5s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" values="0.25;0.08;0.25" dur="1.5s" repeatCount="indefinite" />
                     </circle>
                 </svg>
             </div>
 
             {/* Track info */}
-            <div className="text-center">
-                <div className="text-lg font-bold text-white">{track.flag} {trackName}</div>
-                <div className="text-xs text-zinc-500 mt-0.5">{track.country} · {track.length}</div>
+            <div className="text-center mb-2">
+                <div className="text-base font-bold text-white">{track.flag} {track.name}</div>
+                <div className="text-[10px] text-zinc-500">{track.country} · {track.length}</div>
             </div>
 
-            {/* Play indicator */}
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${
+            {/* Status badge */}
+            <div className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
                 isSelected
-                    ? "bg-red-500 text-white"
-                    : "bg-zinc-800 text-zinc-400 group-hover:bg-zinc-700 group-hover:text-white"
+                    ? "bg-green-500 text-white"
+                    : "bg-green-500/15 text-green-400 border border-green-500/30"
             }`}>
-                {isSelected ? (
-                    <>
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z"/>
-                        </svg>
-                        Play Now
-                    </>
-                ) : (
-                    "Select"
-                )}
+                {isSelected ? "✓ Selected" : "Play Now"}
             </div>
         </button>
     );
@@ -182,111 +122,133 @@ const TrackSelection = ({ onSelectTrack, onFullscreen }: {
     const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
     const [userName, setUserName] = useState("Racer");
     const [showWelcome, setShowWelcome] = useState(true);
+    const [nameInput, setNameInput] = useState("");
 
     useEffect(() => {
         const stored = localStorage.getItem("dlr_username");
-        if (stored) setUserName(stored);
+        if (stored) {
+            setUserName(stored);
+            setShowWelcome(false);
+        }
     }, []);
+
+    const handleNameSubmit = () => {
+        const name = nameInput.trim() || "Racer";
+        setUserName(name);
+        localStorage.setItem("dlr_username", name);
+        setShowWelcome(false);
+    };
 
     const handlePlay = () => {
         if (selectedTrack) {
-            // Save username for next visit
             localStorage.setItem("dlr_username", userName);
             onSelectTrack(selectedTrack);
         }
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0d16] text-white">
-            {/* Fullscreen button */}
+        <div className="min-h-screen bg-[#0c0f1a] text-white relative">
+            {/* Fullscreen button — matching reference style */}
             <button
                 onClick={onFullscreen}
-                className="absolute top-4 right-4 z-30 bg-white/90 hover:bg-white text-slate-700 w-10 h-10 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110"
-                title="Toggle Fullscreen"
+                className="absolute top-3 left-3 z-20 bg-white/90 hover:bg-white text-slate-700 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1.5 transition-all hover:scale-105"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
                 </svg>
+                Fullscreen
             </button>
 
-            <div className="max-w-6xl mx-auto px-4 py-8">
-                {/* Welcome Header */}
+            {/* Back to Race Predictor */}
+            <a
+                href="/"
+                className="absolute top-3 right-3 z-20 bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                Race Predictor
+            </a>
+
+            <div className="max-w-4xl mx-auto px-4 pt-16 pb-8">
+                {/* ── Welcome State ── */}
                 {showWelcome && (
-                    <div className="text-center mb-10 animate-fadeIn">
-                        <div className="inline-flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-full px-4 py-1.5 mb-4">
-                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                            <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">Draw Line Racing</span>
-                        </div>
+                    <div className="text-center animate-fadeIn">
+                        <h1 className="text-3xl md:text-4xl font-bold mb-1">DrawLineRacing</h1>
+                        <p className="text-zinc-400 text-lg mb-8">Welcome back! 👋</p>
 
-                        <h1 className="text-4xl md:text-5xl font-bold mb-2">
-                            Welcome back, <span className="text-red-500">{userName}</span>! 👋
-                        </h1>
-                        <p className="text-lg text-zinc-400 mb-6">Select a track to start racing</p>
-
-                        {/* Username input */}
-                        <div className="flex items-center justify-center gap-3 mb-2">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                            <span className="text-zinc-500 text-sm">Name:</span>
                             <input
                                 type="text"
-                                value={userName}
-                                onChange={(e) => setUserName(e.target.value)}
-                                placeholder="Enter your name"
-                                className="bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm outline-none focus:border-red-500 transition-colors w-48"
+                                value={nameInput}
+                                onChange={(e) => setNameInput(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && handleNameSubmit()}
+                                className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white font-semibold outline-none w-48 text-center focus:border-green-500 transition-colors"
+                                placeholder="Your name..."
+                                autoFocus
                             />
                             <button
-                                onClick={() => setShowWelcome(false)}
-                                className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                onClick={handleNameSubmit}
+                                className="bg-green-500 hover:bg-green-400 text-white px-5 py-2 rounded-xl text-sm font-bold transition-colors"
                             >
-                                Confirm
+                                Go
                             </button>
                         </div>
                     </div>
                 )}
 
-                {/* Collapsed header when name is confirmed */}
+                {/* ── Track Selection ── */}
                 {!showWelcome && (
-                    <div className="flex items-center justify-between mb-8 animate-fadeIn">
-                        <div>
-                            <h1 className="text-2xl font-bold">
-                                Hey <span className="text-red-500">{userName}</span>, pick a track
+                    <div className="animate-fadeIn">
+                        <div className="text-center mb-8">
+                            <h1 className="text-3xl md:text-4xl font-bold mb-1">
+                                Welcome back, <span className="text-green-400">{userName}</span>! 👋
                             </h1>
-                            <p className="text-sm text-zinc-500">Draw your racing line and compete</p>
+                            <p className="text-zinc-400 text-lg">Select Track</p>
                         </div>
-                        <button
-                            onClick={() => setShowWelcome(true)}
-                            className="text-xs text-zinc-500 hover:text-white transition-colors bg-zinc-900 px-3 py-1.5 rounded-lg"
-                        >
-                            Change Name
-                        </button>
-                    </div>
-                )}
 
-                {/* Track Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {Object.entries(TRACK_SVGS).map(([name, track]) => (
-                        <TrackPreview
-                            key={name}
-                            trackName={name}
-                            track={track!}
-                            isSelected={selectedTrack === name}
-                            onClick={() => setSelectedTrack(name)}
-                        />
-                    ))}
-                </div>
+                        {/* AI toggle */}
+                        <div className="flex justify-center mb-6">
+                            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-2">
+                                <div className="w-2 h-2 rounded-full bg-green-400" />
+                                <span className="text-xs text-zinc-400">AI Opponents ON</span>
+                            </div>
+                        </div>
 
-                {/* Start Race Button */}
-                {selectedTrack && (
-                    <div className="flex justify-center mt-8 animate-fadeIn">
-                        <button
-                            onClick={handlePlay}
-                            className="flex items-center gap-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-red-500/25 transition-all hover:scale-105 active:scale-95"
-                        >
-                            <span className="text-2xl">🏁</span>
-                            Start Racing — {selectedTrack}
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                            </svg>
-                        </button>
+                        {/* Track Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                            {TRACKS.map((track) => (
+                                <TrackCard
+                                    key={track.name}
+                                    track={track}
+                                    isSelected={selectedTrack === track.name}
+                                    onClick={() => setSelectedTrack(track.name)}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Start Race Button */}
+                        {selectedTrack && (
+                            <div className="flex justify-center mt-8 animate-fadeIn">
+                                <button
+                                    onClick={handlePlay}
+                                    className="flex items-center gap-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white px-8 py-3 rounded-xl font-bold text-lg shadow-lg shadow-green-500/25 transition-all hover:scale-105 active:scale-95"
+                                >
+                                    🏁 Play Now
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Change name link */}
+                        <div className="text-center mt-6">
+                            <button
+                                onClick={() => setShowWelcome(true)}
+                                className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+                            >
+                                Change Name
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>

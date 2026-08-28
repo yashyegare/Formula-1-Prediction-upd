@@ -1205,13 +1205,12 @@ const RacingPage: NextPage = () => {
               </div>
               <button
                 onClick={toggleFullscreen}
-                className="bg-white/90 hover:bg-white text-slate-700 w-9 h-9 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110"
-                title="Toggle Fullscreen"
+                className="bg-white/90 hover:bg-white text-slate-700 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1.5 transition-all hover:scale-105"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
                 </svg>
+                Fullscreen
               </button>
               <h1 className="text-lg font-bold">
                 <span style={{ color: track.accent }}>🏎️</span>{" "}
