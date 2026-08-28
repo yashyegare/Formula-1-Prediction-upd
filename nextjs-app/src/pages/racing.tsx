@@ -25,118 +25,211 @@ function offsetLine(pts: [number, number][], dx: number, dy: number): [number, n
 }
 
 // ─── MONACO ───
+// Tight street circuit around the harbor. Start/finish on the harbor straight.
+// Counter-clockwise: Sainte Dévote → Beau Rivage (uphill) → Casino Square →
+// Mirabeau → Fairmont Hairpin (tightest in F1) → Portier → Tunnel →
+// Nouvelle Chicane → Tabac → Swimming Pool (2 sections) → Rascasse →
+// Anthony Noghès → back to start.
 const MONACO_CENTERLINE: [number, number][] = [
-  [100, 390], [150, 380], [200, 370], [250, 360],
-  [280, 345], [295, 325], [290, 305],
-  [270, 275], [250, 245], [235, 215], [225, 185],
-  [225, 155], [240, 130], [265, 115],
-  [295, 108], [325, 115], [345, 135],
-  [355, 160], [360, 190], [355, 220],
-  [345, 250], [325, 268], [300, 272], [280, 260],
-  [275, 240], [285, 220],
-  [305, 205], [335, 195], [370, 190],
-  [410, 185], [450, 185], [490, 190],
-  [515, 200], [525, 215], [520, 230], [510, 225],
-  [500, 210], [495, 190], [500, 170],
-  [510, 155], [525, 145], [540, 150], [545, 165],
-  [540, 180], [525, 190], [515, 185],
-  [510, 195], [505, 215], [495, 230],
-  [475, 245], [450, 255], [420, 265],
-  [385, 285], [350, 310], [310, 340],
-  [265, 360], [220, 372], [175, 380], [130, 386], [100, 390],
+  // Start/finish straight along the harbor (west → east)
+  [80, 420], [130, 415], [180, 408], [230, 398], [280, 385],
+  // T1 Sainte Dévote — tight right-hander
+  [310, 370], [325, 348], [318, 325],
+  // Beau Rivage — uphill climbing northeast
+  [300, 295], [280, 265], [260, 235], [245, 210],
+  // Massenet — left-hander near top
+  [238, 185], [245, 160], [262, 140],
+  // Casino Square — right-hander (northernmost point)
+  [290, 128], [320, 132], [342, 150],
+  // Mirabeau Haute — descending right
+  [355, 175], [360, 205], [355, 235],
+  // Fairmont Hairpin — tightest corner in F1 (180° left)
+  [345, 265], [325, 282], [298, 285], [278, 272],
+  [272, 248], [282, 225],
+  // Portier — right, heading into tunnel
+  [302, 208], [335, 195], [375, 188],
+  // Tunnel — long straight under buildings (east)
+  [420, 182], [465, 180], [510, 182],
+  // Nouvelle Chicane — tight left-right after tunnel
+  [540, 192], [548, 210], [542, 228], [530, 222],
+  // Tabac — left-hander
+  [522, 205], [518, 182], [522, 160],
+  // Swimming Pool first section (fast left-right)
+  [535, 142], [552, 135], [565, 145], [568, 165],
+  // Swimming Pool second section (tight left-right)
+  [562, 185], [545, 195], [535, 188],
+  // La Rascasse — tight right
+  [528, 200], [520, 222], [508, 240],
+  // Anthony Noghès — right, back to pit straight
+  [488, 255], [460, 268], [425, 282],
+  [388, 302], [348, 325], [305, 350],
+  [260, 372], [210, 390], [160, 405], [110, 415], [80, 420],
 ];
 
 // ─── SILVERSTONE ───
+// Rounded triangle, clockwise. Fast sweepers are the defining feature.
+// Start on International Pits Straight → Abbey (fast left) → Farm →
+// Village → The Loop (tight left) → Aintree → Wellington Straight →
+// Copse (fast right) → Maggotts-Becketts-Chapel (legendary S-curves) →
+// Hangar Straight → Stowe (fast right) → Vale → Club → back to start.
 const SILVERSTONE_CENTERLINE: [number, number][] = [
-  [155, 370], [175, 355], [185, 335],
-  [180, 315], [165, 300], [150, 290],
-  [140, 275], [135, 255],
-  [140, 225], [150, 195], [165, 165],
-  [190, 140], [225, 120], [265, 108],
-  [305, 100], [335, 98], [355, 108],
-  [370, 125], [380, 145], [385, 165],
-  [395, 180], [415, 185],
-  [450, 180], [490, 170], [530, 165],
-  [565, 165], [590, 178], [600, 200],
-  [595, 225], [578, 245], [555, 258],
-  [530, 265], [505, 268],
-  [470, 275], [430, 285], [390, 295],
-  [350, 305], [315, 315], [285, 325],
-  [255, 340], [225, 355], [195, 365], [155, 370],
+  // International Pits Straight (heading west to east, bottom)
+  [480, 380], [440, 378], [400, 375], [360, 372],
+  // T1 Abbey — fast left-hander
+  [320, 365], [290, 352], [272, 335],
+  // T2 Farm — right, heading north
+  [262, 315], [255, 290],
+  // T3 Village — right
+  [248, 268], [238, 248], [225, 232],
+  // T4 The Loop — tight left
+  [210, 218], [195, 208], [178, 202],
+  // T5 Aintree — left onto Wellington Straight
+  [162, 198], [148, 198],
+  // Wellington Straight (heading north)
+  [145, 168], [148, 138], [158, 108], [172, 82],
+  // T6 Copse — fast right-hander (top-left)
+  [200, 65], [238, 55], [278, 52],
+  // T7-9 Maggotts-Becketts-Chapel — legendary S-curves (fast left-right-left-right)
+  [318, 55], [345, 62], [362, 78],
+  [372, 98], [378, 120], [380, 142],
+  // Chapel — right, onto Hangar Straight
+  [388, 158], [405, 168],
+  // Hangar Straight (heading southeast)
+  [442, 172], [482, 168], [522, 160],
+  // T10 Stowe — fast right-hander (top-right)
+  [558, 155], [588, 168], [605, 195],
+  // T11 Vale — left, into Club
+  [602, 225], [585, 252], [562, 270],
+  // T12 Club — right, onto International Pits Straight
+  [535, 282], [508, 288],
+  // Back to pit straight (heading west)
+  [498, 310], [492, 338], [488, 362], [480, 380],
 ];
 
 // ─── SUZUKA ───
+// Figure-8 layout — the ONLY F1 track where the back straight crosses over
+// the first-sector esses via a road bridge. The crossover point is at the
+// center of the circuit.
+// Start/finish → T1-T2 (fast left-right) → S-Curves → Dunlop →
+// Degner 1-2 → underpass → Hairpin → 200R → Spoon → back straight
+// (crosses over S-curves) → 130R → Casio Triangle → back to start.
 const SUZUKA_CENTERLINE: [number, number][] = [
-  [530, 400], [520, 365], [500, 325], [480, 290], [455, 260],
-  [425, 238],
-  [400, 225], [378, 215], [362, 208],
-  [352, 200],
-  [340, 190], [322, 178],
-  [300, 170],
-  [278, 165], [258, 160], [240, 152],
-  [222, 148],
-  [206, 158], [196, 175], [190, 195], [188, 213],
-  [196, 228],
-  [212, 236], [230, 233], [248, 220],
-  [263, 204],
-  [280, 192],
-  [300, 183],
-  [320, 178], [338, 178], [352, 184], [360, 193],
-  [352, 200],
-  [368, 196], [400, 206], [438, 216],
-  [478, 224],
-  [505, 222],
-  [528, 208], [538, 188],
-  [536, 168],
-  [520, 158], [505, 162], [498, 178], [500, 200],
-  [510, 240], [518, 285], [524, 330], [528, 368], [530, 400],
+  // Start/finish straight (bottom-right, heading left)
+  [540, 420], [510, 415], [475, 405], [440, 392],
+  // T1-T2 — fast left-right (entry to S-curves)
+  [410, 372], [385, 350], [362, 328],
+  // S-Curves — flowing left-right-left-right (sector 1 signature)
+  [342, 305], [325, 282], [310, 260], [298, 238],
+  [288, 218], [278, 198], [268, 180],
+  // Dunlop — right-hander
+  [252, 165], [235, 155], [218, 150],
+  // Degner 1 — right
+  [198, 152], [182, 162],
+  // Degner 2 — left, under the bridge (crossover point)
+  [172, 178], [168, 198],
+  // Underpass / exit of Degner
+  [172, 218], [182, 235],
+  // Hairpin — tight left (slowest point)
+  [195, 252], [215, 265], [238, 268], [258, 258],
+  [268, 240],
+  // 200R — long sweeping right
+  [282, 222], [298, 208],
+  // Spoon — double-apex left (sector 2)
+  [315, 198], [335, 192], [355, 195], [370, 208],
+  [378, 225],
+  // Back straight (heading east, CROSSES OVER the S-curves)
+  [395, 218], [420, 208], [450, 198], [485, 192],
+  [515, 188],
+  // 130R — ultra-fast left-hander
+  [538, 178], [552, 162], [555, 142],
+  // Casio Triangle — chicane (right-left)
+  [548, 125], [535, 118], [522, 125], [518, 142],
+  // Exit Casio, back to pit straight
+  [522, 168], [528, 200], [532, 240],
+  [535, 285], [538, 330], [540, 375], [540, 420],
 ];
 
 // ─── SPA ───
+// Longest F1 circuit (7.004km). Narrow and elongated, running roughly
+// north-south through the Ardennes forest.
+// La Source (tight right) → downhill to Eau Rouge → Raidillon (steep uphill)
+// → Kemmel Straight (longest on calendar) → Les Combes → Bruxelles →
+// Pouhon (fast double-left) → Fagnes → Stavelot → Blanchimont (very fast)
+// → Bus Stop chicane → back to La Source.
 const SPA_CENTERLINE: [number, number][] = [
-  [110, 100], [130, 115], [140, 138], [135, 160],
-  [125, 185], [118, 210], [115, 235],
-  [118, 260], [130, 278], [148, 288],
-  [172, 290], [198, 280], [225, 265], [250, 245],
-  [285, 220], [325, 198], [368, 180], [415, 168],
-  [455, 162], [485, 165], [505, 178],
-  [510, 198], [500, 215], [485, 228],
-  [475, 248], [468, 272], [455, 295],
-  [438, 312], [418, 322],
-  [395, 328], [368, 330], [342, 328],
-  [318, 322], [298, 312],
-  [282, 298], [272, 278], [268, 258],
-  [275, 242], [290, 232],
-  [312, 228], [338, 230], [365, 238],
-  [392, 252], [415, 270],
-  [435, 290], [448, 315], [455, 342],
-  [455, 368], [448, 390],
-  [435, 405], [418, 412], [400, 408],
-  [390, 395], [395, 378],
-  [395, 355], [388, 328], [375, 298],
-  [355, 265], [330, 235], [300, 210],
-  [265, 190], [228, 172], [192, 155],
-  [158, 138], [130, 118], [110, 100],
+  // La Source hairpin (top-left, tight right)
+  [100, 85], [125, 100], [142, 125], [140, 155],
+  // Downhill to Eau Rouge (heading south)
+  [130, 185], [120, 215], [115, 245],
+  // Eau Rouge — compression (left-right at bottom of hill)
+  [120, 272], [135, 290], [158, 298],
+  // Raidillon — steep uphill (heading northeast)
+  [188, 295], [218, 282], [248, 262], [278, 240],
+  // Kemmel Straight — long, heading northeast
+  [315, 215], [358, 192], [405, 175], [455, 165],
+  // Les Combes — right-left-right (top-right)
+  [492, 162], [518, 168], [535, 185],
+  [538, 208], [528, 228], [512, 242],
+  // Bruxelles — long 180° right (right side)
+  [498, 262], [488, 288], [475, 312],
+  [455, 330], [432, 340],
+  // Pouhon — fast double-left (center)
+  [405, 345], [375, 348], [348, 345],
+  [322, 338], [300, 325],
+  // Fagnes — right-left (bottom-center)
+  [282, 308], [270, 285], [265, 262],
+  [272, 242], [288, 228],
+  // Stavelot — heading east (bottom)
+  [315, 222], [345, 225], [375, 235],
+  [402, 252], [425, 275],
+  // Blanchimont — very fast left, heading north
+  [442, 298], [452, 325], [458, 355],
+  [455, 382], [445, 405],
+  // Bus Stop — tight right-left chicane (bottom-right)
+  [428, 418], [408, 422], [388, 415],
+  [378, 398], [385, 375],
+  // Back to La Source (heading northwest)
+  [385, 348], [375, 315], [358, 278],
+  [335, 245], [305, 215], [272, 190],
+  [235, 168], [198, 148], [160, 128],
+  [128, 108], [100, 85],
 ];
 
 // ─── INTERLAGOS ───
+// Counter-clockwise! One of only 2 CCW circuits on the F1 calendar.
+// Roughly L-shaped with the Senna S as the defining feature.
+// Main straight (heading south) → Senna S (downhill S-bend, left-right-left) →
+// Curva do Sol (long right) → Ferradura (double right) → Pinheirinho →
+// Bico de Pato (tight hairpin) → Mergulho → Junção (critical right) →
+// Subida dos Boxes (long uphill) → back to main straight.
 const INTERLAGOS_CENTERLINE: [number, number][] = [
-  [540, 100], [535, 135], [528, 170], [518, 205],
-  [505, 235], [488, 258], [465, 272],
-  [440, 278], [418, 270], [402, 255],
-  [385, 238], [365, 228], [342, 225],
-  [318, 230], [298, 242], [285, 260],
-  [280, 282], [285, 302],
-  [295, 318], [308, 330], [325, 335],
-  [342, 332], [355, 320], [360, 305],
-  [358, 288], [348, 272], [335, 262],
-  [320, 258], [308, 265], [298, 278],
-  [295, 298], [298, 320], [308, 340],
-  [325, 355], [348, 365], [375, 370],
-  [405, 370], [435, 362], [462, 348],
-  [485, 328], [502, 305], [515, 278],
-  [525, 248], [532, 215],
-  [538, 180], [540, 145], [540, 100],
+  // Main straight / Reta Oposta (heading south, right side)
+  [560, 80], [555, 115], [548, 152], [538, 190],
+  // T1-3 Senna S — iconic downhill S-bend (left-right-left, bottom-right)
+  [525, 222], [508, 248], [485, 268],
+  [458, 278], [432, 272], [412, 255],
+  // T4 Curva do Sol — long sweeping right (bottom)
+  [392, 235], [370, 222], [345, 218],
+  // T5-6 Descida do Lago — left-right (bottom-left)
+  [320, 222], [300, 235], [288, 255],
+  // T7-8 Ferradura — double right (left side)
+  [282, 278], [285, 302], [295, 322],
+  // T9 Pinheirinho — tight left (center)
+  [312, 335], [330, 340], [348, 335],
+  [360, 320], [365, 300],
+  // T10 Bico de Pato — tight right hairpin
+  [360, 278], [348, 262], [332, 252],
+  // T11 Mergulho — downhill left
+  [315, 248], [302, 258], [292, 275],
+  // T12 Junção — critical right-hander (bottom-left)
+  [288, 298], [292, 325], [305, 348],
+  // Subida dos Boxes — long uphill straight (heading northeast, left side)
+  [325, 365], [352, 378], [385, 385],
+  [420, 385], [455, 378], [488, 362],
+  [515, 338], [535, 308], [548, 272],
+  [555, 235], [558, 195],
+  // Back onto main straight (heading north)
+  [560, 155], [562, 118], [560, 80],
 ];
 
 const TRACKS: TrackDef[] = [
@@ -146,19 +239,20 @@ const TRACKS: TrackDef[] = [
     flag: "🇲🇨",
     length: "3.337 km",
     accent: "#e11d48",
-    halfWidth: 18,
+    halfWidth: 16,
     parTime: 32000,
     corners: [
       { label: "Ste Dévote", at: 5 },
-      { label: "Casino", at: 10 },
-      { label: "Hairpin", at: 16 },
-      { label: "Tunnel", at: 22 },
-      { label: "Chicane", at: 25 },
-      { label: "Pool", at: 32 },
-      { label: "Rascasse", at: 37 },
+      { label: "Casino", at: 12 },
+      { label: "Hairpin", at: 18 },
+      { label: "Tunnel", at: 24 },
+      { label: "Chicane", at: 28 },
+      { label: "Tabac", at: 31 },
+      { label: "Pool", at: 34 },
+      { label: "Rascasse", at: 39 },
     ],
     centerline: MONACO_CENTERLINE,
-    aiLine: offsetLine(MONACO_CENTERLINE, 5, -3),
+    aiLine: offsetLine(MONACO_CENTERLINE, 4, -2),
   },
   {
     name: "Silverstone",
@@ -169,13 +263,14 @@ const TRACKS: TrackDef[] = [
     halfWidth: 22,
     parTime: 28000,
     corners: [
-      { label: "Copse", at: 8 },
-      { label: "Maggots", at: 11 },
-      { label: "Becketts", at: 14 },
-      { label: "Stowe", at: 20 },
-      { label: "Vale", at: 23 },
-      { label: "Club", at: 25 },
-      { label: "Abbey", at: 30 },
+      { label: "Abbey", at: 4 },
+      { label: "Village", at: 10 },
+      { label: "Loop", at: 13 },
+      { label: "Copse", at: 18 },
+      { label: "Maggotts", at: 22 },
+      { label: "Becketts", at: 25 },
+      { label: "Stowe", at: 32 },
+      { label: "Club", at: 37 },
     ],
     centerline: SILVERSTONE_CENTERLINE,
     aiLine: offsetLine(SILVERSTONE_CENTERLINE, -4, 4),
@@ -189,13 +284,13 @@ const TRACKS: TrackDef[] = [
     halfWidth: 20,
     parTime: 30000,
     corners: [
-      { label: "T1", at: 5 },
+      { label: "T1", at: 4 },
       { label: "S Curves", at: 9 },
-      { label: "Degner", at: 16 },
-      { label: "Hairpin", at: 21 },
-      { label: "Spoon", at: 27 },
-      { label: "130R", at: 33 },
-      { label: "Casio", at: 36 },
+      { label: "Degner", at: 17 },
+      { label: "Hairpin", at: 23 },
+      { label: "Spoon", at: 30 },
+      { label: "130R", at: 39 },
+      { label: "Casio", at: 42 },
     ],
     centerline: SUZUKA_CENTERLINE,
     aiLine: offsetLine(SUZUKA_CENTERLINE, 4, 5),
@@ -212,10 +307,10 @@ const TRACKS: TrackDef[] = [
       { label: "La Source", at: 1 },
       { label: "Eau Rouge", at: 7 },
       { label: "Raidillon", at: 10 },
-      { label: "Les Combes", at: 15 },
-      { label: "Pouhon", at: 23 },
-      { label: "Blanchimont", at: 34 },
-      { label: "Bus Stop", at: 38 },
+      { label: "Les Combes", at: 16 },
+      { label: "Pouhon", at: 24 },
+      { label: "Blanchimont", at: 35 },
+      { label: "Bus Stop", at: 39 },
     ],
     centerline: SPA_CENTERLINE,
     aiLine: offsetLine(SPA_CENTERLINE, -5, 3),
@@ -230,7 +325,7 @@ const TRACKS: TrackDef[] = [
     parTime: 26000,
     corners: [
       { label: "Senna S", at: 6 },
-      { label: "Ferradura", at: 12 },
+      { label: "Ferradura", at: 13 },
       { label: "Pinheirinho", at: 18 },
       { label: "Bico de Pato", at: 21 },
       { label: "Junção", at: 25 },
@@ -698,7 +793,7 @@ const RacingPage: NextPage = () => {
       ctx.stroke();
     }
 
-    // ── Ghost car (previous best run) ──
+    // ── Ghost car ──
     if (ghostLine && ghostLine.length > 1 && s.racing && s.line.length > 1) {
       const gIdx = Math.min(Math.floor(s.raceProgress * (ghostLine.length - 1)), ghostLine.length - 1);
       const gPos = ghostLine[gIdx]!;
