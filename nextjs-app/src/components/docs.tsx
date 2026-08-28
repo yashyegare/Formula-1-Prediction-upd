@@ -72,7 +72,7 @@ const FeatureCard = ({ href, isExternal, emoji, title, subtitle, accentColor, de
     return (
         <Wrapper
             {...wrapperProps}
-            className="group relative flex items-center gap-2.5 rounded-xl border-2 px-4 py-2.5 no-underline transition-all duration-300 hover:scale-[1.03] hover:shadow-lg"
+            className="group relative flex-1 flex items-center justify-center gap-2.5 rounded-xl border-2 px-4 py-3 no-underline transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
             style={{
                 animation: `fadeInUp 0.6s ease-out ${delay} both`,
                 borderColor: accentColor,
@@ -85,7 +85,7 @@ const FeatureCard = ({ href, isExternal, emoji, title, subtitle, accentColor, de
             >
                 {emoji}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 text-center">
                 <div className="font-bold text-sm" style={{ color: accentColor }}>{title}</div>
             </div>
             <div className="flex-shrink-0">
@@ -100,8 +100,20 @@ const FeatureCard = ({ href, isExternal, emoji, title, subtitle, accentColor, de
 const Docs = () => {
     return (
         <>
+            <style jsx>{`
+                @keyframes fadeInUp {
+                    from { opacity: 0; transform: translateY(12px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+            `}</style>
+
+            <header>
+                <h1 className="text-2xl font-bold mt-0 mb-1">Predicting Formula 1 Race Results</h1>
+                <p className="text-sm opacity-60 m-0 mb-3">A Machine Learning approach to predict race results</p>
+            </header>
+
             {/* Feature cards — Season Simulator & Draw Line Racing */}
-            <div className="mb-3 flex flex-row gap-2">
+            <div className="mb-4 flex flex-row gap-3">
                     <FeatureCard
                         href="https://formula-1-prediction-upd-fxzg.vercel.app"
                         isExternal
@@ -120,18 +132,6 @@ const Docs = () => {
                         delay="0.2s"
                     />
             </div>
-
-            <style jsx>{`
-                @keyframes fadeInUp {
-                    from { opacity: 0; transform: translateY(12px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-            `}</style>
-
-            <header>
-                <h1 className="text-2xl font-bold mt-0 mb-1">Predicting Formula 1 Race Results</h1>
-                <p className="text-sm opacity-60 m-0 mb-3">A Machine Learning approach to predict race results</p>
-            </header>
             <Container>
                 <section className="flex flex-row items-center justify-center gap-3 mb-4 w-full">
                     <section className="flex items-center justify-center gap-3 w-full px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg">
