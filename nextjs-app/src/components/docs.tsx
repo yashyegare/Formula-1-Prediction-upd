@@ -25,7 +25,7 @@ const CANVA_EDIT_URL = "https://www.canva.com/design/DAFsVnyeZfw/HAKqZREsBBSWqrW
 const CanvaEmbed = () => {
     return (
         <>
-            <div style={{position: 'relative', width: '100%', paddingTop: '56.2500%', paddingBottom: 0, boxShadow: '0 2px 8px 0 rgba(63,69,81,0.16)', marginTop: '1.6em', marginBottom: '0.9em', overflow: 'hidden', borderRadius: '8px', willChange: 'transform'}}>
+            <div style={{position: 'relative', width: '100%', paddingTop: '45%', paddingBottom: 0, boxShadow: '0 2px 8px 0 rgba(63,69,81,0.16)', marginTop: '0.5em', marginBottom: '0.5em', overflow: 'hidden', borderRadius: '8px', willChange: 'transform'}}>
                 <iframe
                     loading="lazy"
                     style={{position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, border: 'none', padding: 0, margin: 0}}
@@ -87,9 +87,7 @@ const Docs = () => {
 
             <header>
                 <h1 className="text-2xl font-bold mt-0 mb-1">Predicting Formula 1 Race Results</h1>
-                <p className="text-sm opacity-60 m-0 mb-3">A Machine Learning approach to predict race results</p>
-                <br />
-                <br />
+                <p className="text-sm opacity-60 m-0 mb-2">A Machine Learning approach to predict race results</p>
             </header>
 
             {/* Feature cards — Season Simulator & Draw Line Racing */}
