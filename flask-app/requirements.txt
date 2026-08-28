@@ -13,5 +13,6 @@ Werkzeug
 Gunicorn
 scikit-learn
 flask_cors
+flask_login
 
 
