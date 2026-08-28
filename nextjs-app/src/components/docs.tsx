@@ -72,24 +72,25 @@ const FeatureCard = ({ href, isExternal, emoji, title, subtitle, accentColor, de
     return (
         <Wrapper
             {...wrapperProps}
-            className="group relative flex items-center gap-2 rounded-lg border px-2.5 py-1.5 no-underline transition-all duration-300 hover:scale-[1.02]"
+            className="group relative flex items-center gap-2.5 rounded-xl border-2 px-4 py-2.5 no-underline transition-all duration-300 hover:scale-[1.03] hover:shadow-lg"
             style={{
                 animation: `fadeInUp 0.6s ease-out ${delay} both`,
-                borderColor: `${accentColor}30`,
-                background: `linear-gradient(135deg, ${accentColor}08, ${accentColor}04)`,
+                borderColor: accentColor,
+                background: `linear-gradient(135deg, ${accentColor}18, ${accentColor}08)`,
+                boxShadow: `0 2px 8px ${accentColor}20`,
             }}
         >
-            <div className="flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-sm"
-                style={{ background: `linear-gradient(135deg, ${accentColor}30, ${accentColor}15)` }}
+            <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-base"
+                style={{ background: `linear-gradient(135deg, ${accentColor}40, ${accentColor}20)` }}
             >
                 {emoji}
             </div>
             <div className="flex-1 min-w-0">
-                <div className="font-semibold text-white text-xs">{title}</div>
+                <div className="font-bold text-sm" style={{ color: accentColor }}>{title}</div>
             </div>
             <div className="flex-shrink-0">
-                <svg className="w-3 h-3 text-zinc-600 group-hover:text-white group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <svg className="w-4 h-4 group-hover:translate-x-1 transition-all" style={{ color: accentColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                 </svg>
             </div>
         </Wrapper>
@@ -132,11 +133,11 @@ const Docs = () => {
                 <p className="text-sm opacity-60 m-0 mb-3">A Machine Learning approach to predict race results</p>
             </header>
             <Container>
-                <section className="flex flex-row items-center gap-2 mb-4 w-full">
-                    <section className="flex items-center gap-2 px-3 py-1 rounded-lg bg-orange-100 border border-orange-600">
-                        <p className="text-xs font-bold m-0">Yash Yegare</p>
-                        <span className="text-xs">
-                            <a className="no-underline p-0.5 hover:bg-orange-300 rounded" href={"https://github.com/yashyegare"} target="_blank">Github</a>
+                <section className="flex flex-row items-center gap-3 mb-4 w-full">
+                    <section className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md">
+                        <p className="text-sm font-bold m-0">Yash Yegare</p>
+                        <span className="text-sm">
+                            <a className="no-underline text-white hover:text-orange-100 p-1 hover:bg-white/20 rounded transition" href={"https://github.com/yashyegare"} target="_blank">Github</a>
                         </span>
                     </section>
                 </section>
