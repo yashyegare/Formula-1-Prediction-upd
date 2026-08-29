@@ -392,6 +392,8 @@ const RacingPage: NextPage = () => {
   const [ghostLine, setGhostLine] = useState<{ x: number; y: number }[] | null>(null);
   const [aiEnabled, setAiEnabled] = useState(true);
   const [selectedAI, setSelectedAI] = useState(1); // Sunny default
+  const [checkpointsOn, setCheckpointsOn] = useState(true);
+  const [lap, setLap] = useState(1);
 
   const track = TRACKS[trackIdx] as TrackDef;
   const smoothed = useRef<[number, number][][]>(TRACKS.map((t) => smoothLine(t.centerline)));
@@ -487,8 +489,8 @@ const RacingPage: NextPage = () => {
     if (!canvas || showModal) return;
     const ctx = canvas.getContext("2d")!;
     const s = stateRef.current;
-    const W = 700;
-    const H = 500;
+    const W = canvas.width / (window.devicePixelRatio || 1);
+    const H = canvas.height / (window.devicePixelRatio || 1);
 
     // ── Background: grass with subtle texture ──
     const grassGrad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, 450);
@@ -510,10 +512,33 @@ const RacingPage: NextPage = () => {
     const cl = smoothed.current[trackIdx]!;
     const hw = track.halfWidth;
 
+    // ── Scale and center track to fill canvas ──
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const [x, y] of cl) {
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+    const dataW = maxX - minX || 1;
+    const dataH = maxY - minY || 1;
+    const pad = 80;
+    const scaleX = (W - pad * 2) / dataW;
+    const scaleY = (H - pad * 2) / dataH;
+    const scale = Math.min(scaleX, scaleY);
+    const offsetX = (W - dataW * scale) / 2 - minX * scale;
+    const offsetY = (H - dataH * scale) / 2 - minY * scale;
+
+    ctx.save();
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(scale, scale);
+
+    const sW = (hw * 4) / scale; // scaled half-width for track rendering (4x for wide road like reference)
+
     // ── Track surface — clean dark road like the reference ──
     // Road border (white edge lines)
     ctx.strokeStyle = "rgba(255,255,255,0.7)";
-    ctx.lineWidth = hw * 2 + 4;
+    ctx.lineWidth = sW * 2 + 4;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.beginPath();
@@ -522,7 +547,7 @@ const RacingPage: NextPage = () => {
 
     // Asphalt fill
     ctx.strokeStyle = "#2d2d2d";
-    ctx.lineWidth = hw * 2;
+    ctx.lineWidth = sW * 2;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.beginPath();
@@ -539,24 +564,56 @@ const RacingPage: NextPage = () => {
     ctx.setLineDash([]);
 
     // ── Start/finish line (checkered, perpendicular to track direction) ──
-    drawStartFinishLine(ctx, cl, hw);
+    drawStartFinishLine(ctx, cl, sW);
 
-    // ── Checkpoint markers (circular dots at regular intervals) ──
-    const numCheckpoints = Math.min(8, Math.floor(cl.length / 10));
-    for (let c = 0; c < numCheckpoints; c++) {
-      const ci = Math.floor((c / numCheckpoints) * (cl.length - 1));
-      const pt = cl[ci]!;
-      // Outer ring
-      ctx.beginPath();
-      ctx.arc(pt[0], pt[1], 12, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(255,255,255,0.5)";
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      // Inner dot
-      ctx.beginPath();
-      ctx.arc(pt[0], pt[1], 4, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(255,255,255,0.8)";
-      ctx.fill();
+    // ── Start dot (blue circle with green direction arrow) ──
+    const startPt = cl[0]!;
+    const startNext = cl[Math.min(3, cl.length - 1)]!;
+    const startAngle = Math.atan2(startNext[1] - startPt[1], startNext[0] - startPt[0]);
+    // Blue start dot
+    ctx.beginPath();
+    ctx.arc(startPt[0], startPt[1], 8, 0, Math.PI * 2);
+    ctx.fillStyle = "#3b82f6";
+    ctx.fill();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Green direction arrow
+    ctx.save();
+    ctx.translate(startPt[0] + Math.cos(startAngle) * 18, startPt[1] + Math.sin(startAngle) * 18);
+    ctx.rotate(startAngle);
+    ctx.fillStyle = "#22c55e";
+    ctx.beginPath();
+    ctx.moveTo(8, 0);
+    ctx.lineTo(-4, -5);
+    ctx.lineTo(-4, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // ── Checkpoint markers (at detected corner positions) ──
+    if (checkpointsOn) {
+      const cornerIdxs = detectCorners(cl, 15, 14, 10);
+      for (const ci of cornerIdxs) {
+        const pt = cl[ci]!;
+        // Outer ring
+        ctx.beginPath();
+        ctx.arc(pt[0], pt[1], 14, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255,255,255,0.55)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        // Inner ring
+        ctx.beginPath();
+        ctx.arc(pt[0], pt[1], 7, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255,255,255,0.3)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // Center dot
+        ctx.beginPath();
+        ctx.arc(pt[0], pt[1], 3, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255,255,255,0.7)";
+        ctx.fill();
+      }
     }
 
     // ── AI line (ghost) ──
@@ -760,7 +817,11 @@ const RacingPage: NextPage = () => {
       ctx.fillText(AI_OPPONENTS[selectedAI]!.name, aiPt[0], aiPt[1] - 16);
     }
 
-    // ── Track name overlay ──
+    // ── Restore transform — overlays are in screen coordinates ──
+    ctx.restore();
+
+    // ── Track name overlay (hidden — using floating HUD instead) ──
+    /*
     ctx.fillStyle = "rgba(0,0,0,0.65)";
     ctx.beginPath();
     ctx.roundRect(12, 12, 160, 32, 6);
@@ -769,19 +830,8 @@ const RacingPage: NextPage = () => {
     ctx.font = "bold 13px Inter, sans-serif";
     ctx.textAlign = "left";
     ctx.fillText(`${track.flag} ${track.name}`, 22, 34);
-
-    // ── Line length overlay ──
-    if (s.line.length > 1 && !s.racing && !s.showResult) {
-      const len = totalLength(s.line);
-      ctx.fillStyle = "rgba(0,0,0,0.65)";
-      ctx.beginPath();
-      ctx.roundRect(W - 135, 12, 123, 32, 6);
-      ctx.fill();
-      ctx.fillStyle = "#60a5fa";
-      ctx.font = "bold 12px Inter, monospace";
-      ctx.textAlign = "left";
-      ctx.fillText(`${Math.round(len)}px  |  ${(len / (track.parTime / 50) * 100).toFixed(0)}%`, W - 125, 34);
-    }
+    */
+    // Canvas overlays removed — using floating HUD instead
 
     // ── Result overlay ──
     if (s.showResult) {
@@ -968,14 +1018,13 @@ const RacingPage: NextPage = () => {
     const canvas = canvasRef.current;
     if (!canvas || showModal) return;
     const resize = () => {
-      const parent = canvas.parentElement;
-      const w = parent?.offsetWidth || 700;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = 700 * dpr;
-      canvas.height = 500 * dpr;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
       canvas.style.width = "100%";
-      canvas.style.height = "auto";
-      canvas.style.aspectRatio = "700 / 500";
+      canvas.style.height = "100%";
       const ctx = canvas.getContext("2d")!;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       drawCanvas();
@@ -1139,167 +1188,161 @@ const RacingPage: NextPage = () => {
   }
 
   /* ═══════════════════════════════════════════════
-     GAME VIEW
+     GAME VIEW — full-screen immersive layout
      ═══════════════════════════════════════════════ */
   return (
     <>
       <Head>
         <title>{track.name} - Draw Line Racing</title>
       </Head>
-      <div className="min-h-screen bg-[#0c0f1a] text-white">
-        {/* Header */}
-        <header className="sticky top-0 z-50 bg-black/40 backdrop-blur-lg border-b border-white/5">
-          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <button
-              onClick={() => { setShowModal(true); clearLine(); }}
-              className="flex items-center gap-2 text-zinc-400 hover:text-white transition group"
-            >
-              <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              <span className="font-medium">Change Track</span>
-            </button>              <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-                <div className={`w-2 h-2 rounded-full ${s.racing ? "bg-red-500 animate-pulse" : "bg-green-400"}`} />
-                <span className="text-sm text-zinc-300">
-                  {s.racing ? "Racing..." : s.line.length > 0 ? "Ready to race" : "Draw your line"}
+      <div className="fixed inset-0 bg-[#0c0f1a] text-white overflow-hidden">
+        {/* Full-screen canvas */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <canvas
+            ref={canvasRef}
+            className="w-full h-full cursor-crosshair touch-none"
+            onMouseDown={onPointerDown}
+            onMouseMove={onPointerMove}
+            onMouseUp={onPointerUp}
+            onMouseLeave={onPointerUp}
+            onTouchStart={onPointerDown}
+            onTouchMove={onPointerMove}
+            onTouchEnd={onPointerUp}
+            onClick={handleCanvasClick}
+          />
+        </div>
+
+        {/* ── Top-left: Back button + track name ── */}
+        <div className="absolute top-4 left-4 z-20 flex items-center gap-3">
+          <button
+            onClick={() => { setShowModal(true); clearLine(); }}
+            className="bg-black/50 backdrop-blur-md hover:bg-black/70 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div className="bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full">
+            <span className="text-sm font-bold" style={{ color: track.accent }}>{track.flag} {track.name}</span>
+            <span className="text-xs text-zinc-400 ml-2">{track.length}</span>
+          </div>
+        </div>
+
+        {/* ── Top-right: Fullscreen button ── */}
+        <div className="absolute top-4 right-4 z-20">
+          <button
+            onClick={() => {
+              if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+              else document.exitFullscreen();
+            }}
+            className="bg-white/90 hover:bg-white text-slate-700 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+          </button>
+        </div>
+
+        {/* ── Top-center: Status HUD ── */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
+          <div className="bg-black/60 backdrop-blur-md px-5 py-2.5 rounded-full flex items-center gap-3">
+            {s.racing ? (
+              <>
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-sm font-bold text-white">Racing...</span>
+              </>
+            ) : s.line.length > 1 ? (
+              <>
+                <div className="w-2 h-2 rounded-full bg-green-400" />
+                <span className="text-sm font-medium text-zinc-300">Draw <span className="text-yellow-400 font-bold">Lap {lap} of 5</span></span>
+              </>
+            ) : (
+              <>
+                <div className="w-2 h-2 rounded-full bg-blue-400" />
+                <span className="text-sm font-medium text-zinc-300">Drag from <span className="text-blue-400 font-bold">bottom dot</span></span>
+                <span className="text-sm font-medium text-zinc-300">Draw <span className="text-yellow-400 font-bold">Lap {lap} of 5</span></span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ── Bottom-left: Checkpoints toggle ── */}
+        <div className="absolute bottom-4 left-4 z-20">
+          <button
+            onClick={() => setCheckpointsOn(!checkpointsOn)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shadow-lg transition ${
+              checkpointsOn
+                ? "bg-black/60 backdrop-blur-md text-white border border-white/20"
+                : "bg-black/40 backdrop-blur-md text-zinc-400 border border-white/10"
+            }`}
+          >
+            <div className={`w-2.5 h-2.5 rounded-full ${checkpointsOn ? "bg-green-400" : "bg-zinc-600"}`} />
+            Checkpoints {checkpointsOn ? "ON" : "OFF"}
+          </button>
+        </div>
+
+        {/* ── Bottom-right: Controls ── */}
+        <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
+          {/* Lap time */}
+          <div className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-full">
+            <span className="font-mono font-bold text-lg text-white tabular-nums">{formatTime(elapsed)}</span>
+          </div>
+          {/* Clear */}
+          <button
+            onClick={clearLine}
+            className="bg-black/60 backdrop-blur-md hover:bg-black/80 text-white px-4 py-2 rounded-full text-sm font-semibold transition border border-white/10"
+          >
+            Clear
+          </button>
+          {/* Start Race */}
+          <button
+            onClick={startRace}
+            disabled={s.racing}
+            className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {s.racing ? "Racing..." : "🏁 Start"}
+          </button>
+        </div>
+
+        {/* ── Bottom-center: AI selector ── */}
+        {aiEnabled && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+            <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10">
+              <span className="text-xs text-zinc-500 mr-1">vs</span>
+              {AI_OPPONENTS.map((ai, i) => (
+                <button
+                  key={ai.name}
+                  onClick={() => setSelectedAI(i)}
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs transition-all ${
+                    i === selectedAI ? "ring-2 ring-offset-1 ring-offset-black scale-110" : "opacity-50 hover:opacity-80"
+                  }`}
+                  style={{ backgroundColor: ai.color + "30" }}
+                  title={ai.name}
+                >
+                  {ai.emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Right side: Best time + scores (floating) ── */}
+        <div className="absolute right-4 top-20 z-20 w-48 space-y-2 hidden md:block">
+          <div className="bg-black/50 backdrop-blur-md rounded-2xl p-3 text-center border border-white/10">
+            <div className="text-[10px] font-semibold text-yellow-500/60 uppercase tracking-wider mb-1">Best Time</div>
+            <div className="text-xl font-bold font-mono text-yellow-400">
+              {s.bestTime !== null ? formatTime(s.bestTime) : "--:--.--"}
+            </div>
+          </div>
+          <div className="bg-black/50 backdrop-blur-md rounded-2xl p-3 border border-white/10">
+            {TRACKS.map((t) => (
+              <div key={t.name} className={`flex items-center justify-between py-1 ${t.name === track.name ? "text-white" : "text-zinc-500"}`}>
+                <span className="text-xs flex items-center gap-1">
+                  <span>{t.flag}</span> {t.name}
                 </span>
+                <span className="font-mono text-xs">{scores[t.name] ? formatTime(scores[t.name]!) : "--:--"}</span>
               </div>
-              <button
-                onClick={() => {
-                  if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-                  else document.exitFullscreen();
-                }}
-                className="bg-white/90 hover:bg-white text-slate-700 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1.5 transition"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
-                Fullscreen
-              </button>
-              <h1 className="text-lg font-bold">
-                <span style={{ color: track.accent }}>🏎️</span>{" "}
-                <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">Draw Line Racing</span>
-              </h1>
-            </div>
+            ))}
           </div>
-        </header>
-
-        <main className="max-w-7xl mx-auto p-4 sm:p-6">
-          <div className="grid lg:grid-cols-[1fr_280px] gap-6">
-            {/* Left */}
-            <div className="space-y-4">
-              {/* Canvas */}
-              <div className="relative rounded-2xl border border-zinc-800 overflow-hidden shadow-2xl bg-[#0a0d16]">
-                <canvas
-                  ref={canvasRef}
-                  className="w-full cursor-crosshair"
-                  style={{ aspectRatio: "700 / 500" }}
-                  onMouseDown={onPointerDown}
-                  onMouseMove={onPointerMove}
-                  onMouseUp={onPointerUp}
-                  onMouseLeave={onPointerUp}
-                  onTouchStart={onPointerDown}
-                  onTouchMove={onPointerMove}
-                  onTouchEnd={onPointerUp}
-                  onClick={handleCanvasClick}
-                />
-                {s.drawing && (
-                  <div className="absolute bottom-3 left-3 z-10">
-                    <div className="flex items-center gap-2 bg-green-500/90 px-3 py-1.5 rounded-full">
-                      <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                      <span className="text-xs font-bold text-white">DRAWING</span>
-                    </div>
-                  </div>
-                )}
-                <div className="absolute bottom-3 right-3 z-10 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                  <span className="text-xs text-zinc-400">{track.length} · {track.country}</span>
-                </div>
-              </div>
-
-              {/* Controls */}
-              <div className="flex flex-wrap gap-3">
-                <button onClick={clearLine} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-semibold transition-all border border-zinc-700">
-                  Clear
-                </button>
-                <button onClick={startRace} disabled={s.racing} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 rounded-xl font-bold transition-all shadow-lg shadow-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {s.racing ? "Racing..." : "🏁 Start Race"}
-                </button>
-                {/* AI opponent selector */}
-                {aiEnabled && (
-                  <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3">
-                    <span className="text-xs text-zinc-500">vs</span>
-                    {AI_OPPONENTS.map((ai, i) => (
-                      <button
-                        key={ai.name}
-                        onClick={() => setSelectedAI(i)}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all ${
-                          i === selectedAI ? "ring-2 ring-offset-1 ring-offset-[#0c0f1a] scale-110" : "opacity-50 hover:opacity-80"
-                        }`}
-                        style={{ backgroundColor: ai.color + "30" }}
-                        title={ai.name}
-                      >
-                        {ai.emoji}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <p className="text-xs text-zinc-500">
-                Draw a racing line on the circuit, then hit Start Race. Shorter, smoother lines = faster times!
-              </p>
-            </div>
-
-            {/* Right - Stats */}
-            <div className="space-y-4">
-              <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-5 text-center">
-                <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Lap Time</div>
-                <div className="text-5xl font-bold font-mono text-white tabular-nums">{formatTime(elapsed)}</div>
-              </div>
-
-              <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/5 rounded-2xl border border-yellow-500/15 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-yellow-500/15 flex items-center justify-center text-2xl">⭐</div>
-                  <div>
-                    <div className="text-xs font-semibold text-yellow-500/60 uppercase tracking-wider">Best Time</div>
-                    <div className="text-2xl font-bold font-mono text-yellow-400">
-                      {s.bestTime !== null ? formatTime(s.bestTime) : "--:--.--"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-4 space-y-3">
-                <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Race Stats</h3>
-                {[
-                  { label: "Line Length", value: `${lineLen}px`, icon: "📏" },
-                  { label: "Laps", value: String(s.laps), icon: "🔄" },
-                  { label: "Opponent", value: aiEnabled ? AI_OPPONENTS[selectedAI]!.name : "None", icon: "🤖" },
-                  { label: "Ghost", value: ghostLine ? "Active" : "None", icon: "👻" },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-sm text-zinc-400">
-                      <span>{item.icon}</span> {item.label}
-                    </span>
-                    <span className="font-mono font-bold text-white">{item.value}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* All-time best scores */}
-              <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 p-4">
-                <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Best Times</h3>
-                {TRACKS.map((t) => (
-                  <div key={t.name} className={`flex items-center justify-between py-1.5 ${t.name === track.name ? "text-white" : "text-zinc-500"}`}>
-                    <span className="text-sm flex items-center gap-1">
-                      <span>{t.flag}</span> {t.name}
-                    </span>
-                    <span className="font-mono text-sm">{scores[t.name] ? formatTime(scores[t.name]!) : "--:--"}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </main>
+        </div>
       </div>
     </>
   );
