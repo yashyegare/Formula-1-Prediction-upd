@@ -509,25 +509,19 @@ const RacingPage: NextPage = () => {
 
     const cl = smoothed.current[trackIdx]!;
     const hw = track.halfWidth;
-    const cornerIndices = detectCorners(cl);
 
-    // ── Runoff areas (gravel traps at sharp corners, detected from the
-    // real geometry rather than a manually curated list) ──
-    ctx.fillStyle = "#c4a55a";
-    ctx.globalAlpha = 0.3;
-    for (const idx of cornerIndices) {
-      const pt = cl[idx];
-      if (pt) {
-        ctx.beginPath();
-        ctx.arc(pt[0] + 25, pt[1] + 25, 20, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    ctx.globalAlpha = 1;
+    // ── Track surface — clean dark road like the reference ──
+    // Road border (white edge lines)
+    ctx.strokeStyle = "rgba(255,255,255,0.7)";
+    ctx.lineWidth = hw * 2 + 4;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    cl.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+    ctx.stroke();
 
-    // ── Track surface ──
-    // Draw thick centerline for track surface
-    ctx.strokeStyle = "#3a3a3a";
+    // Asphalt fill
+    ctx.strokeStyle = "#2d2d2d";
     ctx.lineWidth = hw * 2;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -535,32 +529,35 @@ const RacingPage: NextPage = () => {
     cl.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
     ctx.stroke();
 
-    // Asphalt texture
-    ctx.strokeStyle = "#404040";
-    ctx.lineWidth = hw * 1.8;
-    ctx.setLineDash([2, 4]);
+    // White dashed center line
+    ctx.strokeStyle = "rgba(255,255,255,0.45)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 12]);
     ctx.beginPath();
     cl.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // ── Track edges ──
-    ctx.strokeStyle = "#666";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    cl.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
-    ctx.stroke();
-
-    // ── Curb strips (real kerbs: red/white blocks at the track EDGES, not a centerline) ──
-    drawCurbs(ctx, cl, cornerIndices, hw);
-
     // ── Start/finish line (checkered, perpendicular to track direction) ──
     drawStartFinishLine(ctx, cl, hw);
 
-    // ── Pit lane indicator ──
-    ctx.fillStyle = "rgba(255,255,255,0.15)";
-    ctx.font = "bold 10px Inter, sans-serif";
-    ctx.fillText("PIT", cl[0]![0] + 30, cl[0]![1] - hw - 4);
+    // ── Checkpoint markers (circular dots at regular intervals) ──
+    const numCheckpoints = Math.min(8, Math.floor(cl.length / 10));
+    for (let c = 0; c < numCheckpoints; c++) {
+      const ci = Math.floor((c / numCheckpoints) * (cl.length - 1));
+      const pt = cl[ci]!;
+      // Outer ring
+      ctx.beginPath();
+      ctx.arc(pt[0], pt[1], 12, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255,255,255,0.5)";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      // Inner dot
+      ctx.beginPath();
+      ctx.arc(pt[0], pt[1], 4, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,255,255,0.8)";
+      ctx.fill();
+    }
 
     // ── AI line (ghost) ──
     if (aiEnabled && s.racing) {
@@ -1019,9 +1016,21 @@ const RacingPage: NextPage = () => {
                 </svg>
                 <span className="font-medium">Race Predictor</span>
               </Link>
-              <h1 className="text-lg font-bold">
-                <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">🏎️ Draw Line Racing</span>
-              </h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-lg font-bold">
+                  <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">🏎️ Draw Line Racing</span>
+                </h1>
+                <button
+                  onClick={() => {
+                    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+                    else document.exitFullscreen();
+                  }}
+                  className="bg-white/90 hover:bg-white text-slate-700 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1.5 transition"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                  Fullscreen
+                </button>
+              </div>
             </div>
           </header>
 
@@ -1076,7 +1085,7 @@ const RacingPage: NextPage = () => {
                       onClick={() => selectTrack(i)}
                       className="group relative bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-2xl p-4 transition-all hover:scale-[1.03] active:scale-[0.98]"
                     >
-                      {/* Track visual */}
+                      {/* Track visual with animated racing dot */}
                       <div className="aspect-square mb-3 flex items-center justify-center">
                         <svg viewBox="0 0 200 150" className="w-full h-full opacity-40 group-hover:opacity-70 transition">
                           <polyline
@@ -1087,6 +1096,22 @@ const RacingPage: NextPage = () => {
                             strokeLinecap="round"
                             strokeLinejoin="round"
                           />
+                          {/* Animated racing dot */}
+                          <circle r="4" fill="#22c55e" opacity="0.9">
+                            <animateMotion
+                              dur={`${3 + i * 0.5}s`}
+                              repeatCount="indefinite"
+                              path={t.centerline.map(([x, y], idx) => `${idx === 0 ? 'M' : 'L'}${x * 0.28 + 20},${y * 0.24 + 10}`).join(' ')}
+                            />
+                          </circle>
+                          {/* Dot glow */}
+                          <circle r="7" fill="#22c55e" opacity="0.2">
+                            <animateMotion
+                              dur={`${3 + i * 0.5}s`}
+                              repeatCount="indefinite"
+                              path={t.centerline.map(([x, y], idx) => `${idx === 0 ? 'M' : 'L'}${x * 0.28 + 20},${y * 0.24 + 10}`).join(' ')}
+                            />
+                          </circle>
                         </svg>
                       </div>
                       {/* Info */}
@@ -1133,14 +1158,23 @@ const RacingPage: NextPage = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
               <span className="font-medium">Change Track</span>
-            </button>
-            <div className="flex items-center gap-3">
+            </button>              <div className="flex items-center gap-3">
               <div className="hidden sm:flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
                 <div className={`w-2 h-2 rounded-full ${s.racing ? "bg-red-500 animate-pulse" : "bg-green-400"}`} />
                 <span className="text-sm text-zinc-300">
                   {s.racing ? "Racing..." : s.line.length > 0 ? "Ready to race" : "Draw your line"}
                 </span>
               </div>
+              <button
+                onClick={() => {
+                  if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+                  else document.exitFullscreen();
+                }}
+                className="bg-white/90 hover:bg-white text-slate-700 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1.5 transition"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                Fullscreen
+              </button>
               <h1 className="text-lg font-bold">
                 <span style={{ color: track.accent }}>🏎️</span>{" "}
                 <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">Draw Line Racing</span>
