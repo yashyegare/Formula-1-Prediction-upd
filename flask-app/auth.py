@@ -140,13 +140,16 @@ def signup():
 def login():
     """Log in an existing user."""
     data = request.get_json(force=True, silent=True) or {}
-    username = (data.get("username") or "").strip().lower()
+    identifier = (data.get("username") or data.get("email") or "").strip().lower()
     password = data.get("password") or ""
 
-    if not username or not password:
+    if not identifier or not password:
         return jsonify({"error": "Username and password are required"}), 400
 
-    user_row = get_user_by_username(username)
+    # Try username first, then email — users may not remember their auto-generated username
+    user_row = get_user_by_username(identifier)
+    if not user_row and "@" in identifier:
+        user_row = get_user_by_email(identifier)
     if not user_row or not check_password_hash(user_row["password_hash"], password):
         return jsonify({"error": "Invalid username or password"}), 401
 
