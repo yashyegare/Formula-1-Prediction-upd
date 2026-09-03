@@ -22,7 +22,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from database import (
     create_user, get_user_by_id, get_user_by_username,
-    get_user_by_email, update_last_login,
+    get_user_by_email, update_last_login, delete_user_by_email,
 )
 
 auth_bp = Blueprint("auth", __name__)
@@ -198,3 +198,14 @@ def optional_auth(f):
         # current_user.is_authenticated is False but the route still runs.
         return f(*args, **kwargs)
     return decorated
+
+
+# ── TEMP: delete user by email (remove after use) ────────────────────────
+@auth_bp.route("/api/admin/delete-user", methods=["POST"])
+def delete_user_temp():
+    data = request.get_json(force=True, silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    if not email:
+        return jsonify({"error": "email required"}), 400
+    deleted = delete_user_by_email(email)
+    return jsonify({"deleted": deleted, "email": email})
