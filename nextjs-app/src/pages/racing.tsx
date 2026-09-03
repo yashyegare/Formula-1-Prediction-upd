@@ -652,31 +652,6 @@ const RacingPage: NextPage = () => {
       ctx.globalAlpha = 1;
     }
 
-    // ── Player racing line ──
-    if (s.line.length > 1) {
-      // Glow
-      ctx.shadowColor = "#22c55e";
-      ctx.shadowBlur = 12;
-      ctx.strokeStyle = "#22c55e";
-      ctx.lineWidth = 4;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.beginPath();
-      ctx.moveTo(s.line[0]!.x, s.line[0]!.y);
-      for (let i = 1; i < s.line.length; i++) ctx.lineTo(s.line[i]!.x, s.line[i]!.y);
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-
-      // Start dot
-      ctx.fillStyle = "#22c55e";
-      ctx.beginPath();
-      ctx.arc(s.line[0]!.x, s.line[0]!.y, 6, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
-
     // ── Ghost car (previous best run) ──
     if (ghostLine && ghostLine.length > 1 && s.racing && s.line.length > 1) {
       const gIdx = Math.min(Math.floor(s.raceProgress * (ghostLine.length - 1)), ghostLine.length - 1);
