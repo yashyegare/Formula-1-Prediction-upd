@@ -19,26 +19,13 @@ async function apiFetch(path: string, options: RequestInit = {}) {
 export const signIn = {
   email: async ({ email, password }: { email: string; password: string }) => {
     try {
-      // Try as username first (e.g. "alice")
+      // Send email/username as-is — backend tries username then email lookup
       const data = await apiFetch('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ username: email, password }),
       });
       return { data, error: null };
     } catch (err) {
-      // If that failed and it looks like an email, try the part before @
-      if (email.includes('@')) {
-        try {
-          const usernameFromEmail = email.split('@')[0];
-          const data = await apiFetch('/api/auth/login', {
-            method: 'POST',
-            body: JSON.stringify({ username: usernameFromEmail, password }),
-          });
-          return { data, error: null };
-        } catch {
-          // Fall through
-        }
-      }
       return { data: null, error: { message: err instanceof Error ? err.message : 'Invalid username or password' } };
     }
   },
