@@ -41,8 +41,8 @@ const CanvaEmbed = () => {
     );
 };
 
-const FeatureCard = ({ href, isExternal, emoji, title, subtitle, accentColor, delay }: {
-    href: string; isExternal?: boolean; emoji: string; title: string; subtitle: string;
+const FeatureCard = ({ href, isExternal, icon, title, accentColor, delay }: {
+    href: string; isExternal?: boolean; icon: React.ReactNode; title: string;
     accentColor: string; delay: string;
 }) => {
     const Wrapper = isExternal ? 'a' : Link;
@@ -50,27 +50,32 @@ const FeatureCard = ({ href, isExternal, emoji, title, subtitle, accentColor, de
     return (
         <Wrapper
             {...wrapperProps}
-            className="group relative flex-1 flex items-center justify-center gap-2.5 rounded-xl border-2 px-4 py-3 no-underline transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
+            className="group relative flex-1 flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 no-underline transition-all duration-300 hover:-translate-y-0.5"
             style={{
                 animation: `fadeInUp 0.6s ease-out ${delay} both`,
-                borderColor: accentColor,
-                background: `linear-gradient(135deg, ${accentColor}18, ${accentColor}08)`,
-                boxShadow: `0 2px 8px ${accentColor}20`,
+                boxShadow: `0 1px 3px rgba(0,0,0,0.06)`,
+            }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = `0 4px 20px ${accentColor}25, 0 0 0 1px ${accentColor}30`;
+                e.currentTarget.style.borderColor = accentColor + '50';
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = `0 1px 3px rgba(0,0,0,0.06)`;
+                e.currentTarget.style.borderColor = '';
             }}
         >
-            <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-base"
-                style={{ background: `linear-gradient(135deg, ${accentColor}40, ${accentColor}20)` }}
+            <div
+                className="flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center transition-colors duration-300"
+                style={{ backgroundColor: accentColor + '10' }}
             >
-                {emoji}
+                <div style={{ color: accentColor }}>{icon}</div>
             </div>
-            <div className="flex-1 min-w-0 text-center">
-                <div className="font-bold text-sm" style={{ color: accentColor }}>{title}</div>
+            <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-gray-900 group-hover:text-black transition-colors">{title}</div>
             </div>
-            <div className="flex-shrink-0">
-                <svg className="w-4 h-4 group-hover:translate-x-1 transition-all" style={{ color: accentColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                </svg>
-            </div>
+            <svg className="w-4 h-4 text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all duration-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
         </Wrapper>
     );
 };
@@ -95,26 +100,23 @@ const Docs = () => {
                     <FeatureCard
                         href="https://formula-1-prediction-upd-fxzg.vercel.app"
                         isExternal
-                        emoji="🏁"
+                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>}
                         title="Season Simulator"
-                        subtitle=""
                         accentColor="#dc2626"
                         delay="0.1s"
                     />
                     <FeatureCard
                         href="https://f1-track-metrics-lab.vercel.app"
                         isExternal
-                        emoji="🗺️"
+                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>}
                         title="Track Explorer"
-                        subtitle=""
                         accentColor="#3b82f6"
                         delay="0.2s"
                     />
                     <FeatureCard
                         href="/racing"
-                        emoji="🏎️"
+                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17h2a2 2 0 002-2v0a2 2 0 00-2-2H5v4zM15 17h2a2 2 0 002-2v0a2 2 0 00-2-2h-2v4z"/><path d="M12 3v14"/><path d="M8 7l4-4 4 4"/><path d="M3 11h18v2a4 4 0 01-4 4H7a4 4 0 01-4-4v-2z"/></svg>}
                         title="Draw Line Racing"
-                        subtitle=""
                         accentColor="#22c55e"
                         delay="0.3s"
                     />
