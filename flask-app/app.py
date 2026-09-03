@@ -15,6 +15,12 @@ from predictions_api import predictions_bp
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
+# Cross-origin session cookies (Vercel frontend → Render backend)
+app.config["SESSION_COOKIE_SAMESITE"] = "None"
+app.config["SESSION_COOKIE_SECURE"] = True
+app.config["REMEMBER_COOKIE_SAMESITE"] = "None"
+app.config["REMEMBER_COOKIE_SECURE"] = True
+
 # Initialize Flask-Login
 login_manager.init_app(app)
 
