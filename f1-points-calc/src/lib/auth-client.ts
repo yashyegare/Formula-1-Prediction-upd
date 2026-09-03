@@ -51,11 +51,14 @@ export const signIn = {
 export const signUp = {
   email: async ({ email, password, name, callbackURL }: any) => {
     try {
-      // Generate a username from the name or email
-      const username = (name || email.split('@')[0]).toLowerCase().replace(/[^a-z0-9_]/g, '');
+      // Generate a unique username from the email prefix + random suffix
+      // to avoid collisions when multiple users share similar display names
+      const emailPrefix = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
+      const suffix = Math.random().toString(36).slice(2, 6);
+      const username = `${emailPrefix}_${suffix}`;
       const data = await apiFetch('/api/auth/signup', {
         method: 'POST',
-        body: JSON.stringify({ username, email, password, displayName: name || username }),
+        body: JSON.stringify({ username, email, password, displayName: name || emailPrefix }),
       });
       return { data, error: null, needsVerification: false };
     } catch (err) {
