@@ -329,7 +329,8 @@ def get_user_by_username(username: str) -> Optional[dict]:
 def get_user_by_email(email: str) -> Optional[dict]:
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT id, username, email FROM users WHERE email = ?", (email,)
+            "SELECT id, username, email, password_hash, display_name, created_at "
+            "FROM users WHERE email = ?", (email.lower().strip(),)
         ).fetchone()
         return dict(row) if row else None
 
