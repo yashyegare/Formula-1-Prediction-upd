@@ -77,6 +77,14 @@ const UserMenu: React.FC = () => {
           </div>
 
           <a
+            href="/profile"
+            onClick={() => setIsOpen(false)}
+            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
+          >
+            My Profile
+          </a>
+
+          <a
             href="/compete"
             onClick={() => setIsOpen(false)}
             className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"

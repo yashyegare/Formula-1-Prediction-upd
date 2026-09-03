@@ -14,5 +14,6 @@ Gunicorn
 scikit-learn
 flask_cors
 flask_login
+psycopg2-binary
 
 
