@@ -1,0 +1,183 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="My Profile - Season Simulator"
+  description="View and manage your Season Simulator profile, predictions, and account settings."
+  keywords="F1 profile, prediction history, account settings"
+  canonicalPath="/profile"
+>
+  <div id="profile-root"></div>
+
+  <script>
+    const API_BASE = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8000';
+
+    interface UserProfile {
+      id: number;
+      username: string;
+      email: string;
+      displayName: string;
+      avatarUrl: string | null;
+    }
+
+    interface Prediction {
+      id: number;
+      season: number;
+      pointsSystem: string;
+      locked: boolean;
+      accuracyScore: number;
+      createdAt: string;
+      updatedAt: string;
+    }
+
+    let user: UserProfile | null = null;
+    let predictions: Prediction[] = [];
+    let isLoading = true;
+    let editingName = false;
+    let newName = '';
+    let message = '';
+
+    async function loadProfile() {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/profile`, { credentials: 'include' });
+        if (res.status === 401) {
+          window.location.href = '/';
+          return;
+        }
+        const data = await res.json();
+        user = data.user;
+        predictions = data.predictions || [];
+        newName = user.displayName;
+      } catch {
+        message = 'Failed to load profile';
+      } finally {
+        isLoading = false;
+        render();
+      }
+    }
+
+    async function saveName() {
+      if (!newName.trim()) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/profile`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ displayName: newName.trim() }),
+        });
+        if (res.ok) {
+          user!.displayName = newName.trim();
+          editingName = false;
+          message = 'Profile updated!';
+        }
+      } catch {
+        message = 'Failed to update profile';
+      }
+      render();
+    }
+
+    async function deleteAccount() {
+      if (!confirm('Are you sure? This will permanently delete your account and all predictions.')) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/profile`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        if (res.ok) {
+          window.location.href = '/';
+        }
+      } catch {
+        message = 'Failed to delete account';
+      }
+    }
+
+    async function logout() {
+      await fetch(`${API_BASE}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+      window.location.href = '/';
+    }
+
+    function render() {
+      const root = document.getElementById('profile-root')!;
+      if (isLoading) {
+        root.innerHTML = `<div class="min-h-screen bg-gray-50 flex items-center justify-center"><p class="text-gray-500 text-lg">Loading...</p></div>`;
+        return;
+      }
+      if (!user) {
+        root.innerHTML = `<div class="min-h-screen bg-gray-50 flex items-center justify-center"><p class="text-gray-500">Not logged in. <a href="/" class="text-red-600">Go home</a></p></div>`;
+        return;
+      }
+
+      root.innerHTML = `
+        <div class="min-h-screen bg-gray-50 py-8">
+          <div class="max-w-2xl mx-auto px-4">
+            <h1 class="text-3xl font-bold text-gray-900 mb-6">My Profile</h1>
+
+            ${message ? `<div class="mb-4 p-3 bg-green-50 text-green-700 rounded-md text-sm">${message}</div>` : ''}
+
+            <!-- Account Info -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">Account Details</h2>
+              <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span class="text-sm text-gray-500">Display Name</span>
+                    ${editingName
+                      ? `<div class="flex gap-2 mt-1"><input type="text" id="name-input" value="${user.displayName}" class="px-3 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-red-500" /><button onclick="window._saveName()" class="px-3 py-1 bg-red-600 text-white text-sm rounded-md hover:bg-red-700">Save</button><button onclick="window._cancelEdit()" class="px-3 py-1 text-gray-600 text-sm">Cancel</button></div>`
+                      : `<p class="text-gray-900 font-medium">${user.displayName} <button onclick="window._editName()" class="text-xs text-red-600 hover:text-red-700 ml-2">Edit</button></p>`
+                    }
+                  </div>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-sm text-gray-500">Username</span>
+                  <span class="text-gray-900 font-medium">${user.username}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-sm text-gray-500">Email</span>
+                  <span class="text-gray-900 font-medium">${user.email}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Predictions -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">Prediction History</h2>
+              ${predictions.length === 0
+                ? `<p class="text-gray-500 text-sm">No predictions yet. <a href="/" class="text-red-600 hover:text-red-700">Start predicting →</a></p>`
+                : `<div class="space-y-2">
+                    ${predictions.map(p => `
+                      <div class="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                        <div>
+                          <span class="font-medium text-gray-900">${p.season} Season</span>
+                          <span class="text-sm text-gray-500 ml-2">${p.pointsSystem} scoring</span>
+                          ${p.locked ? '<span class="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Locked</span>' : ''}
+                        </div>
+                        <div class="text-sm text-gray-500">
+                          ${p.accuracyScore > 0 ? `Score: ${p.accuracyScore.toFixed(1)}%` : 'No score yet'}
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>`
+              }
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-3">
+              <button onclick="window._logout()" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition">Sign Out</button>
+              <button onclick="window._deleteAccount()" class="px-4 py-2 border border-red-300 text-red-600 rounded-md hover:bg-red-50 transition">Delete Account</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Expose handlers to onclick
+    (window as any)._editName = () => { editingName = true; render(); };
+    (window as any)._cancelEdit = () => { editingName = false; newName = user?.displayName || ''; render(); };
+    (window as any)._saveName = () => { newName = (document.getElementById('name-input') as HTMLInputElement)?.value || ''; saveName(); };
+    (window as any)._logout = logout;
+    (window as any)._deleteAccount = deleteAccount;
+
+    loadProfile();
+  </script>
+</BaseLayout>

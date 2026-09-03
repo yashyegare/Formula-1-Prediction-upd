@@ -19,9 +19,12 @@ const AuthModal: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<'signin' | 'signup'>(authModalMode);
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot-password'>(authModalMode);
   const [verificationSent, setVerificationSent] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
+  const [resetSent, setResetSent] = useState(false);
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
 
   // Check for OAuth error in URL on mount
   useEffect(() => {
@@ -70,6 +73,52 @@ const AuthModal: React.FC = () => {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      const API_BASE = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8000';
+      const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (data.token) setResetToken(data.token);
+      setResetSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      const API_BASE = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8000';
+      const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: resetToken, password: newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Reset failed');
+      setMode('signin');
+      setResetSent(false);
+      setResetToken('');
+      setError(null);
+      setPassword('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Reset failed');
     } finally {
       setIsLoading(false);
     }
@@ -244,6 +293,15 @@ const AuthModal: React.FC = () => {
                 Must be at least 8 characters
               </p>
             )}
+            {mode === 'signin' && (
+              <button
+                type="button"
+                onClick={() => setMode('forgot-password')}
+                className="text-xs text-red-600 hover:text-red-700 mt-1"
+              >
+                Forgot password?
+              </button>
+            )}
           </div>
 
           <div className="flex gap-3 pt-2">
@@ -273,28 +331,47 @@ const AuthModal: React.FC = () => {
         </form>
 
         <div className="mt-4 text-center text-sm text-gray-600">
-          {mode === 'signin' ? (
+          {mode === 'signin' && (
             <>
               Don't have an account?{' '}
-              <button
-                onClick={toggleMode}
-                className="text-red-600 hover:text-red-700 font-medium"
-              >
-                Sign up
-              </button>
+              <button onClick={toggleMode} className="text-red-600 hover:text-red-700 font-medium">Sign up</button>
             </>
-          ) : (
+          )}
+          {mode === 'signup' && (
             <>
               Already have an account?{' '}
-              <button
-                onClick={toggleMode}
-                className="text-red-600 hover:text-red-700 font-medium"
-              >
-                Sign in
-              </button>
+              <button onClick={toggleMode} className="text-red-600 hover:text-red-700 font-medium">Sign in</button>
+            </>
+          )}
+          {mode === 'forgot-password' && !resetSent && (
+            <>
+              Remember your password?{' '}
+              <button onClick={() => setMode('signin')} className="text-red-600 hover:text-red-700 font-medium">Sign in</button>
             </>
           )}
         </div>
+
+        {/* Forgot Password Form */}
+        {mode === 'forgot-password' && !resetSent && (
+          <form onSubmit={handleForgotPassword} className="space-y-4 mt-4">
+            <p className="text-sm text-gray-600">Enter your email and we'll generate a reset link.</p>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500" required />
+            <button type="submit" disabled={isLoading} className="w-full px-4 py-2 rounded-md transition font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
+              {isLoading ? 'Sending...' : 'Send Reset Link'}
+            </button>
+          </form>
+        )}
+
+        {/* Reset Sent Confirmation */}
+        {mode === 'forgot-password' && resetSent && (
+          <div className="mt-4 space-y-4">
+            <p className="text-sm text-gray-600">Reset link generated! Enter your new password below.</p>
+            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (8+ chars)" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500" required minLength={8} />
+            <button onClick={handleResetPassword} disabled={isLoading} className="w-full px-4 py-2 rounded-md transition font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
+              {isLoading ? 'Resetting...' : 'Reset Password'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

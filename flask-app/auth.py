@@ -20,9 +20,14 @@ from flask_login import (
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
+import secrets
+import datetime
 from database import (
     create_user, get_user_by_id, get_user_by_username,
     get_user_by_email, update_last_login,
+    get_user_by_reset_token, set_reset_token, reset_password,
+    update_user_profile, delete_user, get_prediction_history,
+    load_prediction,
 )
 
 auth_bp = Blueprint("auth", __name__)
@@ -198,4 +203,103 @@ def optional_auth(f):
         # current_user.is_authenticated is False but the route still runs.
         return f(*args, **kwargs)
     return decorated
+
+
+# ── Password reset ─────────────────────────────────────────────────────
+
+@auth_bp.route("/api/auth/forgot-password", methods=["POST"])
+def forgot_password():
+    """Generate a password reset token. In production, email this link."""
+    data = request.get_json(force=True, silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    if not email:
+        return jsonify({"error": "Email is required"}), 400
+
+    user = get_user_by_email(email)
+    if not user:
+        # Don't reveal whether email exists
+        return jsonify({"message": "If an account exists, a reset link has been generated."})
+
+    token = secrets.token_urlsafe(32)
+    expires = (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).isoformat()
+    set_reset_token(user["id"], token, expires)
+
+    # In production, send email. For now, return the token directly.
+    reset_url = f"https://f1pointscalculator.yashyegare.com/reset-password?token={token}"
+    return jsonify({
+        "message": "If an account exists, a reset link has been generated.",
+        "resetUrl": reset_url,
+        "token": token,
+    })
+
+
+@auth_bp.route("/api/auth/reset-password", methods=["POST"])
+def do_reset_password():
+    """Reset password using token."""
+    data = request.get_json(force=True, silent=True) or {}
+    token = (data.get("token") or "").strip()
+    new_password = data.get("password") or ""
+
+    if not token or not new_password:
+        return jsonify({"error": "Token and password are required"}), 400
+
+    err = _validate_password(new_password)
+    if err:
+        return jsonify({"error": err}), 400
+
+    user = get_user_by_reset_token(token)
+    if not user:
+        return jsonify({"error": "Invalid or expired reset token"}), 400
+
+    password_hash = generate_password_hash(new_password, method="pbkdf2:sha256", salt_length=16)
+    reset_password(user["id"], password_hash)
+    return jsonify({"message": "Password has been reset. You can now sign in."})
+
+
+# ── User profile ───────────────────────────────────────────────────────
+
+@auth_bp.route("/api/auth/profile", methods=["GET"])
+@login_required
+def get_profile():
+    """Get user profile with prediction history."""
+    predictions = get_prediction_history(current_user.id)
+    return jsonify({
+        "user": {
+            "id": current_user.id,
+            "username": current_user.username,
+            "email": current_user.email,
+            "displayName": current_user.display_name,
+            "avatarUrl": current_user.avatar_url,
+        },
+        "predictions": [
+            {
+                "id": p["id"], "season": p["season"],
+                "pointsSystem": p["points_system"], "locked": bool(p["locked"]),
+                "accuracyScore": p["accuracy_score"],
+                "createdAt": p["created_at"], "updatedAt": p["updated_at"],
+            }
+            for p in predictions
+        ],
+    })
+
+
+@auth_bp.route("/api/auth/profile", methods=["PUT"])
+@login_required
+def update_profile():
+    """Update display name."""
+    data = request.get_json(force=True, silent=True) or {}
+    display_name = (data.get("displayName") or "").strip()
+    if not display_name:
+        return jsonify({"error": "Display name is required"}), 400
+    update_user_profile(current_user.id, display_name=display_name)
+    return jsonify({"message": "Profile updated", "displayName": display_name})
+
+
+@auth_bp.route("/api/auth/profile", methods=["DELETE"])
+@login_required
+def delete_account():
+    """Delete user account and all data."""
+    delete_user(current_user.id)
+    logout_user()
+    return jsonify({"message": "Account deleted"})
 

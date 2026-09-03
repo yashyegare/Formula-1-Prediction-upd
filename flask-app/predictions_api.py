@@ -19,8 +19,8 @@ from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 
 from database import (
-    save_prediction, get_user_prediction, get_prediction,
-    lock_prediction, get_all_predictions,
+    save_prediction, get_user_prediction, get_prediction_by_id as get_prediction,
+    lock_prediction_by_id as lock_prediction, get_all_predictions,
     update_leaderboard, get_leaderboard, get_leaderboard_stats,
     get_season_init_data, get_connection,
 )
