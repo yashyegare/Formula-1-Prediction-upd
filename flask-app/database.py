@@ -334,6 +334,13 @@ def get_user_by_email(email: str) -> Optional[dict]:
         return dict(row) if row else None
 
 
+def delete_user_by_email(email: str) -> bool:
+    """Delete a user by email. Returns True if a row was deleted."""
+    with get_connection() as conn:
+        cur = conn.execute("DELETE FROM users WHERE email = ?", (email.lower().strip(),))
+        return cur.rowcount > 0
+
+
 def update_last_login(user_id: int):
     with get_connection() as conn:
         conn.execute(
