@@ -90,7 +90,7 @@ const Docs = () => {
                 <p className="text-sm opacity-60 m-0 mb-2">A Machine Learning approach to predict race results</p>
             </header>
 
-            {/* Feature cards — Season Simulator & Draw Line Racing */}
+            {/* Feature cards — Season Simulator, Track Explorer & Draw Line Racing */}
             <div className="mb-4 flex flex-row gap-3">
                     <FeatureCard
                         href="https://formula-1-prediction-upd-fxzg.vercel.app"
@@ -102,12 +102,21 @@ const Docs = () => {
                         delay="0.1s"
                     />
                     <FeatureCard
+                        href="https://f1-track-metrics-lab.vercel.app"
+                        isExternal
+                        emoji="🗺️"
+                        title="Track Explorer"
+                        subtitle=""
+                        accentColor="#3b82f6"
+                        delay="0.2s"
+                    />
+                    <FeatureCard
                         href="/racing"
                         emoji="🏎️"
                         title="Draw Line Racing"
                         subtitle=""
                         accentColor="#22c55e"
-                        delay="0.2s"
+                        delay="0.3s"
                     />
             </div>
             <Container>

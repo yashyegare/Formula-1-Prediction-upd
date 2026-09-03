@@ -9,6 +9,48 @@ type Roster = {
     season: number;
 };
 
+/* Map Grand Prix names → Track Metrics Lab circuit slugs */
+const GP_TO_CIRCUIT: Record<string, string> = {
+    "Monaco Grand Prix": "monaco",
+    "British Grand Prix": "silverstone",
+    "Japanese Grand Prix": "suzuka",
+    "Belgian Grand Prix": "spa",
+    "Brazilian Grand Prix": "interlagos",
+    "São Paulo Grand Prix": "interlagos",
+    "Australian Grand Prix": "albert_park",
+    "Bahrain Grand Prix": "bahrain",
+    "Saudi Arabian Grand Prix": "jeddah",
+    "Miami Grand Prix": "miami",
+    "Emilia Romagna Grand Prix": "imola",
+    "Spanish Grand Prix": "catalunya",
+    "Canadian Grand Prix": "villeneuve",
+    "Austrian Grand Prix": "spielberg",
+    "French Grand Prix": "paul_ricard",
+    "Hungarian Grand Prix": "hungaroring",
+    "Dutch Grand Prix": "zandvoort",
+    "Italian Grand Prix": "monza",
+    "Singapore Grand Prix": "marina_bay",
+    "Azerbaijan Grand Prix": "baku",
+    "United States Grand Prix": "americas",
+    "Mexico City Grand Prix": "rodriguez",
+    "Mexican Grand Prix": "rodriguez",
+    "Las Vegas Grand Prix": "las_vegas",
+    "Qatar Grand Prix": "losail",
+    "Abu Dhabi Grand Prix": "yas_marina",
+    "Chinese Grand Prix": "shanghai",
+    "70th Anniversary Grand Prix": "silverstone",
+    "Styrian Grand Prix": "spielberg",
+    "Eifel Grand Prix": "nurburgring",
+    "Portuguese Grand Prix": "portimao",
+    "Turkish Grand Prix": "istanbul",
+    "Russian Grand Prix": "sochi",
+    "Tuscan Grand Prix": "mugello",
+    "Sakhir Grand Prix": "bahrain",
+    "Barcelona Grand Prix": "catalunya",
+};
+
+const TRACK_METRICS_URL = "https://f1-track-metrics-lab.vercel.app";
+
 /* ── Racing Loader Animation ── */
 const RacingLoader = () => (
     <div className="relative w-full py-6 overflow-hidden">
@@ -241,6 +283,19 @@ const Predictor = () => {
                             </option>
                         ))}
                     </select>
+                    {round && GP_TO_CIRCUIT[round] && (
+                        <a
+                            href={`${TRACK_METRICS_URL}?circuit=${GP_TO_CIRCUIT[round]}&mode=compare3d`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="group mt-1 inline-flex items-center gap-2 rounded-md border border-blue-500/20 bg-blue-500/5 px-3 py-1.5 text-xs font-medium text-blue-400 transition-all hover:border-blue-400/40 hover:bg-blue-500/10 hover:text-blue-300"
+                        >
+                            🗺️ Explore this track in 3D
+                            <svg className="h-3 w-3 opacity-60 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                            </svg>
+                        </a>
+                    )}
                 </label>
                 <label className="flex flex-col gap-2 text-sm">
                     Driver:
@@ -301,6 +356,7 @@ const Predictor = () => {
                     coldStart={coldStart}
                 />
             )}
+
         </>
     );
 };

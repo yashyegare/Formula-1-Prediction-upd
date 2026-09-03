@@ -187,7 +187,7 @@ const App: React.FC<{ year?: string }> = ({ year }) => {
                 {/* Single header row — unified sizing */}
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap">
                   <a
-                    href="http://localhost:3000"
+                    href="https://nextjs-app-yashyegare.vercel.app"
                     className="text-sm sm:text-base lg:text-lg font-display font-semibold flex items-center min-w-0 shrink text-gray-600 hover:text-red-600 transition-colors"
                   >
                     <svg className="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

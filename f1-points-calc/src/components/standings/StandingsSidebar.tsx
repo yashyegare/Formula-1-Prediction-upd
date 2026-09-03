@@ -154,7 +154,7 @@ const StandingsSidebar: React.FC<Props> = ({ activeSeason }) => {
         )}
 
         <div className="mx-3 mt-3 pt-3 border-t text-xs text-ink-muted flex flex-wrap gap-x-3 gap-y-1">
-          <a href="http://localhost:3000" className="flex items-center text-gray-600 hover:text-red-600 transition-colors">
+          <a href="https://nextjs-app-yashyegare.vercel.app" className="flex items-center text-gray-600 hover:text-red-600 transition-colors">
             <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
