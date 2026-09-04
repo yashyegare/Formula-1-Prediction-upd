@@ -48,7 +48,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         const data = await res.json();
         user = data.user;
         predictions = data.predictions || [];
-        newName = user.displayName;
+        if (user) newName = user.displayName;
       } catch {
         message = 'Failed to load profile';
       } finally {
