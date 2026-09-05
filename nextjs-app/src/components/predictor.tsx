@@ -198,8 +198,7 @@ const Predictor = () => {
                 setRound(data.grandsPrix[0] ?? "");
                 setDriver(data.drivers[0] ?? "");
             })
-            .catch((error) => {
-                console.log("error fetching roster", error);
+            .catch(() => {
                 setRosterError(true);
             });
     }, []);
@@ -235,10 +234,9 @@ const Predictor = () => {
                 setLoading(false);
                 setColdStart(false);
             })
-            .catch((error) => {
+            .catch(() => {
                 clearTimeout(coldStartTimer);
                 setPrediction(0);
-                console.log("error", error);
                 setLoading(false);
                 setColdStart(false);
             });

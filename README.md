@@ -96,8 +96,8 @@ A full-stack Formula 1 race prediction platform that combines machine learning w
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/yashyegare/Formula-1-Prediction.git
-cd Formula-1-Prediction
+git clone https://github.com/yashyegare/Formula-1-Prediction-upd.git
+cd Formula-1-Prediction-upd
 ```
 
 ### 2. Set up the Flask backend
@@ -263,20 +263,38 @@ The project is deployed across two platforms:
 | Service | Platform | URL |
 |---------|----------|-----|
 | **Next.js Frontend** | Vercel | `https://nextjs-app-yashyegare.vercel.app` |
-| **Flask Backend** | Railway | `https://your-railway-app.up.railway.app` |
+| **Flask Backend** | Render | `https://f1-predictor-api-nddf.onrender.com` |
 | **Season Simulator** | Vercel | `https://f1pointscalculator.yashyegare.com` |
 
-### Deploy Flask Backend to Railway
+### Deploy Flask Backend to Render
 
-1. **Push to GitHub** (the `flask-app/` directory)
-2. Go to [Railway](https://railway.app) → New Project → Deploy from GitHub
+1. **Push to GitHub**
+2. Go to [Render](https://dashboard.render.com) → New → Web Service → connect the repo
 3. Set the **root directory** to `flask-app`
-4. Railway auto-detects the `Procfile` and `requirements.txt`
-5. Add environment variables:
-   - `SECRET_KEY` = (any random string, e.g. `openssl rand -hex 32`)
-   - `CORS_ORIGINS` = `https://nextjs-app-yashyegare.vercel.app,https://f1pointscalculator.yashyegare.com`
-6. The `f1_data.db` is committed to git — it ships with the code
-7. Railway will run `gunicorn app:app` on the assigned `$PORT`
+4. Render auto-detects Python and runs `gunicorn app:app` on the assigned `$PORT`
+5. Add environment variables (see table below)
+6. Deploys are **manual** by default: Dashboard → Manual Deploy → *Deploy latest commit*
+7. A GitHub Actions keep-alive workflow (`.github/workflows/keep-alive.yml`) pings `/health` every 10 minutes to prevent free-tier cold starts
+
+#### Required environment variables (Render backend)
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `SECRET_KEY` | **Yes** | Signs Flask session cookies. **If unset, the app generates a random key on every restart and all logged-in users are silently logged out.** Generate one with `openssl rand -hex 32`. |
+| `CORS_ORIGINS` | **Yes (prod)** | Comma-separated frontend origins. Drives **both** the CORS configuration and the CSRF Origin check — a missing origin will break auth *and* get state-changing requests blocked. |
+| `DATABASE_URL` | **Recommended** | PostgreSQL connection string (Render free Postgres, Neon, Supabase…). Without it the app falls back to SQLite, which lives on the deploy's **ephemeral disk on Render's free tier — user accounts and predictions are wiped on every deploy**. The schema auto-creates on first boot. |
+| `RATELIMIT_STORAGE_URI` | Optional | Redis URL for shared rate-limit counters. Only needed if you run more than one gunicorn worker — the default in-memory counters are per-worker. |
+| `F1_DB_PATH` | Optional | Overrides the SQLite file location (used by the test suite for isolation; leave unset in production). |
+
+Example values:
+
+```
+SECRET_KEY=<output of: openssl rand -hex 32>
+CORS_ORIGINS=https://nextjs-app-yashyegare.vercel.app,https://f1pointscalculator.yashyegare.com,https://formula-1-prediction-upd-fxzg.vercel.app
+DATABASE_URL=postgres://<user>:<password>@<host>/<db>
+```
+
+Frontend env vars: `NEXT_PUBLIC_API_URL` (Next.js) and `PUBLIC_API_BASE_URL` (Astro) both point at the backend URL.
 
 ### Deploy Next.js Frontend to Vercel
 
@@ -300,7 +318,7 @@ The project is deployed across two platforms:
 
 ### After Deployment
 
-Update the CORS origins in Railway to include your actual Vercel URLs:
+Update `CORS_ORIGINS` on Render to include your actual frontend URLs (Vercel preview domains are separate origins — add them too if you use preview deployments):
 ```
 CORS_ORIGINS=https://nextjs-app-xxx.vercel.app,https://f1pointscalculator-xxx.vercel.app
 ```
@@ -308,12 +326,13 @@ CORS_ORIGINS=https://nextjs-app-xxx.vercel.app,https://f1pointscalculator-xxx.ve
 ### How It Works in Production
 
 ```
-User → Vercel (Next.js) → /api/* rewrites → Railway (Flask) → SQLite
-User → Vercel (Astro)  → direct fetch     → Railway (Flask) → SQLite
+User → Vercel (Next.js) → /api/* rewrites → Render (Flask) → SQLite/PostgreSQL
+User → Vercel (Astro)  → direct fetch     → Render (Flask) → SQLite/PostgreSQL
 ```
 
-- **SQLite database** ships with the code (~2MB) — no external database needed
-- **Auth** uses Flask-Login sessions — cookies work cross-origin with `supports_credentials`
+- **Database** — with `DATABASE_URL` set, data persists across deploys; without it, SQLite is ephemeral on Render's free tier and resets on every deploy
+- **Auth** uses Flask-Login sessions — cookies work cross-origin (`SameSite=None; Secure`, `supports_credentials`), and state-changing requests are CSRF-protected via Origin verification
+- **Rate limiting** protects the auth endpoints (JSON 429 responses); counters are in-memory per worker
 - **ML model** (`rffinal.pkl`) loads once at startup — gunicorn workers share it
 
 ## Developed By
