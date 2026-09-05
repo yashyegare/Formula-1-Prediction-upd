@@ -244,6 +244,10 @@ def test_login_rate_limited_after_10_attempts(client):
         "username": "ghost", "password": "whatever",
     })
     assert res.status_code == 429
+    # Must be JSON — the frontends call res.json() on every response and
+    # flask-limiter's default HTML error page would crash them.
+    assert res.is_json
+    assert "try again" in res.get_json()["error"].lower()
 
 
 def test_signup_rate_limited_after_5_attempts(client):
@@ -268,6 +272,7 @@ def test_password_reset_rate_limited_after_5_attempts(client):
         "token": "bad", "password": "supersecret123",
     })
     assert res.status_code == 429
+    assert res.is_json  # JSON body, not flask-limiter's HTML default
 
 
 def test_rate_limit_headers_present(client):
