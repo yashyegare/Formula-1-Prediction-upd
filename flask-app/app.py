@@ -13,8 +13,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from database import init_db, is_seeded, get_season_init_data, get_circuits as db_get_circuits
 from auth import auth_bp, login_manager
 from predictions_api import predictions_bp
-from extensions import limiter
-
+from extensions import limiter, register_limiter_error_handlers
 from security import get_allowed_origins, register_csrf_protection
 
 app = Flask(__name__)
@@ -26,6 +25,8 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 
 # Rate limiting (in-memory storage; set RATELIMIT_STORAGE_URI when scaling out)
 limiter.init_app(app)
+# JSON bodies for all 429 responses (default is HTML, which breaks the frontends)
+register_limiter_error_handlers(app)
 
 # Cross-origin session cookies (Vercel frontend → Render backend)
 app.config["SESSION_COOKIE_SAMESITE"] = "None"

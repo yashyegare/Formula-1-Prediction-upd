@@ -58,3 +58,29 @@ jobs:
           cache-dependency-path: f1-points-calc/package-lock.json
       - run: npm ci
       - run: npm run build
+
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    # Report-only for now: the JS frontends have known advisories that would
+    # be red from day one (Next.js 14 critical, nanoid, etc.). Flip
+    # continue-on-error to false once those are upgraded.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Audit Python dependencies (blocking)
+        run: |
+          pip install pip-audit
+          pip-audit -r flask-app/requirements.txt --progress-spinner off
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Audit Next.js production dependencies
+        working-directory: nextjs-app
+        run: npm audit --omit=dev
+      - name: Audit Season Simulator production dependencies
+        working-directory: f1-points-calc
+        run: npm audit --omit=dev

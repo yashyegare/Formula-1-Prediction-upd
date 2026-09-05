@@ -9,8 +9,11 @@ async function apiFetch(path: string, options: RequestInit = {}) {
     headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
   });
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 429) {
+      throw new Error(data.error || 'Too many attempts. Please wait a few minutes and try again.');
+    }
     throw new Error(data.error || `Request failed (${res.status})`);
   }
   return data;

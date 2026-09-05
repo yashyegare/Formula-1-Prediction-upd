@@ -89,6 +89,10 @@ const AuthModal: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
+      if (res.status === 429) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Too many attempts. Please wait a few minutes and try again.');
+      }
       const data = await res.json();
       if (data.token) setResetToken(data.token);
       setResetSent(true);
@@ -110,6 +114,10 @@ const AuthModal: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: resetToken, password: newPassword }),
       });
+      if (res.status === 429) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Too many attempts. Please wait a few minutes and try again.');
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Reset failed');
       setMode('signin');
