@@ -29,6 +29,7 @@ from database import (
     update_user_profile, delete_user, get_prediction_history,
     load_prediction,
 )
+from extensions import limiter
 
 auth_bp = Blueprint("auth", __name__)
 login_manager = LoginManager()
@@ -100,6 +101,7 @@ def _validate_password(password: str) -> str | None:
 # ── Auth routes ──────────────────────────────────────────────────────────
 
 @auth_bp.route("/api/auth/signup", methods=["POST"])
+@limiter.limit("5 per hour;20 per day")
 def signup():
     """Register a new user."""
     data = request.get_json(force=True, silent=True) or {}
@@ -142,6 +144,7 @@ def signup():
 
 
 @auth_bp.route("/api/auth/login", methods=["POST"])
+@limiter.limit("10 per minute;50 per hour")
 def login():
     """Log in an existing user."""
     data = request.get_json(force=True, silent=True) or {}
@@ -208,6 +211,7 @@ def optional_auth(f):
 # ── Password reset ─────────────────────────────────────────────────────
 
 @auth_bp.route("/api/auth/forgot-password", methods=["POST"])
+@limiter.limit("3 per hour;10 per day")
 def forgot_password():
     """Generate a password reset token. In production, email this link."""
     data = request.get_json(force=True, silent=True) or {}
@@ -234,6 +238,7 @@ def forgot_password():
 
 
 @auth_bp.route("/api/auth/reset-password", methods=["POST"])
+@limiter.limit("5 per hour")
 def do_reset_password():
     """Reset password using token."""
     data = request.get_json(force=True, silent=True) or {}

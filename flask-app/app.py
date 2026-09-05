@@ -8,12 +8,22 @@ import joblib
 import pandas as pd
 from flask import Flask, jsonify, request
 from flask_cors import CORS, cross_origin
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 from database import init_db, is_seeded, get_season_init_data, get_circuits as db_get_circuits
 from auth import auth_bp, login_manager
 from predictions_api import predictions_bp
+from extensions import limiter
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+
+# Render terminates TLS and proxies requests — trust one hop of X-Forwarded-*
+# so rate limits key on the real client IP, not the proxy's IP.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+
+# Rate limiting (in-memory storage; set RATELIMIT_STORAGE_URI when scaling out)
+limiter.init_app(app)
 
 # Cross-origin session cookies (Vercel frontend → Render backend)
 app.config["SESSION_COOKIE_SAMESITE"] = "None"
