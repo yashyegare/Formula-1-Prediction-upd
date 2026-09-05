@@ -28,6 +28,7 @@ flask-app/__pycache__/
 
 # Old datasets
 flask-app/final_df.csv
+model-notebooks/final_df.csv
 
 # next.js
 /.next/
