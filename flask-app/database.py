@@ -6,12 +6,33 @@ Set DATABASE_URL env var to switch:
   - postgres://...  → PostgreSQL (Render, Neon, Supabase, etc.)
 """
 
+import datetime
 import os
 import sqlite3
 from contextlib import contextmanager
 from typing import Any, Optional
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
+
+
+def _sqlite_compatible_timestamp(iso_str: str) -> str:
+    """Normalize an ISO timestamp for SQLite string comparisons.
+
+    datetime('now') yields 'YYYY-MM-DD HH:MM:SS' (space separator, no
+    microseconds). An ISO string with a 'T' separator or microseconds would
+    always compare greater than that, so expiry checks would never fire.
+    """
+    try:
+        dt = datetime.datetime.fromisoformat(iso_str)
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    except (ValueError, TypeError):
+        return iso_str
+
+# Override the SQLite location (tests use a temp file so they never touch
+# the dev/prod f1_data.db).
+DB_PATH = os.environ.get("F1_DB_PATH") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "f1_data.db"
+)
 
 # ── Connection helpers ──────────────────────────────────────────────────
 
@@ -36,8 +57,7 @@ def get_connection():
         finally:
             conn.close()
     else:
-        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "f1_data.db")
-        conn = sqlite3.connect(db_path, timeout=10)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
@@ -554,6 +574,8 @@ def get_user_by_reset_token(token: str) -> Optional[dict]:
 
 
 def set_reset_token(user_id: int, token: str, expires: str):
+    if not _is_pg():
+        expires = _sqlite_compatible_timestamp(expires)
     with get_connection() as conn:
         if _is_pg():
             _execute(conn,
