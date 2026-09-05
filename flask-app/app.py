@@ -15,6 +15,8 @@ from auth import auth_bp, login_manager
 from predictions_api import predictions_bp
 from extensions import limiter
 
+from security import get_allowed_origins, register_csrf_protection
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
@@ -45,18 +47,10 @@ if not is_seeded():
 
 # In-memory cache for /api/init to avoid re-fetching from Jolpica on every request
 _INIT_CACHE = {}
-# CORS origins — allow localhost in dev, plus production Vercel domains from env
-CORS_ORIGINS = [
-    "http://localhost:3000",   # Next.js dev
-    "http://localhost:5173",   # Astro dev
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:5173",
-]
-# Production frontends (set via env comma-separated)
+# CORS origins — allow localhost in dev, plus production frontends from env.
+# Single source of truth shared with the CSRF Origin check (security.py).
 # e.g. CORS_ORIGINS=https://your-app.vercel.app,https://simulator.vercel.app
-_extra = os.environ.get("CORS_ORIGINS", "")
-if _extra:
-    CORS_ORIGINS.extend(o.strip() for o in _extra.split(",") if o.strip())
+CORS_ORIGINS = get_allowed_origins()
 
 CORS(app, resources={r"/*": {
     "origins": CORS_ORIGINS,
@@ -64,6 +58,10 @@ CORS(app, resources={r"/*": {
     "allow_headers": ["Content-Type", "Authorization"],
     "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 }})
+
+# CSRF protection: verify Origin on state-changing requests that carry
+# session credentials (see security.py for the rationale).
+register_csrf_protection(app)
 
 # Team colors for the 2026 grid (used by /api/init fallback)
 TEAM_COLORS_2026 = {
