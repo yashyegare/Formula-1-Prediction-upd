@@ -48,13 +48,45 @@ def _get_pg_pool():
     global _pg_pool
     if _pg_pool is None:
         from psycopg2 import pool
+        # Respect an sslmode already present in DATABASE_URL (e.g. local
+        # Postgres with sslmode=disable); default to require (Render).
+        kwargs = {} if "sslmode=" in DATABASE_URL else {"sslmode": "require"}
         _pg_pool = pool.ThreadedConnectionPool(
             minconn=1,
             maxconn=4,
             dsn=DATABASE_URL,
-            sslmode="require",
+            **kwargs,
         )
     return _pg_pool
+
+
+def _checkout_healthy_conn(pool):
+    """Draw a pool connection that is verified alive.
+
+    Servers and NATs drop idle TCP connections; a dead pooled connection
+    would 500 the first request unlucky enough to draw it. A SELECT 1 ping
+    at checkout costs sub-millisecond on an established connection and
+    makes stale connections impossible to serve.
+    """
+    last_exc = None
+    for _ in range(2):
+        conn = pool.getconn()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT 1")
+            cur.close()
+            conn.rollback()  # end the transaction the ping started
+            return conn
+        except Exception as exc:
+            last_exc = exc
+            try:
+                conn.close()
+            except Exception:
+                pass
+            pool.putconn(conn, close=True)
+    # Two dead draws in a row: the DB is likely down. Hand back a fresh
+    # connection and let the request fail with the real psycopg2 error.
+    return pool.getconn()
 
 
 
@@ -73,23 +105,22 @@ def get_connection():
     """Yield a DB connection. SQLite for local dev, PostgreSQL for prod."""
     if _is_pg():
         pool = _get_pg_pool()
-        conn = pool.getconn()
+        conn = _checkout_healthy_conn(pool)
         conn.autocommit = False
         try:
             yield conn
             conn.commit()
         except Exception:
+            # rollback is itself a round trip: if it fails, the connection
+            # is dead (e.g. stale TCP after server idle-drop) — closed below.
             try:
                 conn.rollback()
             except Exception:
-                pass  # connection is broken; closed-check below handles it
+                conn.close()
             raise
         finally:
-            # A dropped/broken connection must not re-enter the pool
-            if conn.closed:
-                pool.putconn(conn, close=True)
-            else:
-                pool.putconn(conn)
+            # Never hand a broken connection back to the pool
+            pool.putconn(conn, close=bool(conn.closed))
     else:
         conn = sqlite3.connect(DB_PATH, timeout=10)
         conn.row_factory = sqlite3.Row
