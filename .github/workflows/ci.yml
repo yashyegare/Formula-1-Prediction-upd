@@ -27,6 +27,39 @@ jobs:
       - name: Verify database
         run: python -c "from database import init_db, is_seeded; init_db(); print('DB OK, seeded:', is_seeded())"
 
+  flask-postgres:
+    name: Flask Backend (PostgreSQL)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flask-app
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: f1_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # sslmode=disable: the service container has no TLS. database.py
+      # respects an sslmode already present in the URL.
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/f1_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
+      - name: Run tests against PostgreSQL
+        run: python -m pytest tests/ -q
+
   nextjs:
     name: Next.js Frontend
     runs-on: ubuntu-latest

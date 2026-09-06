@@ -20,7 +20,7 @@ os.environ["F1_DB_PATH"] = os.path.join(TMP_DIR, "test_f1_data.db")
 # Import after env vars are set
 from app import app as flask_app  # noqa: E402
 from extensions import limiter  # noqa: E402
-from database import init_db, get_connection  # noqa: E402
+from database import init_db, get_connection, _execute  # noqa: E402
 
 
 def _reset_rate_limits():
@@ -40,8 +40,7 @@ def client():
     with flask_app.test_client() as c:
         yield c
     with get_connection() as conn:
-        # Child tables first — predictions/leaderboard hold FKs on users
-        conn.execute("DELETE FROM predictions")
-        conn.execute("DELETE FROM leaderboard")
-        conn.execute("DELETE FROM users")
-        conn.commit()
+        # Children first (predictions/leaderboard hold FKs on users), then
+        # season data the scoring tests seed, then users themselves.
+        for table in ("predictions", "leaderboard", "results", "standings", "users"):
+            _execute(conn, f"DELETE FROM {table}")

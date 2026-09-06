@@ -7,7 +7,7 @@ accuracy = sum(scores) / sum(10 * scored_drivers) * 100.
 
 import pytest
 
-from database import get_connection
+from database import get_connection, _execute, _is_pg
 from predictions_api import _score_prediction
 
 SEASON = 2099  # far-future season so tests never collide with real data
@@ -15,13 +15,16 @@ SEASON = 2099  # far-future season so tests never collide with real data
 
 def _seed_results(rows):
     """rows: list of (round_num, driver_id, position)."""
+    ph = "%s" if _is_pg() else "?"
     with get_connection() as conn:
-        conn.executemany(
-            "INSERT OR REPLACE INTO results (year, round_num, driver_id, team_id, position, fastest_lap) "
-            "VALUES (?, ?, ?, '', ?, 0)",
-            [(SEASON, rnd, drv, pos) for (rnd, drv, pos) in rows],
-        )
-        conn.commit()
+        for (rnd, drv, pos) in rows:
+            _execute(
+                conn,
+                "INSERT INTO results (year, round_num, driver_id, team_id, position, fastest_lap) "
+                f"VALUES ({ph}, {ph}, {ph}, '', {ph}, 0) "
+                "ON CONFLICT (year, round_num, driver_id) DO UPDATE SET position = EXCLUDED.position",
+                (SEASON, rnd, drv, pos),
+            )
 
 
 @pytest.fixture()
