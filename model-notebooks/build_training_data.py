@@ -53,6 +53,14 @@ FIRST_APPEARANCE_PRIOR = 0.90
 NO_STANDING_POSITION = 0.0
 NO_STANDING_POINTS = 0.0
 
+# Prior for a driver's first-ever race in the recent-form feature: a
+# neutral midfield finish (positions run 1..20). Fixed constant - never
+# derived from data that could leak.
+RECENT_FORM_PRIOR = 11.0
+
+# How many prior races the recent-form feature averages.
+RECENT_FORM_WINDOW = 5
+
 
 def is_dnf(status: str) -> int:
     if status in FINISHED_STATUSES:
@@ -95,12 +103,18 @@ def _expanding_reliability(results: pd.DataFrame, group_col: str) -> pd.Series:
 
 
 def _attach_prior_standings(
-    base: pd.DataFrame, id_col: str, standings: pd.DataFrame, pos_out: str, pts_out: str
+    base: pd.DataFrame, id_col: str, standings: pd.DataFrame,
+    pos_out: str, ratio_out: str,
 ) -> pd.DataFrame:
     """
-    Attach championship position/points from the round BEFORE the target
-    race. Round 1 rows carry the previous season's FINAL standings. A
-    race's own round never appears in its features.
+    Attach championship position + leader-share points ratio from the round
+    BEFORE the target race. Round 1 rows carry the previous season's FINAL
+    standings. A race's own round never appears in its features.
+
+    The ratio (entity points / leader points in the same snapshot) replaces
+    raw points: raw championship points are not comparable across a season
+    (40 pts at round 4 = dominating; 40 pts at round 20 = mid-pack) while
+    the share-of-leader stays on a 0..1 scale all year.
     """
     snap = standings.copy()
     snap["_order"] = snap["year"] * 1000 + snap["round"]
@@ -115,7 +129,7 @@ def _attach_prior_standings(
         pd.MultiIndex.from_arrays([base[id_col], prior_order])
     )
     base[pos_out] = joined["pos"].to_numpy(dtype=float)
-    base[pts_out] = joined["pts"].to_numpy(dtype=float)
+    base[ratio_out] = joined["ratio"].to_numpy(dtype=float)
 
     # Pass 2: round-1 rows take the previous season's FINAL standings.
     r1 = (base["round"] == 1).to_numpy()
@@ -132,14 +146,44 @@ def _attach_prior_standings(
             )
         )
         base.loc[r1, pos_out] = j["pos"].to_numpy(dtype=float)
-        base.loc[r1, pts_out] = j["pts"].to_numpy(dtype=float)
+        base.loc[r1, ratio_out] = j["ratio"].to_numpy(dtype=float)
 
     # Sentinels: no prior snapshot at all (first season's round 1, rookies,
     # entities missing from the table that round, unclassified "-").
-    base[[pos_out, pts_out]] = base[[pos_out, pts_out]].fillna(
-        {pos_out: NO_STANDING_POSITION, pts_out: NO_STANDING_POINTS}
+    base[[pos_out, ratio_out]] = base[[pos_out, ratio_out]].fillna(
+        {pos_out: NO_STANDING_POSITION, ratio_out: NO_STANDING_POINTS}
     )
     return base.drop(columns=["_order"])
+
+
+def _rolling_driver_form(results: pd.DataFrame, window: int = RECENT_FORM_WINDOW) -> pd.Series:
+    """
+    Recent form per row: the driver's mean FINISHING position over their
+    previous <=window races (strictly prior - the row's own race never
+    counts). Reacts to mid-season car/form changes that lifetime stats and
+    cumulative standings miss. First-ever race gets RECENT_FORM_PRIOR.
+    """
+    frame = results[["year", "round", "driverName", "position"]].copy()
+    frame["_order"] = frame["year"] * 1000 + frame["round"]
+
+    per_race = (
+        frame.groupby(["driverName", "_order"], as_index=False)["position"]
+        .mean()
+        .sort_values(["driverName", "_order"])
+    )
+    g = per_race.groupby("driverName", sort=False)
+    per_race["prev"] = g["position"].shift(1)  # drop the race itself
+    per_race["form"] = (
+        per_race.groupby("driverName", sort=False)["prev"]
+        .transform(lambda s: s.rolling(window, min_periods=1).mean())
+        .fillna(RECENT_FORM_PRIOR)
+    )
+
+    out = frame[["driverName", "_order"]].merge(
+        per_race[["driverName", "_order", "form"]],
+        on=["driverName", "_order"], how="left",
+    )
+    return pd.Series(out["form"].to_numpy(), index=results.index)
 
 
 def main():
@@ -174,14 +218,21 @@ def main():
     merged["constructor_relaiblity"] = _expanding_reliability(merged, "constructorName")
 
     # --- point-in-time championship standing (prior round / prev season final) ---
+    # Points become share-of-leader WITHIN each snapshot (scale-invariant).
     drv_snap = driver_standings.rename(columns={"position": "pos", "points": "pts"})
     con_snap = constructor_standings.rename(columns={"position": "pos", "points": "pts"})
+    for snap in (drv_snap, con_snap):
+        leader = snap.groupby(["year", "round"])["pts"].transform("max")
+        snap["ratio"] = (snap["pts"] / leader).fillna(0.0)
     merged = _attach_prior_standings(
-        merged, "driverId", drv_snap, "driver_champ_pos", "driver_champ_points"
+        merged, "driverId", drv_snap, "driver_champ_pos", "driver_champ_points_ratio"
     )
     merged = _attach_prior_standings(
-        merged, "constructorId", con_snap, "constructor_champ_pos", "constructor_champ_points"
+        merged, "constructorId", con_snap, "constructor_champ_pos", "constructor_champ_points_ratio"
     )
+
+    # --- recent form: rolling last-N average finish, strictly prior races ---
+    merged["driver_recent_form"] = _rolling_driver_form(merged)
 
     # --- current/active roster = whoever raced in the single most recent round ---
     latest_year = merged["year"].max()
@@ -205,6 +256,8 @@ def main():
 
     # Most recent championship snapshot (the standings entering the next,
     # not-yet-run race) - exactly what /predictGrid should send per row.
+    # Points are exported as share-of-leader (scale-invariant), matching the
+    # training features.
     drv_latest = (
         drv_snap[drv_snap["year"] == latest_year]
         .sort_values("round").groupby("driverId", as_index=False).tail(1)
@@ -218,6 +271,13 @@ def main():
     latest_con_meta = dict(zip(results[results["year"] == latest_year]["constructorId"],
                                results[results["year"] == latest_year]["constructorName"]))
 
+    # Recent form as of the latest data (mean finish over each driver's
+    # last <=window races) - the point-in-time value for a future race.
+    form_latest = (
+        merged.sort_values(["driverName", "year", "round"])
+        .groupby("driverName")["position"].apply(lambda s: s.tail(RECENT_FORM_WINDOW).mean())
+    )
+
     cleaned = merged.rename(columns={
         "raceName": "GP_name",
         "constructorName": "constructor",
@@ -225,8 +285,9 @@ def main():
     })[[
         "year", "round", "GP_name", "quali_pos", "constructor", "driver", "position",
         "driver_confidence", "constructor_relaiblity",
-        "driver_champ_pos", "driver_champ_points",
-        "constructor_champ_pos", "constructor_champ_points",
+        "driver_champ_pos", "driver_champ_points_ratio",
+        "constructor_champ_pos", "constructor_champ_points_ratio",
+        "driver_recent_form",
         "active_driver", "active_constructor",
     ]]
     cleaned.to_csv(f"{args.out}/cleaned_data.csv", index=False)
@@ -241,15 +302,18 @@ def main():
         "driver_team": driver_team,
         "driver_confidence": {k: v for k, v in driver_confidence_lifetime.items() if k in active_drivers},
         "constructor_reliability": {k: v for k, v in constructor_reliability_lifetime.items() if k in active_constructors},
-        # championship snapshot entering the next race (point-in-time for serving)
+        # championship snapshot entering the next race (point-in-time for serving);
+        # points exported as share-of-leader to match the training features
         "driver_champ_pos": {latest_driver_meta[r.driverId]: float(r.pos)
                              for r in drv_latest.itertuples() if latest_driver_meta.get(r.driverId) in active_drivers},
-        "driver_champ_points": {latest_driver_meta[r.driverId]: float(r.pts)
-                                for r in drv_latest.itertuples() if latest_driver_meta.get(r.driverId) in active_drivers},
+        "driver_champ_points_ratio": {latest_driver_meta[r.driverId]: float(r.ratio)
+                                      for r in drv_latest.itertuples() if latest_driver_meta.get(r.driverId) in active_drivers},
         "constructor_champ_pos": {latest_con_meta[r.constructorId]: float(r.pos)
                                   for r in con_latest.itertuples() if latest_con_meta.get(r.constructorId) in active_constructors},
-        "constructor_champ_points": {latest_con_meta[r.constructorId]: float(r.pts)
-                                     for r in con_latest.itertuples() if latest_con_meta.get(r.constructorId) in active_constructors},
+        "constructor_champ_points_ratio": {latest_con_meta[r.constructorId]: float(r.ratio)
+                                           for r in con_latest.itertuples() if latest_con_meta.get(r.constructorId) in active_constructors},
+        # recent form entering the next race (point-in-time for serving)
+        "driver_recent_form": {k: float(v) for k, v in form_latest.items() if k in active_drivers},
     }
     # encoding pinned: locale defaults differ (Windows cp1252 vs Linux
     # utf-8) and produced artifacts CI could not decode. Never rely on it.

@@ -42,11 +42,17 @@ from sklearn.preprocessing import LabelEncoder
 
 # Inference feature order — app.py /predictGrid builds exactly these named
 # columns. Keep in lockstep with flask-app/app.py.
+# driver/constructor champ POINTS are share-of-leader ratios (0..1 within
+# the snapshot), not raw points — raw points aren't comparable across a
+# season and the model can't tell round-4-dominance from round-20-midpack
+# without that normalization. driver_recent_form is the mean finish over
+# the driver's last <=5 races (point-in-time, first race = 11.0 prior).
 FEATURES = [
     "GP_name", "quali_pos", "constructor", "driver",
     "driver_confidence", "constructor_relaiblity",
-    "driver_champ_pos", "driver_champ_points",
-    "constructor_champ_pos", "constructor_champ_points",
+    "driver_champ_pos", "driver_champ_points_ratio",
+    "constructor_champ_pos", "constructor_champ_points_ratio",
+    "driver_recent_form",
 ]
 
 
@@ -77,6 +83,7 @@ def evaluate_walk_forward(df: pd.DataFrame, rf_params: dict) -> dict:
     all_years = sorted(df["year"].unique())
     per_year = []
     all_true, all_pred, all_base = [], [], []
+    fold_importances = []
 
     for train_end, test_year in zip(all_years[:-1], all_years[1:]):
         tr = years <= train_end
@@ -86,6 +93,7 @@ def evaluate_walk_forward(df: pd.DataFrame, rf_params: dict) -> dict:
 
         rf = RandomForestClassifier(**rf_params)
         rf.fit(X[tr], y[tr])
+        fold_importances.append(rf.feature_importances_)
 
         pred = rf.predict(X[te])
         base = X.loc[te, "quali_pos"].apply(position_index)
@@ -115,6 +123,11 @@ def evaluate_walk_forward(df: pd.DataFrame, rf_params: dict) -> dict:
         "overall_baseline_acc": accuracy_score(all_true, all_base),
         "overall_podium_recall": (all_pred[all_true == 1] == 1).mean(),
         "confusion": confusion_matrix(all_true, all_pred, labels=[1, 2, 3]),
+        # Mean importances across folds — importance on a single fit can
+        # mislead when seasons differ in size, so average like the accuracy.
+        "feature_importances": sorted(
+            zip(X.columns, np.mean(fold_importances, axis=0)), key=lambda t: -t[1]
+        ),
     }
 
 
@@ -130,11 +143,13 @@ def main():
     # for teams/drivers that don't exist anymore
     df = df[(df["active_driver"] == 1) & (df["active_constructor"] == 1)].copy()
 
-    # Walk-forward experiments (Sept 2026) showed the original n300/d10
-    # over-fit short seasons: regularized configs beat it by ~2pts and
-    # podium recall, without touching the baseline gap. Chosen config:
-    rf_params = dict(n_estimators=300, max_depth=12, min_samples_leaf=20,
-                     max_features=0.5, random_state=42)
+    # Walk-forward experiments (Sept 2026): the original n300/d10 over-fit
+    # short seasons. After the ratio-standings + recent-form features, a
+    # 5-config sweep picked this config (best mean gap vs baseline and best
+    # podium recall); stable across seeds 42/7/123/2026 at roughly
+    # baseline ±0.4% — an edge within noise, reported as such.
+    rf_params = dict(n_estimators=400, max_depth=12, min_samples_leaf=20,
+                     max_features=0.8, random_state=42)
 
     # ── Honest walk-forward evaluation FIRST ──
     print("=== Walk-forward validation (train <= Y, test Y+1) ===")
@@ -153,6 +168,10 @@ def main():
         print(f"Overall podium recall: {report['overall_podium_recall']:.0%}")
         print("Confusion matrix (rows=actual, cols=predicted; classes 1=podium 2=points 3=out):")
         print(report["confusion"])
+        print("\nWalk-forward feature importances (importance can shift with")
+        print("the feature set — read alongside the accuracy, not instead of it):")
+        for name, imp in report["feature_importances"]:
+            print(f"  {name:32s} {imp:.2f}")
 
         beats = report["overall_model_acc"] - report["overall_baseline_acc"]
         if beats <= 0:

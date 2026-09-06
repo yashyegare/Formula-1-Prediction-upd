@@ -320,11 +320,14 @@ DRIVER_TEAM = ROSTER["driver_team"]
 DRIVER_CONFIDENCE = ROSTER["driver_confidence"]
 CONSTRUCTOR_RELIABILITY = ROSTER["constructor_reliability"]
 # Championship snapshot entering the next race — point-in-time features for
-# the retrained model (train_model.py's FEATURES contract).
+# the retrained model (train_model.py's FEATURES contract). Points are
+# share-of-leader ratios (0..1) to match the scale-invariant training
+# features; form is the driver's mean finish over their last <=5 races.
 DRIVER_CHAMP_POS = ROSTER.get("driver_champ_pos", {})
-DRIVER_CHAMP_POINTS = ROSTER.get("driver_champ_points", {})
+DRIVER_CHAMP_POINTS_RATIO = ROSTER.get("driver_champ_points_ratio", {})
 CONSTRUCTOR_CHAMP_POS = ROSTER.get("constructor_champ_pos", {})
-CONSTRUCTOR_CHAMP_POINTS = ROSTER.get("constructor_champ_points", {})
+CONSTRUCTOR_CHAMP_POINTS_RATIO = ROSTER.get("constructor_champ_points_ratio", {})
+DRIVER_RECENT_FORM = ROSTER.get("driver_recent_form", {})
 
 # case-insensitive lookup helpers, since the frontend sends free-text names
 _GP_LOOKUP = {name.lower(): name for name in GP_IDS}
@@ -359,9 +362,11 @@ def predict_driver_position():
         # point-in-time championship standing entering the race (sentinel 0
         # if the driver/team has no snapshot — matches training's sentinels)
         "driver_champ_pos": [DRIVER_CHAMP_POS.get(driver_name, 0)],
-        "driver_champ_points": [DRIVER_CHAMP_POINTS.get(driver_name, 0)],
+        "driver_champ_points_ratio": [DRIVER_CHAMP_POINTS_RATIO.get(driver_name, 0)],
         "constructor_champ_pos": [CONSTRUCTOR_CHAMP_POS.get(constructor_name, 0)],
-        "constructor_champ_points": [CONSTRUCTOR_CHAMP_POINTS.get(constructor_name, 0)],
+        "constructor_champ_points_ratio": [CONSTRUCTOR_CHAMP_POINTS_RATIO.get(constructor_name, 0)],
+        # mean finish over the driver's last <=5 races (neutral 11.0 prior)
+        "driver_recent_form": [DRIVER_RECENT_FORM.get(driver_name, 11.0)],
     }
 
     df = pd.DataFrame(row)
