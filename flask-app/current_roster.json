@@ -18,11 +18,11 @@
     "Lewis Hamilton",
     "Liam Lawson",
     "Max Verstappen",
-    "Nico H\u00fclkenberg",
+    "Nico Hülkenberg",
     "Oliver Bearman",
     "Oscar Piastri",
     "Pierre Gasly",
-    "Sergio P\u00e9rez",
+    "Sergio Pérez",
     "Valtteri Bottas"
   ],
   "active_constructors": [
@@ -47,7 +47,7 @@
     "Isack Hadjar": "Red Bull",
     "George Russell": "Mercedes",
     "Liam Lawson": "RB F1 Team",
-    "Nico H\u00fclkenberg": "Audi",
+    "Nico Hülkenberg": "Audi",
     "Arvid Lindblad": "RB F1 Team",
     "Gabriel Bortoleto": "Audi",
     "Pierre Gasly": "Alpine F1 Team",
@@ -59,7 +59,7 @@
     "Carlos Sainz": "Williams",
     "Oliver Bearman": "Haas F1 Team",
     "Oscar Piastri": "McLaren",
-    "Sergio P\u00e9rez": "Cadillac F1 Team",
+    "Sergio Pérez": "Cadillac F1 Team",
     "Valtteri Bottas": "Cadillac F1 Team"
   },
   "driver_confidence": {
@@ -79,11 +79,11 @@
     "Lewis Hamilton": 0.9398907103825137,
     "Liam Lawson": 0.8478260869565217,
     "Max Verstappen": 0.8858695652173914,
-    "Nico H\u00fclkenberg": 0.8046875,
+    "Nico Hülkenberg": 0.8046875,
     "Oliver Bearman": 0.8421052631578947,
     "Oscar Piastri": 0.9012345679012346,
     "Pierre Gasly": 0.842391304347826,
-    "Sergio P\u00e9rez": 0.8544303797468354,
+    "Sergio Pérez": 0.8544303797468354,
     "Valtteri Bottas": 0.84375
   },
   "constructor_reliability": {
@@ -117,11 +117,11 @@
     "Carlos Sainz": 15.0,
     "Alexander Albon": 16.0,
     "Esteban Ocon": 17.0,
-    "Nico H\u00fclkenberg": 18.0,
+    "Nico Hülkenberg": 18.0,
     "Fernando Alonso": 19.0,
     "Lance Stroll": 20.0,
     "Valtteri Bottas": 21.0,
-    "Sergio P\u00e9rez": 22.0
+    "Sergio Pérez": 22.0
   },
   "driver_champ_points": {
     "Andrea Kimi Antonelli": 219.0,
@@ -141,11 +141,11 @@
     "Carlos Sainz": 6.0,
     "Alexander Albon": 5.0,
     "Esteban Ocon": 3.0,
-    "Nico H\u00fclkenberg": 2.0,
+    "Nico Hülkenberg": 2.0,
     "Fernando Alonso": 1.0,
     "Lance Stroll": 0.0,
     "Valtteri Bottas": 0.0,
-    "Sergio P\u00e9rez": 0.0
+    "Sergio Pérez": 0.0
   },
   "constructor_champ_pos": {
     "Mercedes": 1.0,
