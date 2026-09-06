@@ -33,8 +33,14 @@ from extensions import limiter
 
 auth_bp = Blueprint("auth", __name__)
 login_manager = LoginManager()
-login_manager.login_view = "auth.login"
 login_manager.session_protection = "strong"
+
+
+@login_manager.unauthorized_handler
+def _unauthorized_json():
+    """Return JSON 401 instead of Flask-Login's default HTML redirect —
+    this is a JSON API consumed cross-origin by browser frontends."""
+    return jsonify({"error": "Authentication required", "user": None}), 401
 
 
 # ── User model ───────────────────────────────────────────────────────────

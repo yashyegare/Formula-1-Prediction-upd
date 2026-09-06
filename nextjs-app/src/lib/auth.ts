@@ -13,16 +13,47 @@ interface AuthResponse {
   error?: string;
 }
 
+// Timeout for auth requests. Render free tier can cold-start: the first
+// request may hang for many seconds. Abort after 20s so users get feedback
+// instead of an endless spinner — a retry a minute later usually hits an
+// already-awake server.
+const REQUEST_TIMEOUT_MS = 20000;
+
+async function fetchWithTimeout(path: string, options: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(path, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export function friendlyAuthError(err: unknown): string {
+  if (err instanceof DOMException && err.name === "AbortError") {
+    return "The server is taking too long to respond — it may be waking up. Please try again in a minute.";
+  }
+  if (err instanceof TypeError) {
+    return "Can't reach the server. Check your connection and try again.";
+  }
+  return err instanceof Error && err.message ? err.message : "Something went wrong";
+}
+
 async function authFetch(
   path: string,
   options: RequestInit = {}
 ): Promise<AuthResponse> {
-  const res = await fetch(path, {
-    credentials: "include", // send + receive cookies
-    headers: { "Content-Type": "application/json", ...options.headers },
-    ...options,
-  });
-  const data = await res.json();
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(path, {
+      credentials: "include", // send + receive cookies
+      headers: { "Content-Type": "application/json", ...options.headers },
+      ...options,
+    });
+  } catch (err) {
+    return { error: friendlyAuthError(err) };
+  }
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     return { error: data.error || "Something went wrong" };
   }

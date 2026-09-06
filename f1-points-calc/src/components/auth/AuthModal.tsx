@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { fetchWithTimeout, friendlyNetworkError } from '../../lib/auth-client';
 
 // Google Icon SVG component
 const GoogleIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -84,7 +85,7 @@ const AuthModal: React.FC = () => {
     setIsLoading(true);
     try {
       const API_BASE = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8000';
-      const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+      const res = await fetchWithTimeout(`${API_BASE}/api/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -97,7 +98,7 @@ const AuthModal: React.FC = () => {
       if (data.token) setResetToken(data.token);
       setResetSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed');
+      setError(friendlyNetworkError(err).message);
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +110,7 @@ const AuthModal: React.FC = () => {
     setIsLoading(true);
     try {
       const API_BASE = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8000';
-      const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+      const res = await fetchWithTimeout(`${API_BASE}/api/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: resetToken, password: newPassword }),
@@ -126,7 +127,7 @@ const AuthModal: React.FC = () => {
       setError(null);
       setPassword('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Reset failed');
+      setError(friendlyNetworkError(err).message);
     } finally {
       setIsLoading(false);
     }
