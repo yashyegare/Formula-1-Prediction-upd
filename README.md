@@ -90,10 +90,11 @@ DATABASE_URL=postgres://<user>:<password>@<host>/<db>
 
 ## Testing & CI
 
-- `flask-app/tests/` — 51 pytest tests covering auth, cookies, password reset, rate limiting, CSRF, profile endpoints, and prediction scoring (`python -m pytest tests/ -q`). CI runs the suite against **both SQLite and PostgreSQL**, so the dual-backend query paths are exercised on every push.
+- `flask-app/tests/` — 90 pytest tests covering auth, cookies, password reset, rate limiting, CSRF, profile endpoints (incl. display-name injection regressions), prediction scoring, and the auth contracts of both prediction endpoint families (`python -m pytest tests/ -q`). CI runs the suite against **both SQLite and PostgreSQL**, so the dual-backend query paths are exercised on every push.
+- `model-notebooks/tests/` — 20 pytest tests pinning the ML training pipeline: `position_index()` bucket boundaries, the quali-vs-finish leakage fix, DNF detection, and an end-to-end train/predict run matching `/predictGrid`'s inference contract.
 - `f1-points-calc/tests/` — 125 vitest tests covering the scoring engine (points systems, half/double points, dropped scores, DSQ overrides), grid drag-and-drop reducers, standings/chart selectors, auth client (timeouts, 429s), and UI primitives (`npm test`).
 - `nextjs-app/src/lib/auth.test.ts` — 16 vitest tests for the auth client (error mapping, timeouts, non-JSON responses) (`npm test`).
-- GitHub Actions CI runs all three test suites, builds all three apps, and audits dependencies (`pip-audit` + `npm audit --omit=dev`).
+- GitHub Actions CI runs all four test suites, builds all three apps, audits dependencies (`pip-audit` + `npm audit --omit=dev`), and auto-deploys the backend on green main pushes.
 
 ## ML Model
 
