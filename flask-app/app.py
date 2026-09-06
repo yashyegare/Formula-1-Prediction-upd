@@ -306,9 +306,11 @@ def api_circuits():
 # -- matches what the nextjs predictor.tsx UI renders.
 model = joblib.load("rffinal.pkl")
 
-with open("id_maps.json") as f:
+# encoding pinned explicitly: these files contain non-ASCII driver/GP
+# names, and the locale default differs between Windows and Linux.
+with open("id_maps.json", encoding="utf-8") as f:
     ID_MAPS = json.load(f)
-with open("current_roster.json") as f:
+with open("current_roster.json", encoding="utf-8") as f:
     ROSTER = json.load(f)
 
 GP_IDS = ID_MAPS["GP_name"]

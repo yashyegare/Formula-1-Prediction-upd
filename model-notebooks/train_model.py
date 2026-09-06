@@ -182,7 +182,9 @@ def main():
         "constructor": {cls: int(i) for i, cls in enumerate(le_constructor.classes_)},
         "driver": {cls: int(i) for i, cls in enumerate(le_driver.classes_)},
     }
-    with open(f"{args.out}/id_maps.json", "w") as f:
+    # encoding pinned: locale defaults differ (Windows cp1252 vs Linux
+    # utf-8) and produced artifacts CI could not decode. Never rely on it.
+    with open(f"{args.out}/id_maps.json", "w", encoding="utf-8") as f:
         json.dump(id_maps, f, indent=2, ensure_ascii=False)
 
     print(f"\nSaved model to {args.out}/rffinal.pkl")

@@ -251,8 +251,10 @@ def main():
         "constructor_champ_points": {latest_con_meta[r.constructorId]: float(r.pts)
                                      for r in con_latest.itertuples() if latest_con_meta.get(r.constructorId) in active_constructors},
     }
-    with open(f"{args.out}/current_roster.json", "w") as f:
-        json.dump(roster, f, indent=2)
+    # encoding pinned: locale defaults differ (Windows cp1252 vs Linux
+    # utf-8) and produced artifacts CI could not decode. Never rely on it.
+    with open(f"{args.out}/current_roster.json", "w", encoding="utf-8") as f:
+        json.dump(roster, f, indent=2, ensure_ascii=False)
 
     print(f"cleaned_data.csv: {len(cleaned)} rows")
     print(f"Most recent race in data: {latest_year} round {latest_round}")
