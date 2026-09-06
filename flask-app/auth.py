@@ -299,7 +299,12 @@ def get_profile():
 def update_profile():
     """Update display name."""
     data = request.get_json(force=True, silent=True) or {}
-    display_name = (data.get("displayName") or "").strip()
+    display_name = data.get("displayName")
+    # Type-check before .strip(): non-string JSON (numbers, objects, lists)
+    # used to crash with AttributeError -> 500 instead of a clean 400.
+    if not isinstance(display_name, str):
+        return jsonify({"error": "Display name is required"}), 400
+    display_name = display_name.strip()
     if not display_name:
         return jsonify({"error": "Display name is required"}), 400
     update_user_profile(current_user.id, display_name=display_name)

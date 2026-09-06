@@ -121,3 +121,47 @@ jobs:
         # continue-on-error) once the Astro 7 upgrade lands.
         continue-on-error: true
         run: npm audit --omit=dev
+
+  deploy-render:
+    name: Deploy Backend to Render
+    needs: [flask, flask-postgres, dependency-audit]
+    # Only auto-deploy on pushes to main once the backend test suites pass.
+    # Frontend jobs deliberately do NOT gate this: the backend is a separate
+    # deployable, and a frontend-only failure shouldn't block backend fixes.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy hook
+        env:
+          HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK_URL" ]; then
+            echo "::warning::RENDER_DEPLOY_HOOK_URL secret not set - automated deploy skipped."
+            echo "To enable: Render dashboard -> f1-predictor-api -> Settings -> Deploy Hook,"
+            echo "copy the URL, then add it in GitHub repo Settings -> Secrets and variables -> Actions."
+            exit 0
+          fi
+          HTTP=$(curl -s -o /tmp/hook-response.json -w "%{http_code}" -X POST "$HOOK_URL")
+          echo "Deploy hook responded: $HTTP"
+          cat /tmp/hook-response.json; echo
+          if [ "$HTTP" != "200" ] && [ "$HTTP" != "201" ] && [ "$HTTP" != "202" ]; then
+            echo "Deploy hook failed"
+            exit 1
+          fi
+      - name: Smoke-check the service after deploy
+        run: |
+          # The new deploy either swaps in cleanly (health stays 200) or the
+          # service crashes at boot (health starts failing). This catches the
+          # boot-crash case that previously required a manual dashboard check.
+          sleep 120
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 https://f1-predictor-api-nddf.onrender.com/health)
+            echo "[$i] /health -> $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Backend healthy after deploy"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "Backend did not report healthy within the deploy window"
+          exit 1
