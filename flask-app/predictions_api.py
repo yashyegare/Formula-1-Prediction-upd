@@ -18,11 +18,14 @@ import json
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 
+from database import _is_pg
+
 from database import (
     save_prediction, get_user_prediction, get_prediction_by_id as get_prediction,
     lock_prediction_by_id as lock_prediction, get_all_predictions,
     update_leaderboard, get_leaderboard, get_leaderboard_stats,
     get_season_init_data, get_connection,
+    _fetchall, _fetchone, _execute,
 )
 
 predictions_bp = Blueprint("predictions", __name__)
@@ -48,10 +51,12 @@ def _score_prediction(grids: dict, season: int) -> dict:
         }
     """
     with get_connection() as conn:
-        result_rows = conn.execute(
+        result_rows = _fetchall(
+            conn,
             "SELECT round_num, driver_id, position FROM results "
-            "WHERE year = ? ORDER BY round_num, position", (season,)
-        ).fetchall()
+            "WHERE " + ("%s" if _is_pg() else "?") + " ORDER BY round_num, position",
+            (season,),
+        )
 
     # Build real results: {race_id: {driver_id: position}}
     real_results: dict[str, dict[str, int]] = {}
@@ -227,10 +232,13 @@ def api_lock_prediction():
                 year = int(parts[0])
                 rnd = int(parts[1].replace("r", ""))
                 with get_connection() as conn:
-                    row = conn.execute(
-                        "SELECT date FROM races WHERE year = ? AND round_num = ?",
-                        (year, rnd)
-                    ).fetchone()
+                    row = _fetchone(
+                        conn,
+                        "SELECT date FROM races WHERE year = "
+                        + ("%s" if _is_pg() else "?")
+                        + " AND round_num = " + ("%s" if _is_pg() else "?"),
+                        (year, rnd),
+                    )
                 if row and row["date"]:
                     race_date = _dt.datetime.strptime(row["date"], "%Y-%m-%d")
                     lock_window = race_date - _dt.timedelta(hours=1)
@@ -278,7 +286,11 @@ def api_unlock_prediction():
     if pred:
         from database import get_connection
         with get_connection() as conn:
-            conn.execute("UPDATE predictions SET locked = 0, locked_at = NULL WHERE id = ?", (pred["id"],))
+            _execute(conn,
+                "UPDATE predictions SET locked = 0, locked_at = NULL WHERE id = "
+                + ("%s" if _is_pg() else "?"),
+                (pred["id"],),
+            )
     return jsonify({"success": True})
 
 
@@ -445,10 +457,12 @@ def api_consensus():
     race_id = request.args.get("raceId", "")
 
     with get_connection() as conn:
-        rows = conn.execute(
-            "SELECT grids_json FROM predictions WHERE season = ?",
-            (season,)
-        ).fetchall()
+        rows = _fetchall(
+            conn,
+            "SELECT grids_json FROM predictions WHERE season = "
+            + ("%s" if _is_pg() else "?"),
+            (season,),
+        )
 
     positions: dict[int, dict[str, int]] = {}
     total_users = len(rows)
