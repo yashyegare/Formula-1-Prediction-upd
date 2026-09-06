@@ -36,6 +36,13 @@ DB_PATH = os.environ.get("F1_DB_PATH") or os.path.join(
 
 # ── Connection helpers ──────────────────────────────────────────────────
 
+
+def get_db_path() -> str:
+    """Path to the SQLite database file (used by the seeder's logging).
+    Ignored entirely when DATABASE_URL is set."""
+    return DB_PATH
+
+
 def _is_pg() -> bool:
     return bool(DATABASE_URL)
 
