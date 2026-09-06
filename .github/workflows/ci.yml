@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [main]
 
+# Never launch a deploy while a previous deploy for the same branch is still
+# polling its smoke-check — and supersede stale in-flight CI runs entirely.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   flask:
     name: Flask Backend
@@ -170,3 +179,24 @@ jobs:
           done
           echo "Backend did not report healthy within the deploy window"
           exit 1
+      - name: Notify on failure
+        # The body skips gracefully when the webhook secret is unset.
+        if: failure()
+        env:
+          # Slack-compatible webhook. Render/GitHub Actions docs use Slack;
+          # Discord works by appending /slack to its webhook URL.
+          WEBHOOK_URL: ${{ secrets.DEPLOY_NOTIFICATION_WEBHOOK }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "::warning::DEPLOY_NOTIFICATION_WEBHOOK not set - failure notification skipped."
+            exit 0
+          fi
+          MSG=$(printf ':x: Render deploy FAILED for %s@%s\nRun: %s\nProd keeps running the previous known-good deploy.' \
+            "$REPO" "${SHA:0:7}" "$RUN_URL")
+          # json.dumps guarantees valid JSON regardless of shell quoting.
+          MSG="$MSG" python3 -c 'import json, os; print(json.dumps({"text": os.environ["MSG"]}))' > /tmp/payload.json
+          curl -s -X POST -H 'Content-Type: application/json' -d @/tmp/payload.json "$WEBHOOK_URL" > /dev/null || \
+            echo "::warning::Notification webhook POST failed (deploy failure already logged)"
