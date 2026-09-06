@@ -258,15 +258,15 @@ const Predictor = () => {
                 className="my-10 flex w-full max-w-md flex-col gap-4 rounded-lg border-[1px] border-stone-800 bg-[#E6002B]/30 backdrop-blur-2xl p-8"
                 onSubmit={handleSubmit}
             >
-                <label className="flex flex-col gap-2 text-sm">
-                    Season:
-                    <input
-                        className="rounded-lg border-[1px] border-stone-700 bg-stone-900 px-2 py-2 text-white outline-white"
-                        type="number"
-                        disabled
-                        value={roster?.season ?? ""}
-                    />
-                </label>
+                <div className="flex flex-col gap-2 text-sm">
+                    Season
+                    <div className="flex items-center justify-between rounded-lg border-[1px] border-stone-700 bg-stone-900 px-3 py-2">
+                        <span className="font-semibold text-white">{roster?.season ?? "—"}</span>
+                        <span className="rounded-full border border-stone-700 bg-stone-800 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-stone-400">
+                            {roster ? "Current" : rosterError ? "Unavailable" : "Loading"}
+                        </span>
+                    </div>
+                </div>
                 <label className="flex flex-col gap-2 text-sm">
                     Grand Prix:
                     <select
@@ -334,7 +334,17 @@ const Predictor = () => {
                     type="submit"
                     disabled={!roster || loading}
                 >
-                    {loading ? '⏳ Predicting...' : '🪄 Predict'}
+                    {loading ? (
+                        <span className="inline-flex items-center justify-center gap-2">
+                            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Predicting...
+                        </span>
+                    ) : (
+                        '🪄 Predict'
+                    )}
                 </button>
             </form>
             {loading && (
