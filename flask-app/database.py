@@ -80,7 +80,6 @@ def get_connection():
 
 def _fetchone(conn, sql: str, params=()):
     """Fetch one row, returning a dict-like object for both backends."""
-    cur = conn.execute(sql, params)
     if _is_pg():
         import psycopg2.extras
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
