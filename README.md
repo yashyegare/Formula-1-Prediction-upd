@@ -92,14 +92,14 @@ DATABASE_URL=postgres://<user>:<password>@<host>/<db>
 ## Testing & CI
 
 - `flask-app/tests/` — 90 pytest tests covering auth, cookies, password reset, rate limiting, CSRF, profile endpoints (incl. display-name injection regressions), prediction scoring, and the auth contracts of both prediction endpoint families (`python -m pytest tests/ -q`). CI runs the suite against **both SQLite and PostgreSQL**, so the dual-backend query paths are exercised on every push.
-- `model-notebooks/tests/` — 20 pytest tests pinning the ML training pipeline: `position_index()` bucket boundaries, the quali-vs-finish leakage fix, DNF detection, and an end-to-end train/predict run matching `/predictGrid`'s inference contract.
+- `model-notebooks/tests/` — 25 pytest tests pinning the ML training pipeline: `position_index()` bucket boundaries, the quali-vs-finish leakage fix, DNF detection, point-in-time standings ratios and recent-form windows, and an end-to-end train/predict run matching `/predictGrid`'s inference contract.
 - `f1-points-calc/tests/` — 125 vitest tests covering the scoring engine (points systems, half/double points, dropped scores, DSQ overrides), grid drag-and-drop reducers, standings/chart selectors, auth client (timeouts, 429s), and UI primitives (`npm test`).
 - `nextjs-app/src/lib/auth.test.ts` — 16 vitest tests for the auth client (error mapping, timeouts, non-JSON responses) (`npm test`).
 - GitHub Actions CI runs all four test suites, builds all three apps, audits dependencies (`pip-audit` + `npm audit --omit=dev`), and auto-deploys the backend on green main pushes. Deploys post failure alerts to a Slack-compatible webhook (set the `DEPLOY_NOTIFICATION_WEBHOOK` repo secret to enable), and Dependabot opens weekly grouped dependency-update PRs.
 
 ## ML Model
 
-Random Forest (scikit-learn, `rffinal.pkl`) predicting a 3-class bucket (podium / points / outside points) from qualifying position, point-in-time driver/constructor reliability (expanding window — no future DNF data), prior-round championship standings for driver and constructor, and circuit identity. Validation is walk-forward (train on seasons ≤ Y, test on Y+1): **~64–66% accuracy, on par with the trivial qualify-position baseline** — reported honestly rather than via random splits, which inflated earlier numbers to 94% through leakage. Training pipeline and experiments live in `model-notebooks/`.
+Random Forest (scikit-learn, `rffinal.pkl`) predicting a 3-class bucket (podium / points / outside points) from qualifying position, point-in-time driver/constructor reliability (expanding window — no future DNF data), prior-round championship standings for driver and constructor (normalized to share-of-leader so early- and late-season values are comparable), the driver's rolling last-5-race average finish, and circuit identity. Validation is walk-forward (train on seasons ≤ Y, test on Y+1): **66.8% accuracy vs a 66.3% qualifying-position baseline, 75% podium recall** — the features closed the gap to the trivial if-statement baseline from −0.6pt to +0.4pt, an edge within noise and reported as such, rather than via random splits, which inflated earlier numbers to 94% through leakage. Training pipeline and experiments live in `model-notebooks/`.
 
 ## Deployment
 

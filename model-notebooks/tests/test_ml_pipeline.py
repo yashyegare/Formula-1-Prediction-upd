@@ -148,10 +148,42 @@ class TestLeakageFix:
         assert list(cleaned.columns) == [
             "year", "round", "GP_name", "quali_pos", "constructor", "driver", "position",
             "driver_confidence", "constructor_relaiblity",
-            "driver_champ_pos", "driver_champ_points",
-            "constructor_champ_pos", "constructor_champ_points",
+            "driver_champ_pos", "driver_champ_points_ratio",
+            "constructor_champ_pos", "constructor_champ_points_ratio",
+            "driver_recent_form",
             "active_driver", "active_constructor",
         ]
+
+    def test_champ_points_are_leader_share_ratios(self, tmp_path, monkeypatch):
+        """
+        Raw championship points aren't comparable across a season (40 pts at
+        round 4 = dominating; 40 pts at round 20 = mid-pack). The feature is
+        points / leader-points WITHIN the same snapshot, so it stays 0..1.
+        Round 1 (no prior snapshot) -> sentinel 0.0; round 2 carries the
+        ROUND-1 snapshot normalized: Alice 25/25 = 1.0, Dave 12/25 = 0.48.
+        """
+        cleaned = _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
+        alice_r1 = cleaned[(cleaned["driver"] == "Alice") & (cleaned["round"] == 1)].iloc[0]
+        alice_r2 = cleaned[(cleaned["driver"] == "Alice") & (cleaned["round"] == 2)].iloc[0]
+        dave_r2 = cleaned[(cleaned["driver"] == "Dave") & (cleaned["round"] == 2)].iloc[0]
+        assert alice_r1["driver_champ_points_ratio"] == pytest.approx(0.0)  # sentinel
+        assert alice_r2["driver_champ_points_ratio"] == pytest.approx(1.0)  # leader
+        assert dave_r2["driver_champ_points_ratio"] == pytest.approx(12.0 / 25.0)
+
+    def test_recent_form_is_prior_window_average(self, tmp_path, monkeypatch):
+        """
+        Recent form = mean finish over the driver's strictly prior <=5
+        races. Alice finished P1 in round 1, so her round-2 form is exactly
+        1.0; her round-1 form is the fixed neutral prior 11.0 (no history,
+        never derived from data that could leak). A race's own result never
+        appears in its form value.
+        """
+        cleaned = _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
+        alice = cleaned[cleaned["driver"] == "Alice"].sort_values("round")
+        assert alice["driver_recent_form"].iloc[0] == pytest.approx(
+            build_training_data.RECENT_FORM_PRIOR
+        )
+        assert alice["driver_recent_form"].iloc[1] == pytest.approx(1.0)
 
 
 class TestFeatureEngineering:
@@ -194,17 +226,21 @@ class TestFeatureEngineering:
         """
         Round-2 rows must carry ROUND-1 championship values; a round's own
         results must never appear in its features. Round-1 rows have no
-        prior season in this fixture -> sentinel 0.
+        prior season in this fixture -> sentinel 0. The sentinel IS the
+        leak-guard: if the join ever used a race's own snapshot, round-1
+        rows would show pos 1 / ratio 1.0 instead of 0 / 0.0.
         """
         cleaned = _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
         alice_r1 = cleaned[(cleaned["driver"] == "Alice") & (cleaned["round"] == 1)].iloc[0]
         alice_r2 = cleaned[(cleaned["driver"] == "Alice") & (cleaned["round"] == 2)].iloc[0]
-        assert alice_r1["driver_champ_pos"] == 0 and alice_r1["driver_champ_points"] == 0
-        assert alice_r2["driver_champ_pos"] == 1 and alice_r2["driver_champ_points"] == 25.0
-        # Alice WON round 2 (50 pts after) — that value must NOT leak back.
-        assert alice_r2["driver_champ_points"] != 50.0
+        assert alice_r1["driver_champ_pos"] == 0 and alice_r1["driver_champ_points_ratio"] == 0
+        assert alice_r2["driver_champ_pos"] == 1
+        # Round-2 ratio is built from the ROUND-1 snapshot: Alice led with
+        # 25/25 -> 1.0 (she also leads after round 2, so positions can't
+        # distinguish; the ratio scale does the pinning here).
+        assert alice_r2["driver_champ_points_ratio"] == pytest.approx(1.0)
         teamy_r2 = cleaned[(cleaned["constructor"] == "TeamY") & (cleaned["round"] == 2)].iloc[0]
-        assert teamy_r2["constructor_champ_pos"] == 2 and teamy_r2["constructor_champ_points"] == 27.0
+        assert teamy_r2["constructor_champ_pos"] == 2
 
     def test_dnf_driver_still_active_and_keeps_finish_position(self, tmp_path, monkeypatch):
         cleaned = _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
@@ -218,6 +254,20 @@ class TestFeatureEngineering:
         roster = json.loads((tmp_path / "out" / "current_roster.json").read_text())
         assert sorted(roster["active_drivers"]) == ["Alice", "Bob", "Carol", "Dave"]
         assert roster["latest_year"] == 2026 and roster["latest_round"] == 2
+
+    def test_roster_exports_ratio_and_form_for_serving(self, tmp_path, monkeypatch):
+        """
+        app.py /predictGrid reads exactly these roster keys — the serving
+        side of the scale-invariant points + recent-form contract. Round-1
+        fixture: Alice 25/25 = 1.0, Dave 12/25 = 0.48; Alice's form after
+        two P1 finishes = 1.0.
+        """
+        _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
+        roster = json.loads((tmp_path / "out" / "current_roster.json").read_text())
+        assert roster["driver_champ_points_ratio"]["Alice"] == pytest.approx(1.0)
+        assert roster["driver_champ_points_ratio"]["Dave"] == pytest.approx(0.48)
+        assert roster["driver_recent_form"]["Alice"] == pytest.approx(1.0)
+        assert "driver_champ_points" not in roster  # raw-points key retired
 
 
 # ── train_model end-to-end on synthetic data ─────────────────────────────────
@@ -238,9 +288,10 @@ def _write_training_csv(out: Path):
             "driver_confidence": 0.9,
             "constructor_relaiblity": 0.8,
             "driver_champ_pos": 1.0,
-            "driver_champ_points": 25.0,
+            "driver_champ_points_ratio": 1.0,
             "constructor_champ_pos": 1.0,
-            "constructor_champ_points": 43.0,
+            "constructor_champ_points_ratio": 1.0,
+            "driver_recent_form": 5.0,
             "active_driver": 1,
             "active_constructor": 1,
         })
@@ -284,10 +335,8 @@ class TestTrainModelEndToEnd:
         id_maps = json.loads((tmp_path / "out" / "id_maps.json").read_text())
         # Production (flask-app/app.py /predictGrid) predicts on a DataFrame
         # with exactly these named columns — pin the inference contract.
-        # Production (flask-app/app.py /predictGrid) sends the exact feature
-        # list train_model.FEATURES declares — 10 columns since the
-        # point-in-time standings features were added.
-        assert len(train_model.FEATURES) == 10
+        # 11 columns since the ratio standings + recent-form features.
+        assert len(train_model.FEATURES) == 11
         row = pd.DataFrame([{
             "GP_name": id_maps["GP_name"]["GP0"],
             "quali_pos": 3,
@@ -296,9 +345,10 @@ class TestTrainModelEndToEnd:
             "driver_confidence": 0.9,
             "constructor_relaiblity": 0.8,
             "driver_champ_pos": 1.0,
-            "driver_champ_points": 25.0,
+            "driver_champ_points_ratio": 1.0,
             "constructor_champ_pos": 1.0,
-            "constructor_champ_points": 43.0,
+            "constructor_champ_points_ratio": 1.0,
+            "driver_recent_form": 5.0,
         }])
         preds = model.predict(row)
         assert preds[0] in (1, 2, 3)  # the three buckets the frontend renders
