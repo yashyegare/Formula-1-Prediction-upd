@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: npm
           cache-dependency-path: nextjs-app/package-lock.json
       - run: npm ci
@@ -53,7 +53,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: npm
           cache-dependency-path: f1-points-calc/package-lock.json
       - run: npm ci
@@ -62,10 +62,6 @@ jobs:
   dependency-audit:
     name: Dependency Audit
     runs-on: ubuntu-latest
-    # Report-only for now: the JS frontends have known advisories that would
-    # be red from day one (Next.js 14 critical, nanoid, etc.). Flip
-    # continue-on-error to false once those are upgraded.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -77,10 +73,16 @@ jobs:
           pip-audit -r flask-app/requirements.txt --progress-spinner off
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
-      - name: Audit Next.js production dependencies
+          node-version: 20
+      - name: Audit Next.js production dependencies (blocking)
         working-directory: nextjs-app
         run: npm audit --omit=dev
-      - name: Audit Season Simulator production dependencies
+      - name: Audit Season Simulator production dependencies (report-only)
         working-directory: f1-points-calc
+        # Astro 5's remaining advisories (astro XSS set, @astrojs/tailwind)
+        # are only patched in Astro 7, which requires a Tailwind v4 migration
+        # (@astrojs/tailwind is deprecated). sharp/esbuild are already fixed
+        # via package.json overrides. Flip this step to blocking (remove
+        # continue-on-error) once the Astro 7 upgrade lands.
+        continue-on-error: true
         run: npm audit --omit=dev
