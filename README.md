@@ -105,7 +105,7 @@ Random Forest (scikit-learn, `rffinal.pkl`) trained on historical race data with
 |---------|----------|-------|
 | `nextjs-app/` | Vercel | Root dir `nextjs-app`, framework Next.js |
 | `f1-points-calc/` | Vercel | Root dir `f1-points-calc`, framework Astro, build `npm run build`, output `dist` |
-| `flask-app/` | Render | Root dir `flask-app`, start `gunicorn app:app`; **manual deploys** — Dashboard → Manual Deploy → *Deploy latest commit* |
+| `flask-app/` | Render | Root dir `flask-app`, start `gunicorn app:app`; **auto-deploys** on green main pushes via the CI `deploy-render` job (set the `RENDER_DEPLOY_HOOK_URL` repo secret; manual Dashboard deploy remains as fallback) |
 
 A keep-alive workflow (`.github/workflows/keep-alive.yml`) pings `/health` every 10 minutes to avoid Render free-tier cold starts.
 

@@ -9,6 +9,8 @@
 /coverage
 
 flask-app/__pycache__/
+model-notebooks/__pycache__/
+model-notebooks/.pytest_cache/
 
 # database
 *.db

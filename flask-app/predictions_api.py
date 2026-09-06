@@ -12,6 +12,33 @@ Scoring formula:
     score += max(0, 10 - abs(predicted_position - actual_position))
   Max possible score per race: 10 * number_of_drivers_matched
   Total accuracy = sum(scores) / sum(max_scores) * 100 (percentage)
+
+Endpoint families — why there are two auth patterns
+----------------------------------------------------
+There are deliberately TWO route families serving prediction data:
+
+  Family A — /api/predictions/*   ("compat shim", upstream + Season Simulator)
+  Family B — /api/me/prediction*  ("first-party", @login_required)
+
+WHY BOTH EXIST: Family A is a frozen compatibility layer for the two
+production frontends — the Season Simulator (f1-points-calc) was built
+against an upstream API whose routes had idempotent, anonymous-friendly
+semantics (save returns 201 even when anonymous and nothing is stored;
+load returns 404 instead of 401 for anonymous callers). Re-pointing those
+frontends at /api/me/* would be a breaking change for deployed clients.
+Family B is the first-party API for our own code: strict @login_required,
+clean JSON 401s, server-side scoring and leaderboard writes.
+
+DIFFERENCES THAT ARE LOAD-BEARING (pinned by tests/test_prediction_endpoints_auth.py):
+  - Family A save: anonymous → 201 {success: true} with NOTHING persisted.
+  - Family A load: anonymous → 404 (null body), never a 401 redirect.
+  - Family A lock/unlock: 401 JSON when anonymous (state-changing).
+  - Family B: @login_required everywhere → 401 JSON, and POST is the only
+    path that scores + writes the leaderboard.
+
+RULES FOR CHANGE: New clients must use Family B. Do not add new routes to
+Family A; do not change Family A's status codes (they are a wire contract).
+If both frontends ever migrate to /api/me/*, delete Family A wholesale.
 """
 
 import json
