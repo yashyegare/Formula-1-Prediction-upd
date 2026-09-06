@@ -71,3 +71,25 @@ def register_csrf_protection(app):
             return jsonify({"error": "Cross-origin request blocked"}), 403
 
         return None
+
+
+def register_security_headers(app):
+    """Baseline security headers on every response.
+
+    The API serves JSON only, so a conservative set covers it:
+      - Strict-Transport-Security: force HTTPS for returning visitors
+        (Render terminates TLS; this protects end-user agents).
+      - X-Content-Type-Options: never MIME-sniff API responses.
+      - X-Frame-Options: the API has no reason to be framed anywhere.
+      - Referrer-Policy: never leak full URLs (e.g. reset tokens in
+        query strings) via the Referer header.
+    """
+
+    @app.after_request
+    def _set_security_headers(response):
+        h = response.headers
+        h.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        h.setdefault("X-Content-Type-Options", "nosniff")
+        h.setdefault("X-Frame-Options", "DENY")
+        h.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        return response

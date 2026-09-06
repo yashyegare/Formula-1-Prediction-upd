@@ -1,0 +1,44 @@
+# Dependabot keeps the three dependency manifests patched and surfaces
+# major-version drift (e.g. Astro 5 -> 7) as reviewable PRs instead of
+# silent staleness. Grouped minor/patch bumps keep the PR noise down.
+version: 2
+
+updates:
+  # Flask backend
+  - package-ecosystem: "pip"
+    directory: "/flask-app"
+    schedule:
+      interval: "weekly"
+    groups:
+      python-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Next.js frontend
+  - package-ecosystem: "npm"
+    directory: "/nextjs-app"
+    schedule:
+      interval: "weekly"
+    groups:
+      nextjs-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Season Simulator (Astro)
+  - package-ecosystem: "npm"
+    directory: "/f1-points-calc"
+    schedule:
+      interval: "weekly"
+    groups:
+      astro-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Keep the CI actions themselves current (checkout, setup-node, setup-python)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

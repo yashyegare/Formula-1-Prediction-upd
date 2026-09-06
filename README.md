@@ -64,6 +64,7 @@ Frontend env vars (optional locally — both default to `localhost:8000`): `NEXT
 | `CORS_ORIGINS` | **Yes (prod)** | Comma-separated frontend origins; drives both CORS and the CSRF Origin check. |
 | `DATABASE_URL` | Recommended | PostgreSQL URL. Without it, SQLite is ephemeral on Render free tier — accounts wiped on every deploy. Schema auto-creates on first boot. |
 | `RATELIMIT_STORAGE_URI` | Optional | Redis URL for shared rate-limit counters (multi-worker only). |
+| `DEPLOY_NOTIFICATION_WEBHOOK` | Optional | *GitHub secret, not Render.* Slack-compatible webhook; CI posts there when a Render deploy fails or the keep-alive ping finds the API down. Discord works by appending `/slack` to its webhook URL. |
 | `F1_DB_PATH` | Test-only | SQLite location override used by the test suite. |
 
 Example:
@@ -94,7 +95,7 @@ DATABASE_URL=postgres://<user>:<password>@<host>/<db>
 - `model-notebooks/tests/` — 20 pytest tests pinning the ML training pipeline: `position_index()` bucket boundaries, the quali-vs-finish leakage fix, DNF detection, and an end-to-end train/predict run matching `/predictGrid`'s inference contract.
 - `f1-points-calc/tests/` — 125 vitest tests covering the scoring engine (points systems, half/double points, dropped scores, DSQ overrides), grid drag-and-drop reducers, standings/chart selectors, auth client (timeouts, 429s), and UI primitives (`npm test`).
 - `nextjs-app/src/lib/auth.test.ts` — 16 vitest tests for the auth client (error mapping, timeouts, non-JSON responses) (`npm test`).
-- GitHub Actions CI runs all four test suites, builds all three apps, audits dependencies (`pip-audit` + `npm audit --omit=dev`), and auto-deploys the backend on green main pushes.
+- GitHub Actions CI runs all four test suites, builds all three apps, audits dependencies (`pip-audit` + `npm audit --omit=dev`), and auto-deploys the backend on green main pushes. Deploys post failure alerts to a Slack-compatible webhook (set the `DEPLOY_NOTIFICATION_WEBHOOK` repo secret to enable), and Dependabot opens weekly grouped dependency-update PRs.
 
 ## ML Model
 

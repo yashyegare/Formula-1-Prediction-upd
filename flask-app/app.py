@@ -14,7 +14,7 @@ from database import init_db, is_seeded, get_season_init_data, get_circuits as d
 from auth import auth_bp, login_manager
 from predictions_api import predictions_bp
 from extensions import limiter, register_limiter_error_handlers
-from security import get_allowed_origins, register_csrf_protection
+from security import get_allowed_origins, register_csrf_protection, register_security_headers
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
@@ -63,6 +63,10 @@ CORS(app, resources={r"/*": {
 # CSRF protection: verify Origin on state-changing requests that carry
 # session credentials (see security.py for the rationale).
 register_csrf_protection(app)
+
+# Baseline security headers on every response (HSTS, nosniff, frame deny,
+# referrer policy) — see security.py.
+register_security_headers(app)
 
 # Team colors for the 2026 grid (used by /api/init fallback)
 TEAM_COLORS_2026 = {

@@ -6,6 +6,9 @@ on:
     - cron: '*/10 * * * *'
   workflow_dispatch: # Allow manual trigger
 
+permissions:
+  contents: read
+
 jobs:
   ping:
     runs-on: ubuntu-latest
@@ -18,3 +21,17 @@ jobs:
             echo "Warning: health check did not return 200"
             exit 1
           fi
+      - name: Notify when the API is down
+        if: failure()
+        env:
+          WEBHOOK_URL: ${{ secrets.DEPLOY_NOTIFICATION_WEBHOOK }}
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "::warning::DEPLOY_NOTIFICATION_WEBHOOK not set - downtime alert skipped."
+            exit 0
+          fi
+          # json.dumps guarantees valid JSON regardless of shell quoting.
+          MSG=$(printf ':rotating_light: F1 API health check FAILED (keep-alive ping)\nhttps://f1-predictor-api-nddf.onrender.com/health did not return 200.\nCheck: https://dashboard.render.com')
+          MSG="$MSG" python3 -c 'import json, os; print(json.dumps({"text": os.environ["MSG"]}))' > /tmp/payload.json
+          curl -s -X POST -H 'Content-Type: application/json' -d @/tmp/payload.json "$WEBHOOK_URL" > /dev/null || \
+            echo "::warning::Notification webhook POST failed"
