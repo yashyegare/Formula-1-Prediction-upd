@@ -90,7 +90,7 @@ DATABASE_URL=postgres://<user>:<password>@<host>/<db>
 
 ## Testing & CI
 
-- `flask-app/tests/` — 51 pytest tests covering auth, cookies, password reset, rate limiting, CSRF, profile endpoints, and prediction scoring (`python -m pytest tests/ -q`).
+- `flask-app/tests/` — 51 pytest tests covering auth, cookies, password reset, rate limiting, CSRF, profile endpoints, and prediction scoring (`python -m pytest tests/ -q`). CI runs the suite against **both SQLite and PostgreSQL**, so the dual-backend query paths are exercised on every push.
 - GitHub Actions CI builds all three apps, runs the test suite, and audits dependencies (`pip-audit` + `npm audit --omit=dev`).
 
 ## ML Model
