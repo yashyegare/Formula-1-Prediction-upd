@@ -25,6 +25,16 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # Majors below need deliberate migration work, not a drive-by PR.
+      - dependency-name: "superjson"
+        versions: [">=2"]          # v2 changes the serialization API
+      - dependency-name: "@types/node"
+        versions: [">=23"]         # keep types aligned with the Node 20 CI/runtime line
+      - dependency-name: "@tanstack/react-query"
+        versions: [">=5"]          # v5 requires code changes across query call sites
+      - dependency-name: "tailwindcss"
+        versions: [">=4"]          # Tailwind 4 belongs to the planned styling migration
 
   # Season Simulator (Astro)
   - package-ecosystem: "npm"
@@ -36,6 +46,22 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # Majors below need deliberate migration work, not a drive-by PR.
+      - dependency-name: "@vitest/coverage-v8"
+        versions: [">=5"]          # requires vitest 5; we run vitest 3.2.x
+      - dependency-name: "eslint-plugin-react-hooks"
+        versions: [">=5"]
+      - dependency-name: "@typescript-eslint/*"
+        versions: [">=7"]          # flat-config era; this app uses legacy .eslintrc
+      - dependency-name: "react"
+        versions: [">=19"]         # React 19 inside Astro needs a compatibility pass
+      - dependency-name: "react-dom"
+        versions: [">=19"]
+      - dependency-name: "@types/react-dom"
+        versions: [">=19"]
+      - dependency-name: "tailwindcss"
+        versions: [">=4"]          # part of the Astro 7 / Tailwind 4 migration
 
   # Keep the CI actions themselves current (checkout, setup-node, setup-python)
   - package-ecosystem: "github-actions"
