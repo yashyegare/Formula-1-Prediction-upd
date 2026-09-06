@@ -99,7 +99,7 @@ DATABASE_URL=postgres://<user>:<password>@<host>/<db>
 
 ## ML Model
 
-Random Forest (scikit-learn, `rffinal.pkl`) trained on historical race data with feature engineering (qualifying position, driver confidence, constructor reliability, home advantage, circuit characteristics). 3-class output: podium / points / outside points — 94% validation accuracy, up from a 50% baseline. Training notebooks live in `model-notebooks/`.
+Random Forest (scikit-learn, `rffinal.pkl`) predicting a 3-class bucket (podium / points / outside points) from qualifying position, point-in-time driver/constructor reliability (expanding window — no future DNF data), prior-round championship standings for driver and constructor, and circuit identity. Validation is walk-forward (train on seasons ≤ Y, test on Y+1): **~64–66% accuracy, on par with the trivial qualify-position baseline** — reported honestly rather than via random splits, which inflated earlier numbers to 94% through leakage. Training pipeline and experiments live in `model-notebooks/`.
 
 ## Deployment
 
