@@ -74,6 +74,7 @@ jobs:
           cache: npm
           cache-dependency-path: nextjs-app/package-lock.json
       - run: npm ci
+      - run: npm test
       - run: npx next build
 
   astro:
@@ -90,6 +91,7 @@ jobs:
           cache: npm
           cache-dependency-path: f1-points-calc/package-lock.json
       - run: npm ci
+      - run: npm test
       - run: npm run build
 
   dependency-audit:
