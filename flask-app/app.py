@@ -317,6 +317,12 @@ DRIVER_IDS = ID_MAPS["driver"]
 DRIVER_TEAM = ROSTER["driver_team"]
 DRIVER_CONFIDENCE = ROSTER["driver_confidence"]
 CONSTRUCTOR_RELIABILITY = ROSTER["constructor_reliability"]
+# Championship snapshot entering the next race — point-in-time features for
+# the retrained model (train_model.py's FEATURES contract).
+DRIVER_CHAMP_POS = ROSTER.get("driver_champ_pos", {})
+DRIVER_CHAMP_POINTS = ROSTER.get("driver_champ_points", {})
+CONSTRUCTOR_CHAMP_POS = ROSTER.get("constructor_champ_pos", {})
+CONSTRUCTOR_CHAMP_POINTS = ROSTER.get("constructor_champ_points", {})
 
 # case-insensitive lookup helpers, since the frontend sends free-text names
 _GP_LOOKUP = {name.lower(): name for name in GP_IDS}
@@ -348,6 +354,12 @@ def predict_driver_position():
         "driver": [DRIVER_IDS[driver_name]],
         "driver_confidence": [DRIVER_CONFIDENCE[driver_name]],
         "constructor_relaiblity": [CONSTRUCTOR_RELIABILITY[constructor_name]],
+        # point-in-time championship standing entering the race (sentinel 0
+        # if the driver/team has no snapshot — matches training's sentinels)
+        "driver_champ_pos": [DRIVER_CHAMP_POS.get(driver_name, 0)],
+        "driver_champ_points": [DRIVER_CHAMP_POINTS.get(driver_name, 0)],
+        "constructor_champ_pos": [CONSTRUCTOR_CHAMP_POS.get(constructor_name, 0)],
+        "constructor_champ_points": [CONSTRUCTOR_CHAMP_POINTS.get(constructor_name, 0)],
     }
 
     df = pd.DataFrame(row)
