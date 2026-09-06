@@ -40,5 +40,8 @@ def client():
     with flask_app.test_client() as c:
         yield c
     with get_connection() as conn:
+        # Child tables first — predictions/leaderboard hold FKs on users
+        conn.execute("DELETE FROM predictions")
+        conn.execute("DELETE FROM leaderboard")
         conn.execute("DELETE FROM users")
         conn.commit()

@@ -3,12 +3,42 @@
 
 const API_BASE = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
+// Render free tier can cold-start: the first request may hang for many
+// seconds. Abort after 20s so users get feedback instead of an endless
+// spinner — a retry a minute later usually hits an already-awake server.
+const REQUEST_TIMEOUT_MS = 20000;
+
+export async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export function friendlyNetworkError(err: unknown): Error {
+  if (err instanceof DOMException && err.name === 'AbortError') {
+    return new Error('The server is taking too long to respond — it may be waking up. Please try again in a minute.');
+  }
+  if (err instanceof TypeError) {
+    return new Error("Can't reach the server. Check your connection and try again.");
+  }
+  return err instanceof Error ? err : new Error('Something went wrong');
+}
+
 async function apiFetch(path: string, options: RequestInit = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-  });
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(`${API_BASE}${path}`, {
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      ...options,
+    });
+  } catch (err) {
+    throw friendlyNetworkError(err);
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (res.status === 429) {
