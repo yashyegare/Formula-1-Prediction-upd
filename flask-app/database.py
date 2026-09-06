@@ -36,6 +36,27 @@ DB_PATH = os.environ.get("F1_DB_PATH") or os.path.join(
 
 # ── Connection helpers ──────────────────────────────────────────────────
 
+# Postgres connection pool (per gunicorn worker). Created lazily on first
+# PG use so importing this module never requires psycopg2 or a live DB.
+# Each pooled connection reuses one TCP+TLS handshake for thousands of
+# requests instead of paying it per query. Max 4 keeps pool_count well
+# under Render free-tier Postgres connection limits (2 workers x 4 = 8).
+_pg_pool = None
+
+
+def _get_pg_pool():
+    global _pg_pool
+    if _pg_pool is None:
+        from psycopg2 import pool
+        _pg_pool = pool.ThreadedConnectionPool(
+            minconn=1,
+            maxconn=4,
+            dsn=DATABASE_URL,
+            sslmode="require",
+        )
+    return _pg_pool
+
+
 
 def get_db_path() -> str:
     """Path to the SQLite database file (used by the seeder's logging).
@@ -51,18 +72,24 @@ def _is_pg() -> bool:
 def get_connection():
     """Yield a DB connection. SQLite for local dev, PostgreSQL for prod."""
     if _is_pg():
-        import psycopg2
-        import psycopg2.extras
-        conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+        pool = _get_pg_pool()
+        conn = pool.getconn()
         conn.autocommit = False
         try:
             yield conn
             conn.commit()
         except Exception:
-            conn.rollback()
+            try:
+                conn.rollback()
+            except Exception:
+                pass  # connection is broken; closed-check below handles it
             raise
         finally:
-            conn.close()
+            # A dropped/broken connection must not re-enter the pool
+            if conn.closed:
+                pool.putconn(conn, close=True)
+            else:
+                pool.putconn(conn)
     else:
         conn = sqlite3.connect(DB_PATH, timeout=10)
         conn.row_factory = sqlite3.Row

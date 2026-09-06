@@ -54,7 +54,8 @@ def _score_prediction(grids: dict, season: int) -> dict:
         result_rows = _fetchall(
             conn,
             "SELECT round_num, driver_id, position FROM results "
-            "WHERE " + ("%s" if _is_pg() else "?") + " ORDER BY round_num, position",
+            "WHERE year = " + ("%s" if _is_pg() else "?")
+            + " ORDER BY round_num, position",
             (season,),
         )
 
