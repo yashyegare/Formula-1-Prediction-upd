@@ -45,14 +45,18 @@ from sklearn.preprocessing import LabelEncoder
 # driver/constructor champ POINTS are share-of-leader ratios (0..1 within
 # the snapshot), not raw points — raw points aren't comparable across a
 # season and the model can't tell round-4-dominance from round-20-midpack
-# without that normalization. driver_recent_form is the mean finish over
-# the driver's last <=5 races (point-in-time, first race = 11.0 prior).
+# without that normalization. driver_recent_form is the mean GRID->FINISH
+# DELTA over the driver's last <=5 races (positive = gains places on race
+# day; redundant-free complement to quali_pos, whose raw mean-finish form
+# variant only carried ~3% importance). constructor_recent_form is the
+# team's mean race points over its last <=5 races — reacts to mid-season
+# upgrades far faster than the season-cumulative championship ratio.
 FEATURES = [
     "GP_name", "quali_pos", "constructor", "driver",
     "driver_confidence", "constructor_relaiblity",
     "driver_champ_pos", "driver_champ_points_ratio",
     "constructor_champ_pos", "constructor_champ_points_ratio",
-    "driver_recent_form",
+    "driver_recent_form", "constructor_recent_form",
 ]
 
 
@@ -67,9 +71,12 @@ def position_index(pos: int) -> int:
 
 def evaluate_walk_forward(df: pd.DataFrame, rf_params: dict) -> dict:
     """
-    Walk-forward evaluation. Returns per-year and overall accuracy for
-    both the model and the qualifying-position baseline, plus podium
-    recall (the class the UI highlights).
+    Walk-forward evaluation.    Returns per-year and overall accuracy for both the model and the
+    qualifying-position baseline, plus podium recall (the class the UI
+    highlights) and points recall (class 2). The points/out boundary
+    (P10/P11) is where nearly all the confusion lives — overall accuracy
+    can stay flat while masking a real win or loss right at that cutoff,
+    so the boundary metric is tracked explicitly.
     """
     X = df[FEATURES].copy()
     y = df["position"].apply(position_index)
@@ -101,6 +108,7 @@ def evaluate_walk_forward(df: pd.DataFrame, rf_params: dict) -> dict:
         acc = accuracy_score(y[te], pred)
         base_acc = accuracy_score(y[te], base)
         podium_recall = (pred[y[te] == 1] == 1).mean() if (y[te] == 1).any() else float("nan")
+        points_recall = (pred[y[te] == 2] == 2).mean() if (y[te] == 2).any() else float("nan")
         per_year.append({
             "test_year": test_year,
             "train_rows": int(tr.sum()),
@@ -108,6 +116,7 @@ def evaluate_walk_forward(df: pd.DataFrame, rf_params: dict) -> dict:
             "model_acc": acc,
             "baseline_acc": base_acc,
             "podium_recall": podium_recall,
+            "points_recall": points_recall,
         })
         all_true.extend(y[te].tolist())
         all_pred.extend(pred.tolist())
@@ -122,6 +131,8 @@ def evaluate_walk_forward(df: pd.DataFrame, rf_params: dict) -> dict:
         "overall_model_acc": accuracy_score(all_true, all_pred),
         "overall_baseline_acc": accuracy_score(all_true, all_base),
         "overall_podium_recall": (all_pred[all_true == 1] == 1).mean(),
+        "overall_points_recall": (all_pred[all_true == 2] == 2).mean(),
+        "baseline_points_recall": (all_base[all_true == 2] == 2).mean(),
         "confusion": confusion_matrix(all_true, all_pred, labels=[1, 2, 3]),
         # Mean importances across folds — importance on a single fit can
         # mislead when seasons differ in size, so average like the accuracy.
@@ -144,10 +155,13 @@ def main():
     df = df[(df["active_driver"] == 1) & (df["active_constructor"] == 1)].copy()
 
     # Walk-forward experiments (Sept 2026): the original n300/d10 over-fit
-    # short seasons. After the ratio-standings + recent-form features, a
-    # 5-config sweep picked this config (best mean gap vs baseline and best
-    # podium recall); stable across seeds 42/7/123/2026 at roughly
-    # baseline ±0.4% — an edge within noise, reported as such.
+    # short seasons. A 5-config sweep picked this config (best mean gap vs
+    # baseline and best podium recall). Redefining driver_recent_form as a
+    # grid->finish delta and adding constructor_recent_form was then A/B
+    # tested on identical splits across seeds 42/7/123/2026: the 12-feature
+    # set was never worse on accuracy and consistently better on points
+    # recall (+2-3pt, the P10/P11 boundary), at the cost of ~1pt podium
+    # recall on seed 42 — adopted as the better boundary model.
     rf_params = dict(n_estimators=400, max_depth=12, min_samples_leaf=20,
                      max_features=0.8, random_state=42)
 
@@ -162,10 +176,14 @@ def main():
     if report:
         for r in report["per_year"]:
             print(f"  test {r['test_year']}: model {r['model_acc']:.1%} vs baseline {r['baseline_acc']:.1%}"
-                  f" | podium recall {r['podium_recall']:.0%} | trained on {r['train_rows']} rows")
+                  f" | podium recall {r['podium_recall']:.0%} | points recall {r['points_recall']:.0%}"
+                  f" | trained on {r['train_rows']} rows")
         print(f"\nOverall walk-forward accuracy: {report['overall_model_acc']:.1%}")
         print(f"Baseline (quali bucket) on same splits: {report['overall_baseline_acc']:.1%}")
         print(f"Overall podium recall: {report['overall_podium_recall']:.0%}")
+        print(f"Overall points recall: {report['overall_points_recall']:.0%}"
+              f" (baseline {report['baseline_points_recall']:.0%})"
+              " <- the P10/P11 boundary where the confusion lives")
         print("Confusion matrix (rows=actual, cols=predicted; classes 1=podium 2=points 3=out):")
         print(report["confusion"])
         print("\nWalk-forward feature importances (importance can shift with")
@@ -203,7 +221,7 @@ def main():
     }
     # encoding pinned: locale defaults differ (Windows cp1252 vs Linux
     # utf-8) and produced artifacts CI could not decode. Never rely on it.
-    with open(f"{args.out}/id_maps.json", "w", encoding="utf-8") as f:
+    with open(f"{args.out}/id_maps.json", "w", encoding="utf-8", newline="\n") as f:
         json.dump(id_maps, f, indent=2, ensure_ascii=False)
 
     print(f"\nSaved model to {args.out}/rffinal.pkl")
