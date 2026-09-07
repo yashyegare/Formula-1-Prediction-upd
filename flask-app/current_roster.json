@@ -209,5 +209,42 @@
     "RB F1 Team": 6.0,
     "Red Bull": 21.0,
     "Williams": 0.0
+  },
+  "gp_median_gap_to_pole": {
+    "Australian Grand Prix": 1.703,
+    "Chinese Grand Prix": 1.2915,
+    "Japanese Grand Prix": 1.5074999999999998,
+    "Miami Grand Prix": 1.641,
+    "Canadian Grand Prix": 1.3135,
+    "Monaco Grand Prix": 1.75,
+    "Barcelona Grand Prix": 1.2415,
+    "Austrian Grand Prix": 1.145,
+    "British Grand Prix": 1.389,
+    "Belgian Grand Prix": 1.8645,
+    "Hungarian Grand Prix": 1.5975000000000001
+  },
+  "driver_last_gap_to_pole": {
+    "Lando Norris": 0.0,
+    "Lewis Hamilton": 0.012,
+    "Charles Leclerc": 0.238,
+    "Andrea Kimi Antonelli": 0.272,
+    "Oscar Piastri": 0.477,
+    "Max Verstappen": 0.518,
+    "George Russell": 0.553,
+    "Isack Hadjar": 0.649,
+    "Arvid Lindblad": 1.074,
+    "Nico Hülkenberg": 1.432,
+    "Liam Lawson": 1.558,
+    "Pierre Gasly": 1.637,
+    "Franco Colapinto": 1.82,
+    "Gabriel Bortoleto": 1.862,
+    "Esteban Ocon": 2.527,
+    "Fernando Alonso": 2.601,
+    "Oliver Bearman": 3.026,
+    "Carlos Sainz": 3.414,
+    "Alexander Albon": 3.451,
+    "Lance Stroll": 3.452,
+    "Valtteri Bottas": 3.679,
+    "Sergio Pérez": 4.115
   }
 }

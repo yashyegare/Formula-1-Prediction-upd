@@ -57,6 +57,25 @@ NO_STANDING_POINTS = 0.0
 # zero points. Fixed constant - never derived from data that could leak.
 CONSTRUCTOR_FORM_PRIOR = 0.0
 
+
+def _lap_time_ms(value) -> float | None:
+    """Parse a Jolpica/Ergast lap-time string ("M:SS.mmm", "SS.mmm") to ms.
+    Returns None for missing/unparseable times."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    parts = value.strip().split(":")
+    try:
+        if len(parts) == 2:
+            minutes, rest = int(parts[0]), parts[1]
+        elif len(parts) == 1:
+            minutes, rest = 0, parts[0]
+        else:
+            return None
+        sec_str, ms_str = rest.split(".")
+        return (minutes * 60 + int(sec_str)) * 1000 + int(ms_str.ljust(3, "0")[:3])
+    except (ValueError, IndexError):
+        return None
+
 # Prior for a driver's first-ever race in the recent-form feature: a
 # neutral "no gain, no loss" grid->finish delta. Fixed constant - never
 # derived from data that could leak.
@@ -232,6 +251,40 @@ def _rolling_constructor_form(results: pd.DataFrame, window: int = RECENT_FORM_W
     return pd.Series(out["form"].to_numpy(), index=results.index)
 
 
+def _gap_to_pole(qualifying: pd.DataFrame) -> pd.Series:
+    """
+    Gap-to-pole per qualifying row, in SECONDS behind the session's fastest
+    best time.
+
+    A driver's best time is the fastest of their available Q1/Q2/Q3 laps (a
+    driver eliminated in Q1 has only their Q1 lap). Gap = best - pole, so
+    the pole sitter scores 0.0 and a backmarker's field spread is in
+    seconds. Points-resolution companion to quali_pos: P3 who was 0.05s
+    off pole and P3 who was 1.4s off are different situations that the
+    ordinal position cannot distinguish.
+
+    Point-in-time BY CONSTRUCTION: qualifying happens before the race, so
+    same-session times are legitimately known at prediction time - no
+    windowing needed. Drivers with no recorded time get that session's
+    MEDIAN gap (same-session data, known pre-race; never the driver's own
+    future results). A session with no times at all yields 0.0.
+    """
+    q = qualifying.copy()
+    # tolerate missing session columns (some sources ship Q1 only)
+    sessions = [c for c in ("Q1", "Q2", "Q3") if c in q.columns]
+    if not sessions:
+        return pd.Series(0.0, index=qualifying.index)
+    best = pd.concat(
+        [q[c].map(_lap_time_ms) for c in sessions], axis=1
+    ).min(axis=1)  # min ignores NaN: fastest available session lap
+    q["_best_ms"] = best
+    pole_ms = q.groupby(["year", "round"])["_best_ms"].transform("min")
+    gap = (q["_best_ms"] - pole_ms) / 1000.0
+    # median of the session's known gaps, filled into no-time rows
+    session_median = gap.groupby([q["year"], q["round"]]).transform("median")
+    return gap.fillna(session_median).fillna(0.0)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--datasets", default="./datasets")
@@ -253,8 +306,12 @@ def main():
     # --- DNF flags from text status ---
     results["driver_dnf"] = results["status"].apply(is_dnf)
 
-    # --- join qualifying position onto results (year, round, driverId) ---
-    quali_small = qualifying[["year", "round", "driverId", "position"]].rename(
+    # --- join qualifying position + gap-to-pole onto results ---
+    # Gap-to-pole is point-in-time BY CONSTRUCTION: qualifying happens
+    # before the race, so same-session times are legitimately known at
+    # prediction time (no windowing needed, unlike every other feature).
+    qualifying["gap_to_pole"] = _gap_to_pole(qualifying)
+    quali_small = qualifying[["year", "round", "driverId", "position", "gap_to_pole"]].rename(
         columns={"position": "quali_pos"}
     )
     merged = results.merge(quali_small, on=["year", "round", "driverId"], how="inner")
@@ -321,6 +378,22 @@ def main():
     latest_con_meta = dict(zip(results[results["year"] == latest_year]["constructorId"],
                                results[results["year"] == latest_year]["constructorName"]))
 
+    # Gap-to-pole references for serving a FUTURE race: the per-GP median
+    # gap of the latest season's sessions (track character - Monaco's field
+    # spread differs from Monza's) and each driver's most recent actual gap.
+    # app.py prefers a real session gap when the frontend sends one and
+    # falls back to the per-GP median.
+    recent_q = qualifying[qualifying["year"] == latest_year]
+    round_to_gp = (results[results["year"] == latest_year]
+                   .drop_duplicates("round").set_index("round")["raceName"])
+    gp_median_gap = {round_to_gp[r]: float(v)
+                     for r, v in recent_q.groupby("round")["gap_to_pole"].median().items()
+                     if r in round_to_gp.index}
+    latest_q = recent_q[recent_q["round"] == latest_round]
+    driver_last_gap = {latest_driver_meta.get(d): float(g)
+                       for d, g in zip(latest_q["driverId"], latest_q["gap_to_pole"])
+                       if latest_driver_meta.get(d) in active_drivers}
+
     # Recent form as of the latest data - the point-in-time values for a
     # future race: driver = mean grid->finish delta over the last <=window
     # races; constructor = mean team points over its last <=window races.
@@ -347,7 +420,7 @@ def main():
         "constructorName": "constructor",
         "driverName": "driver",
     })[[
-        "year", "round", "GP_name", "quali_pos", "constructor", "driver", "position",
+        "year", "round", "GP_name", "quali_pos", "gap_to_pole", "constructor", "driver", "position",
         "driver_confidence", "constructor_relaiblity",
         "driver_champ_pos", "driver_champ_points_ratio",
         "constructor_champ_pos", "constructor_champ_points_ratio",
@@ -383,6 +456,8 @@ def main():
         # driver grid->finish delta; constructor mean last-N team points
         "driver_recent_form": {k: float(v) for k, v in form_latest.items() if k in active_drivers},
         "constructor_recent_form": {k: float(v) for k, v in con_form_latest.items() if k in active_constructors},
+        "gp_median_gap_to_pole": gp_median_gap,
+        "driver_last_gap_to_pole": driver_last_gap,
     }
     # encoding pinned: locale defaults differ (Windows cp1252 vs Linux
     # utf-8) and produced artifacts CI could not decode. Never rely on it.

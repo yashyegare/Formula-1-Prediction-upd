@@ -331,6 +331,25 @@ CONSTRUCTOR_CHAMP_POS = ROSTER.get("constructor_champ_pos", {})
 CONSTRUCTOR_CHAMP_POINTS_RATIO = ROSTER.get("constructor_champ_points_ratio", {})
 DRIVER_RECENT_FORM = ROSTER.get("driver_recent_form", {})
 CONSTRUCTOR_RECENT_FORM = ROSTER.get("constructor_recent_form", {})
+# Per-GP median qualifying gap-to-pole (seconds) from the latest season's
+# sessions, plus each driver's most recent actual gap. The frontend may
+# send a real gap_to_pole when it has quali times; the per-GP median is
+# the pre-race fallback so the feature is always populated.
+GP_MEDIAN_GAP = ROSTER.get("gp_median_gap_to_pole", {})
+DRIVER_LAST_GAP = ROSTER.get("driver_last_gap_to_pole", {})
+
+# Column order the model was trained on (train_model.py FEATURES). The
+# inference DataFrame is reindexed to this order explicitly — sklearn
+# rejects a column-order mismatch, and dict order drifting from the
+# training contract is exactly the kind of bug that only shows at
+# request time otherwise.
+PREDICT_FEATURES = [
+    "GP_name", "quali_pos", "gap_to_pole", "constructor", "driver",
+    "driver_confidence", "constructor_relaiblity",
+    "driver_champ_pos", "driver_champ_points_ratio",
+    "constructor_champ_pos", "constructor_champ_points_ratio",
+    "driver_recent_form", "constructor_recent_form",
+]
 
 # case-insensitive lookup helpers, since the frontend sends free-text names
 _GP_LOOKUP = {name.lower(): name for name in GP_IDS}
@@ -355,6 +374,16 @@ def predict_driver_position():
 
     constructor_name = DRIVER_TEAM[driver_name]
 
+    # gap-to-pole resolution, explicit (an `or`-chain would silently drop a
+    # genuine 0.0 — the pole sitter's gap — because 0.0 is falsy):
+    # 1. a real session gap from the request, 2. the driver's most recent
+    # actual gap, 3. the per-GP median, 4. 0.0.
+    request_gap = data.get("gap_to_pole")
+    if not isinstance(request_gap, (int, float)) or isinstance(request_gap, bool):
+        request_gap = DRIVER_LAST_GAP.get(driver_name)
+    if not isinstance(request_gap, (int, float)):
+        request_gap = GP_MEDIAN_GAP.get(gp_name, 0.0)
+
     row = {
         "GP_name": [GP_IDS[gp_name]],
         "quali_pos": [qualifying_pos],
@@ -372,9 +401,11 @@ def predict_driver_position():
         # 0.0 prior) and the team's mean last-N race points
         "driver_recent_form": [DRIVER_RECENT_FORM.get(driver_name, 0.0)],
         "constructor_recent_form": [CONSTRUCTOR_RECENT_FORM.get(constructor_name, 0.0)],
+        # qualifying gap-to-pole in seconds (resolution above)
+        "gap_to_pole": [request_gap],
     }
 
-    df = pd.DataFrame(row)
+    df = pd.DataFrame(row)[PREDICT_FEATURES]
     prediction = model.predict(df)  # [1], [2], or [3]
 
     results = jsonify(prediction.tolist())

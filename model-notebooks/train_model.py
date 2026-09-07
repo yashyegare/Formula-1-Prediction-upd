@@ -51,8 +51,12 @@ from sklearn.preprocessing import LabelEncoder
 # variant only carried ~3% importance). constructor_recent_form is the
 # team's mean race points over its last <=5 races — reacts to mid-season
 # upgrades far faster than the season-cumulative championship ratio.
+# gap_to_pole is the driver's best qualifying lap in seconds behind the
+# session's fastest — point-in-time by construction (quali precedes the
+# race) and the resolution upgrade quali_pos (still ~50% of importance)
+# was missing: P3-by-0.05s and P3-by-1.4s are different situations.
 FEATURES = [
-    "GP_name", "quali_pos", "constructor", "driver",
+    "GP_name", "quali_pos", "gap_to_pole", "constructor", "driver",
     "driver_confidence", "constructor_relaiblity",
     "driver_champ_pos", "driver_champ_points_ratio",
     "constructor_champ_pos", "constructor_champ_points_ratio",
@@ -162,6 +166,15 @@ def main():
     # set was never worse on accuracy and consistently better on points
     # recall (+2-3pt, the P10/P11 boundary), at the cost of ~1pt podium
     # recall on seed 42 — adopted as the better boundary model.
+    #
+    # gap_to_pole (13 features, same seed sweep): importance 0.12 and
+    # quali_pos relieved 0.49 -> 0.44 — the resolution mechanism worked —
+    # but accuracy meaned -0.3pt while points recall meaned +0.5pt: a wash
+    # within noise, kept for the boundary metric. Together with the
+    # model-family swap (LightGBM/XGBoost, incl. native categoricals, all
+    # 3-5pt BELOW the RF and the baseline) this is the evidence that the
+    # ceiling is the feature set / data volume, not the model — see
+    # model-notebooks/MODEL_NOTES.md.
     rf_params = dict(n_estimators=400, max_depth=12, min_samples_leaf=20,
                      max_features=0.8, random_state=42)
 
