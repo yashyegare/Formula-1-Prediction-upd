@@ -77,7 +77,7 @@ jobs:
         working-directory: nextjs-app
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
@@ -94,7 +94,7 @@ jobs:
         working-directory: f1-points-calc
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
@@ -151,7 +151,7 @@ jobs:
         run: |
           pip install pip-audit
           pip-audit -r flask-app/requirements.txt --progress-spinner off
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
       - name: Audit Next.js production dependencies (blocking)
