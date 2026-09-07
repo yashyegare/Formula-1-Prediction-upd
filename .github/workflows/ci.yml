@@ -103,6 +103,42 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  ml-pipeline:
+    name: ML Pipeline (tests + drift guard)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: model-notebooks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
+      - name: Run ML pipeline tests
+        run: python -m pytest tests/ -q
+      - name: Guard against stale committed artifacts
+        # cleaned_data.csv and current_roster.json are DERIVED files: a stale
+        # committed copy silently diverges from what the scripts produce
+        # (this shipped once - an old-schema CSV crashed train_model.py with
+        # a KeyError on the new feature columns). Rebuild from the raw
+        # datasets and byte-compare; a diff means someone edited data or
+        # features without re-running the pipeline. rffinal.pkl is
+        # deliberately NOT compared: pickles are not byte-deterministic.
+        run: |
+          mkdir -p /tmp/rebuild
+          python build_training_data.py --datasets ./datasets --out /tmp/rebuild
+          for f in cleaned_data.csv current_roster.json; do
+            if ! cmp -s "datasets/$f" "/tmp/rebuild/$f"; then
+              echo "::error::datasets/$f is stale - it no longer matches what build_training_data.py produces from the committed raw datasets."
+              echo "Regenerate locally: cd model-notebooks && python build_training_data.py --datasets ./datasets --out ./datasets"
+              diff "datasets/$f" "/tmp/rebuild/$f" | head -20 || true
+              exit 1
+            fi
+          done
+          echo "Committed derived artifacts match the pipeline output."
+
   dependency-audit:
     name: Dependency Audit
     runs-on: ubuntu-latest
@@ -133,7 +169,9 @@ jobs:
 
   deploy-render:
     name: Deploy Backend to Render
-    needs: [flask, flask-postgres, dependency-audit]
+    # ml-pipeline gates the deploy too: a push ships the model artifacts, so
+    # a failing ML suite or a stale-artifact drift should block it.
+    needs: [flask, flask-postgres, dependency-audit, ml-pipeline]
     # Only auto-deploy on pushes to main once the backend test suites pass.
     # Frontend jobs deliberately do NOT gate this: the backend is a separate
     # deployable, and a frontend-only failure shouldn't block backend fixes.

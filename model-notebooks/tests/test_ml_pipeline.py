@@ -58,17 +58,17 @@ def _write_pipeline_inputs(datasets: Path):
     (the original bug), these assertions fail with exact numbers.
     """
     results = pd.DataFrame([
-        # year, round, driverId, driverName, constructorId, constructorName, raceName, position (finish), status
-        (2026, 1, "alice", "Alice", "teamx", "TeamX", "Test GP", 1, "Finished"),
-        (2026, 1, "bob",   "Bob",   "teamx", "TeamX", "Test GP", 2, "Finished"),
-        (2026, 1, "carol", "Carol", "teamy", "TeamY", "Test GP", 3, "Finished"),
-        (2026, 1, "dave",  "Dave",  "teamy", "TeamY", "Test GP", 4, "Finished"),
-        (2026, 2, "alice", "Alice", "teamx", "TeamX", "Test GP 2", 1, "Finished"),
-        (2026, 2, "bob",   "Bob",   "teamx", "TeamX", "Test GP 2", 2, "Finished"),
-        (2026, 2, "carol", "Carol", "teamy", "TeamY", "Test GP 2", 3, "Accident"),   # DNF, classified P3
-        (2026, 2, "dave",  "Dave",  "teamy", "TeamY", "Test GP 2", 4, "Finished"),
+        # year, round, driverId, driverName, constructorId, constructorName, raceName, position (finish), points, status
+        (2026, 1, "alice", "Alice", "teamx", "TeamX", "Test GP", 1, 25, "Finished"),
+        (2026, 1, "bob",   "Bob",   "teamx", "TeamX", "Test GP", 2, 18, "Finished"),
+        (2026, 1, "carol", "Carol", "teamy", "TeamY", "Test GP", 3, 15, "Finished"),
+        (2026, 1, "dave",  "Dave",  "teamy", "TeamY", "Test GP", 4, 12, "Finished"),
+        (2026, 2, "alice", "Alice", "teamx", "TeamX", "Test GP 2", 1, 25, "Finished"),
+        (2026, 2, "bob",   "Bob",   "teamx", "TeamX", "Test GP 2", 2, 18, "Finished"),
+        (2026, 2, "carol", "Carol", "teamy", "TeamY", "Test GP 2", 3, 0, "Accident"),  # DNF, classified P3
+        (2026, 2, "dave",  "Dave",  "teamy", "TeamY", "Test GP 2", 4, 12, "Finished"),
     ], columns=["year", "round", "driverId", "driverName", "constructorId", "constructorName",
-                "raceName", "position", "status"])
+                "raceName", "position", "points", "status"])
 
     qualifying = pd.DataFrame([
         # Same race/driver pairs, but quali position deliberately different
@@ -150,7 +150,7 @@ class TestLeakageFix:
             "driver_confidence", "constructor_relaiblity",
             "driver_champ_pos", "driver_champ_points_ratio",
             "constructor_champ_pos", "constructor_champ_points_ratio",
-            "driver_recent_form",
+            "driver_recent_form", "constructor_recent_form",
             "active_driver", "active_constructor",
         ]
 
@@ -172,18 +172,41 @@ class TestLeakageFix:
 
     def test_recent_form_is_prior_window_average(self, tmp_path, monkeypatch):
         """
-        Recent form = mean finish over the driver's strictly prior <=5
-        races. Alice finished P1 in round 1, so her round-2 form is exactly
-        1.0; her round-1 form is the fixed neutral prior 11.0 (no history,
-        never derived from data that could leak). A race's own result never
-        appears in its form value.
+        Recent form = mean GRID->FINISH DELTA over the driver's strictly
+        prior <=5 races (quali_pos - position; positive = gains places on
+        race day). Alice: quali P3/finish P1 then quali P4/finish P1, so
+        her deltas are +2 and +3 — round-1 form is the fixed neutral prior
+        0.0 (no history), round-2 form is exactly +2.0 (the PRIOR delta;
+        her own +3 must not appear). A race's own result never appears in
+        its form value, and the value is a delta, not a raw mean finish.
         """
         cleaned = _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
         alice = cleaned[cleaned["driver"] == "Alice"].sort_values("round")
         assert alice["driver_recent_form"].iloc[0] == pytest.approx(
             build_training_data.RECENT_FORM_PRIOR
         )
-        assert alice["driver_recent_form"].iloc[1] == pytest.approx(1.0)
+        assert alice["driver_recent_form"].iloc[1] == pytest.approx(2.0)
+
+    def test_constructor_form_is_prior_window_average(self, tmp_path, monkeypatch):
+        """
+        Constructor form = mean TEAM POINTS over strictly prior <=5 races.
+        TeamY scored 15+12=27 in round 1 and 0+12=12 in round 2, so round-1
+        form is the fixed prior 0.0 and round-2 form is exactly 27.0 (the
+        prior race only — the team's own round-2 points must not appear).
+        TeamX round-2 form = 25+18 = 43.0.
+        """
+        cleaned = _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
+        # A constructor has TWO rows per round (one per driver) — filter by
+        # round, don't index a sorted frame (iloc[1] would be round 1's
+        # second driver).
+        teamy_r1 = cleaned[(cleaned["constructor"] == "TeamY") & (cleaned["round"] == 1)]
+        teamy_r2 = cleaned[(cleaned["constructor"] == "TeamY") & (cleaned["round"] == 2)]
+        assert teamy_r1["constructor_recent_form"].iloc[0] == pytest.approx(
+            build_training_data.CONSTRUCTOR_FORM_PRIOR
+        )
+        assert teamy_r2["constructor_recent_form"].iloc[0] == pytest.approx(27.0)
+        teamx_r2 = cleaned[(cleaned["constructor"] == "TeamX") & (cleaned["round"] == 2)]
+        assert teamx_r2["constructor_recent_form"].iloc[0] == pytest.approx(43.0)
 
 
 class TestFeatureEngineering:
@@ -258,15 +281,17 @@ class TestFeatureEngineering:
     def test_roster_exports_ratio_and_form_for_serving(self, tmp_path, monkeypatch):
         """
         app.py /predictGrid reads exactly these roster keys — the serving
-        side of the scale-invariant points + recent-form contract. Round-1
-        fixture: Alice 25/25 = 1.0, Dave 12/25 = 0.48; Alice's form after
-        two P1 finishes = 1.0.
+        side of the scale-invariant points + recent-form contract.
+        Alice's serving form is the mean of her deltas (+2, +3) = 2.5;
+        TeamX's is the mean of its team points (43, 43) = 43.0.
         """
         _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
         roster = json.loads((tmp_path / "out" / "current_roster.json").read_text())
         assert roster["driver_champ_points_ratio"]["Alice"] == pytest.approx(1.0)
         assert roster["driver_champ_points_ratio"]["Dave"] == pytest.approx(0.48)
-        assert roster["driver_recent_form"]["Alice"] == pytest.approx(1.0)
+        assert roster["driver_recent_form"]["Alice"] == pytest.approx(2.5)
+        assert roster["constructor_recent_form"]["TeamX"] == pytest.approx(43.0)
+        assert roster["constructor_recent_form"]["TeamY"] == pytest.approx(19.5)
         assert "driver_champ_points" not in roster  # raw-points key retired
 
 
@@ -291,7 +316,8 @@ def _write_training_csv(out: Path):
             "driver_champ_points_ratio": 1.0,
             "constructor_champ_pos": 1.0,
             "constructor_champ_points_ratio": 1.0,
-            "driver_recent_form": 5.0,
+            "driver_recent_form": 1.0,
+            "constructor_recent_form": 20.0,
             "active_driver": 1,
             "active_constructor": 1,
         })
@@ -335,8 +361,8 @@ class TestTrainModelEndToEnd:
         id_maps = json.loads((tmp_path / "out" / "id_maps.json").read_text())
         # Production (flask-app/app.py /predictGrid) predicts on a DataFrame
         # with exactly these named columns — pin the inference contract.
-        # 11 columns since the ratio standings + recent-form features.
-        assert len(train_model.FEATURES) == 11
+        # 12 columns since the delta-form + constructor-form features.
+        assert len(train_model.FEATURES) == 12
         row = pd.DataFrame([{
             "GP_name": id_maps["GP_name"]["GP0"],
             "quali_pos": 3,
@@ -348,7 +374,8 @@ class TestTrainModelEndToEnd:
             "driver_champ_points_ratio": 1.0,
             "constructor_champ_pos": 1.0,
             "constructor_champ_points_ratio": 1.0,
-            "driver_recent_form": 5.0,
+            "driver_recent_form": 1.0,
+            "constructor_recent_form": 20.0,
         }])
         preds = model.predict(row)
         assert preds[0] in (1, 2, 3)  # the three buckets the frontend renders

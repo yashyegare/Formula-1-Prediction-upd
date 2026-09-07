@@ -1,0 +1,9 @@
+# ML pipeline (build_training_data.py / train_model.py / backtest_prod.py).
+# Used by the CI ml-pipeline job (tests + artifact drift guard) and tracked
+# by Dependabot. Deliberately loose pins: the CSV/JSON outputs are
+# version-agnostic pandas transforms (drift-guarded in CI), unlike the
+# serving pickle, which is produced on one machine and consumed on another.
+pandas
+scikit-learn
+joblib
+requests
