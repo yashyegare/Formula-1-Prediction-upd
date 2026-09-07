@@ -53,12 +53,16 @@ FIRST_APPEARANCE_PRIOR = 0.90
 NO_STANDING_POSITION = 0.0
 NO_STANDING_POINTS = 0.0
 
-# Prior for a driver's first-ever race in the recent-form feature: a
-# neutral midfield finish (positions run 1..20). Fixed constant - never
-# derived from data that could leak.
-RECENT_FORM_PRIOR = 11.0
+# Prior for a constructor's first-ever race in its recent-form feature:
+# zero points. Fixed constant - never derived from data that could leak.
+CONSTRUCTOR_FORM_PRIOR = 0.0
 
-# How many prior races the recent-form feature averages.
+# Prior for a driver's first-ever race in the recent-form feature: a
+# neutral "no gain, no loss" grid->finish delta. Fixed constant - never
+# derived from data that could leak.
+RECENT_FORM_PRIOR = 0.0
+
+# How many prior races the recent-form features average.
 RECENT_FORM_WINDOW = 5
 
 
@@ -158,21 +162,28 @@ def _attach_prior_standings(
 
 def _rolling_driver_form(results: pd.DataFrame, window: int = RECENT_FORM_WINDOW) -> pd.Series:
     """
-    Recent form per row: the driver's mean FINISHING position over their
+    Recent form per row: the driver's mean GRID->FINISH DELTA over their
     previous <=window races (strictly prior - the row's own race never
-    counts). Reacts to mid-season car/form changes that lifetime stats and
-    cumulative standings miss. First-ever race gets RECENT_FORM_PRIOR.
+    counts). Delta = qualifying position - finishing position, so positive
+    means the driver typically GAINS places on race day.
+
+    Why a delta and not a raw mean finish: mean finish is highly redundant
+    with quali_pos (drivers who qualify well finish well), so the raw form
+    feature contributed only ~3% model importance. The delta measures
+    something quali_pos CANNOT: race-day position changes independent of
+    where the driver starts. First-ever race gets RECENT_FORM_PRIOR.
     """
-    frame = results[["year", "round", "driverName", "position"]].copy()
+    frame = results[["year", "round", "driverName", "quali_pos", "position"]].copy()
+    frame["_delta"] = frame["quali_pos"] - frame["position"]
     frame["_order"] = frame["year"] * 1000 + frame["round"]
 
     per_race = (
-        frame.groupby(["driverName", "_order"], as_index=False)["position"]
+        frame.groupby(["driverName", "_order"], as_index=False)["_delta"]
         .mean()
         .sort_values(["driverName", "_order"])
     )
     g = per_race.groupby("driverName", sort=False)
-    per_race["prev"] = g["position"].shift(1)  # drop the race itself
+    per_race["prev"] = g["_delta"].shift(1)  # drop the race itself
     per_race["form"] = (
         per_race.groupby("driverName", sort=False)["prev"]
         .transform(lambda s: s.rolling(window, min_periods=1).mean())
@@ -182,6 +193,41 @@ def _rolling_driver_form(results: pd.DataFrame, window: int = RECENT_FORM_WINDOW
     out = frame[["driverName", "_order"]].merge(
         per_race[["driverName", "_order", "form"]],
         on=["driverName", "_order"], how="left",
+    )
+    return pd.Series(out["form"].to_numpy(), index=results.index)
+
+
+def _rolling_constructor_form(results: pd.DataFrame, window: int = RECENT_FORM_WINDOW) -> pd.Series:
+    """
+    Constructor form per row: the team's mean RACE POINTS over its previous
+    <=window races (strictly prior - the row's own race never counts).
+
+    Why mean points rather than mean finish: a constructor fields two cars,
+    so per-row mean finish double-counts and mixes entries; points are the
+    official per-team outcome. Why not a championship ratio: the ratio is a
+    season-cumulative number with heavy inertia - a mid-season upgrade
+    shows up in the last-5-race points long before it moves the table.
+    First-ever race gets CONSTRUCTOR_FORM_PRIOR.
+    """
+    frame = results[["year", "round", "constructorName", "points"]].copy()
+    frame["_order"] = frame["year"] * 1000 + frame["round"]
+
+    per_race = (
+        frame.groupby(["constructorName", "_order"], as_index=False)["points"]
+        .sum()  # team points = sum over its cars that race
+        .sort_values(["constructorName", "_order"])
+    )
+    g = per_race.groupby("constructorName", sort=False)
+    per_race["prev"] = g["points"].shift(1)  # drop the race itself
+    per_race["form"] = (
+        per_race.groupby("constructorName", sort=False)["prev"]
+        .transform(lambda s: s.rolling(window, min_periods=1).mean())
+        .fillna(CONSTRUCTOR_FORM_PRIOR)
+    )
+
+    out = frame[["constructorName", "_order"]].merge(
+        per_race[["constructorName", "_order", "form"]],
+        on=["constructorName", "_order"], how="left",
     )
     return pd.Series(out["form"].to_numpy(), index=results.index)
 
@@ -231,8 +277,12 @@ def main():
         merged, "constructorId", con_snap, "constructor_champ_pos", "constructor_champ_points_ratio"
     )
 
-    # --- recent form: rolling last-N average finish, strictly prior races ---
+    # --- recent form: rolling last-N stats, strictly prior races ---
+    # driver: mean grid->finish delta (race-day position changes, independent
+    # of quali_pos); constructor: mean team points (reacts to upgrades faster
+    # than the season-cumulative championship ratio).
     merged["driver_recent_form"] = _rolling_driver_form(merged)
+    merged["constructor_recent_form"] = _rolling_constructor_form(merged)
 
     # --- current/active roster = whoever raced in the single most recent round ---
     latest_year = merged["year"].max()
@@ -271,11 +321,25 @@ def main():
     latest_con_meta = dict(zip(results[results["year"] == latest_year]["constructorId"],
                                results[results["year"] == latest_year]["constructorName"]))
 
-    # Recent form as of the latest data (mean finish over each driver's
-    # last <=window races) - the point-in-time value for a future race.
+    # Recent form as of the latest data - the point-in-time values for a
+    # future race: driver = mean grid->finish delta over the last <=window
+    # races; constructor = mean team points over its last <=window races.
+    driver_delta = (merged["quali_pos"] - merged["position"]).rename("_delta")
     form_latest = (
-        merged.sort_values(["driverName", "year", "round"])
-        .groupby("driverName")["position"].apply(lambda s: s.tail(RECENT_FORM_WINDOW).mean())
+        pd.concat([merged[["driverName", "year", "round"]], driver_delta], axis=1)
+        .sort_values(["driverName", "year", "round"])
+        .groupby("driverName")["_delta"].apply(lambda s: s.tail(RECENT_FORM_WINDOW).mean())
+    )
+    con_form_latest = (
+        # race-level team points first: merged has one row PER DRIVER, and a
+        # row-level tail(5) would average driver rows (half the team total)
+        # across a mixed race window instead of the team's last N races.
+        merged.groupby(["constructorName", "year", "round"], as_index=False)["points"]
+        .sum()
+        .sort_values(["constructorName", "year", "round"])
+        .groupby("constructorName")["points"].apply(
+            lambda s: s.tail(RECENT_FORM_WINDOW).mean()  # min_periods=1, like training
+        )
     )
 
     cleaned = merged.rename(columns={
@@ -287,10 +351,13 @@ def main():
         "driver_confidence", "constructor_relaiblity",
         "driver_champ_pos", "driver_champ_points_ratio",
         "constructor_champ_pos", "constructor_champ_points_ratio",
-        "driver_recent_form",
+        "driver_recent_form", "constructor_recent_form",
         "active_driver", "active_constructor",
     ]]
-    cleaned.to_csv(f"{args.out}/cleaned_data.csv", index=False)
+    # newline/line-terminator pinned: platform defaults (Windows CRLF vs
+    # Linux LF) made artifacts differ across machines and broke byte-level
+    # drift checks in CI. Same lesson as the encoding pin below.
+    cleaned.to_csv(f"{args.out}/cleaned_data.csv", index=False, lineterminator="\n")
 
     driver_team = dict(zip(latest_race["driverName"], latest_race["constructorName"]))
 
@@ -312,18 +379,21 @@ def main():
                                   for r in con_latest.itertuples() if latest_con_meta.get(r.constructorId) in active_constructors},
         "constructor_champ_points_ratio": {latest_con_meta[r.constructorId]: float(r.ratio)
                                            for r in con_latest.itertuples() if latest_con_meta.get(r.constructorId) in active_constructors},
-        # recent form entering the next race (point-in-time for serving)
+        # recent form entering the next race (point-in-time for serving):
+        # driver grid->finish delta; constructor mean last-N team points
         "driver_recent_form": {k: float(v) for k, v in form_latest.items() if k in active_drivers},
+        "constructor_recent_form": {k: float(v) for k, v in con_form_latest.items() if k in active_constructors},
     }
     # encoding pinned: locale defaults differ (Windows cp1252 vs Linux
     # utf-8) and produced artifacts CI could not decode. Never rely on it.
-    with open(f"{args.out}/current_roster.json", "w", encoding="utf-8") as f:
+    with open(f"{args.out}/current_roster.json", "w", encoding="utf-8", newline="\n") as f:
         json.dump(roster, f, indent=2, ensure_ascii=False)
 
     print(f"cleaned_data.csv: {len(cleaned)} rows")
     print(f"Most recent race in data: {latest_year} round {latest_round}")
     print(f"Active drivers ({len(active_drivers)}), constructors ({len(active_constructors)})")
-    print("Features are point-in-time: expanding reliability + prior-round standings.")
+    print("Features are point-in-time: expanding reliability + prior-round standings")
+    print("+ rolling driver delta / constructor points form.")
 
 
 if __name__ == "__main__":
