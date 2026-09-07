@@ -30,6 +30,61 @@ import train_model  # noqa: E402
 import build_training_data  # noqa: E402
 
 
+# ── gap-to-pole: lap-time parsing and session math ────────────────────────
+
+class TestGapToPole:
+    def test_lap_time_parsing(self):
+        assert build_training_data._lap_time_ms("1:38.109") == 98109
+        assert build_training_data._lap_time_ms("98.109") == 98109
+        assert build_training_data._lap_time_ms("1:30.01") == 90010  # 2-digit ms padded
+        assert build_training_data._lap_time_ms("1:30.0") == 90000
+        assert build_training_data._lap_time_ms(None) is None
+        assert build_training_data._lap_time_ms("") is None
+        assert build_training_data._lap_time_ms("garbage") is None
+
+    def test_gap_to_pole_session_math(self):
+        """
+        One session, four drivers: pole 90.000s, others behind by 0.1/0.5/1.0s.
+        A driver with NO time gets the session median gap (0.5s here), never
+        their own future results. Pole sitter scores exactly 0.0.
+        """
+        q = pd.DataFrame([
+            (2026, 1, "p1", 1, "1:30.000", None, None),
+            (2026, 1, "p2", 2, "1:30.100", None, None),
+            (2026, 1, "p3", 3, "1:30.500", None, None),
+            (2026, 1, "p4", 4, "1:31.000", None, None),
+            (2026, 1, "p5", 5, None, None, None),      # no time -> median 0.5
+        ], columns=["year", "round", "driverId", "position", "Q1", "Q2", "Q3"])
+        gaps = build_training_data._gap_to_pole(q)
+        assert gaps.iloc[0] == pytest.approx(0.0)   # pole
+        assert gaps.iloc[1] == pytest.approx(0.1)
+        assert gaps.iloc[2] == pytest.approx(0.5)
+        assert gaps.iloc[3] == pytest.approx(1.0)
+        assert gaps.iloc[4] == pytest.approx(0.3)   # median of [0.0,0.1,0.5,1.0]
+
+    def test_gap_uses_best_available_session(self):
+        """A driver's best time is the fastest of their available sessions
+        (a Q1-eliminated driver has only Q1); pole is the session's fastest
+        best. A Q2/Q3 time beats the driver's own Q1 time."""
+        q = pd.DataFrame([
+            (2026, 1, "pole",  1, "1:30.000", "1:29.800", "1:29.500"),
+            (2026, 1, "q2car", 2, "1:30.200", "1:29.900", None),      # best 1:29.900
+            (2026, 1, "q1car", 3, "1:30.400", None, None),            # best 1:30.400
+        ], columns=["year", "round", "driverId", "position", "Q1", "Q2", "Q3"])
+        gaps = build_training_data._gap_to_pole(q)
+        assert gaps.iloc[0] == pytest.approx(0.0)                       # 1:29.500
+        assert gaps.iloc[1] == pytest.approx(0.4)                       # 1:29.900
+        assert gaps.iloc[2] == pytest.approx(0.9)                       # 1:30.400
+
+    def test_session_with_no_times_yields_zero(self):
+        q = pd.DataFrame([
+            (2026, 1, "a", 1, None, None, None),
+            (2026, 1, "b", 2, None, None, None),
+        ], columns=["year", "round", "driverId", "position", "Q1", "Q2", "Q3"])
+        gaps = build_training_data._gap_to_pole(q)
+        assert (gaps == 0.0).all()
+
+
 # ── position_index: the 3-class bucketing ────────────────────────────────────
 
 class TestPositionIndex:
@@ -72,16 +127,19 @@ def _write_pipeline_inputs(datasets: Path):
 
     qualifying = pd.DataFrame([
         # Same race/driver pairs, but quali position deliberately different
-        # from finishing position (reversed within the team pairs).
-        (2026, 1, "alice", 3),
-        (2026, 1, "bob",   4),
-        (2026, 1, "carol", 1),
-        (2026, 1, "dave",  2),
-        (2026, 2, "alice", 4),
-        (2026, 2, "bob",   3),
-        (2026, 2, "carol", 2),
-        (2026, 2, "dave",  1),
-    ], columns=["year", "round", "driverId", "position"])
+        # from finishing position (reversed within the team pairs). Q1 times
+        # give gap-to-pole: Alice 0.1s off, Bob 0.2s, Carol pole (0.0), Dave
+        # 0.3s; round 2 shifted by one slot. Carol (round 2, no time) tests
+        # the median fill.
+        (2026, 1, "alice", 3, "1:30.100"),
+        (2026, 1, "bob",   4, "1:30.200"),
+        (2026, 1, "carol", 1, "1:30.000"),
+        (2026, 1, "dave",  2, "1:30.300"),
+        (2026, 2, "alice", 4, "1:30.100"),
+        (2026, 2, "bob",   3, "1:30.200"),
+        (2026, 2, "carol", 2, None),
+        (2026, 2, "dave",  1, "1:30.000"),
+    ], columns=["year", "round", "driverId", "position", "Q1"])
 
     # Championship snapshots AFTER each round (post-race), exactly how the
     # real data ships. Round-2 rows must therefore see round-1 values.
@@ -146,7 +204,7 @@ class TestLeakageFix:
         cleaned = _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
         assert not (cleaned["position"] == cleaned["quali_pos"]).all()
         assert list(cleaned.columns) == [
-            "year", "round", "GP_name", "quali_pos", "constructor", "driver", "position",
+            "year", "round", "GP_name", "quali_pos", "gap_to_pole", "constructor", "driver", "position",
             "driver_confidence", "constructor_relaiblity",
             "driver_champ_pos", "driver_champ_points_ratio",
             "constructor_champ_pos", "constructor_champ_points_ratio",
@@ -265,6 +323,29 @@ class TestFeatureEngineering:
         teamy_r2 = cleaned[(cleaned["constructor"] == "TeamY") & (cleaned["round"] == 2)].iloc[0]
         assert teamy_r2["constructor_champ_pos"] == 2
 
+    def test_gap_to_pole_in_cleaned_and_roster(self, tmp_path, monkeypatch):
+        """
+        Round 1: Carol pole (0.0), Alice +0.1, Bob +0.2, Dave +0.3.
+        Round 2: Dave pole (0.0), Alice +0.1, Bob +0.2, Carol no time ->
+        session median of KNOWN gaps (0.1, 0.2, 0.0) = 0.1. The roster
+        carries the per-GP median and each driver's last actual gap for
+        serving.
+        """
+        cleaned = _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
+        r1 = cleaned[cleaned["round"] == 1].set_index("driver")["gap_to_pole"]
+        assert r1["Carol"] == pytest.approx(0.0)
+        assert r1["Alice"] == pytest.approx(0.1)
+        assert r1["Dave"] == pytest.approx(0.3)
+        r2 = cleaned[cleaned["round"] == 2].set_index("driver")["gap_to_pole"]
+        assert r2["Dave"] == pytest.approx(0.0)
+        assert r2["Carol"] == pytest.approx(0.1)  # median fill, not leaked
+        roster = json.loads((tmp_path / "out" / "current_roster.json").read_text())
+        # per-GP medians keyed by race name: round 1 gaps 0.0/0.1/0.2/0.3 ->
+        # median 0.15; round 2 (incl. Carol's 0.1 fill) -> median 0.1
+        assert roster["gp_median_gap_to_pole"]["Test GP"] == pytest.approx(0.15)
+        assert roster["gp_median_gap_to_pole"]["Test GP 2"] == pytest.approx(0.1)
+        assert roster["driver_last_gap_to_pole"]["Dave"] == pytest.approx(0.0)
+
     def test_dnf_driver_still_active_and_keeps_finish_position(self, tmp_path, monkeypatch):
         cleaned = _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
         carol_last = cleaned[(cleaned["driver"] == "Carol") & (cleaned["GP_name"] == "Test GP 2")]
@@ -307,6 +388,7 @@ def _write_training_csv(out: Path):
             "round": (i % 2) + 1,
             "GP_name": f"GP{i % 2}",
             "quali_pos": pos,                       # correlated but the point stands
+            "gap_to_pole": pos * 0.1,
             "constructor": "TeamX" if i % 2 == 0 else "TeamY",
             "driver": "Alice" if i % 4 == 0 else "Bob",
             "position": pos,
@@ -361,11 +443,12 @@ class TestTrainModelEndToEnd:
         id_maps = json.loads((tmp_path / "out" / "id_maps.json").read_text())
         # Production (flask-app/app.py /predictGrid) predicts on a DataFrame
         # with exactly these named columns — pin the inference contract.
-        # 12 columns since the delta-form + constructor-form features.
-        assert len(train_model.FEATURES) == 12
+        # 13 columns since the gap-to-pole feature.
+        assert len(train_model.FEATURES) == 13
         row = pd.DataFrame([{
             "GP_name": id_maps["GP_name"]["GP0"],
             "quali_pos": 3,
+            "gap_to_pole": 0.15,
             "constructor": id_maps["constructor"]["TeamX"],
             "driver": id_maps["driver"]["Alice"],
             "driver_confidence": 0.9,
