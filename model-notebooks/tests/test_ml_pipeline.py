@@ -171,12 +171,46 @@ def _write_pipeline_inputs(datasets: Path):
         (2026, 2, "monaco", "Test GP 2", "2026-03-08"),
     ], columns=["year", "round", "circuitId", "name", "date"])
 
+    # Lap times from fetch_lap_pace.py (driverId slugs join results
+    # directly). One lap per driver per race, chosen so the per-race
+    # field medians and deltas are exact:
+    #   round 1 median = (90000+90500)/2 = 90250 -> deltas -750/+250/-250/+750
+    #   round 2 median = (90300+90500)/2 = 90400 -> deltas -700/-100/+100/+500
+    # Dave DNF'd round 1 (Gearbox) -> his round-1 laps must be excluded
+    # from HIS OWN sample (but stay in the field median); Carol DNF'd
+    # round 2 (Accident) -> same, per-race.
+    laps = pd.DataFrame([
+        (2026, 1, 1, 1, "alice", "1:29.500", 89500),
+        (2026, 1, 1, 2, "bob",   "1:30.500", 90500),
+        (2026, 1, 1, 3, "carol", "1:30.000", 90000),
+        (2026, 1, 1, 4, "dave",  "1:31.000", 91000),
+        (2026, 2, 1, 1, "alice", "1:29.700", 89700),
+        (2026, 2, 1, 2, "bob",   "1:30.300", 90300),
+        (2026, 2, 1, 3, "carol", "1:30.500", 90500),
+        (2026, 2, 1, 4, "dave",  "1:30.900", 90900),
+    ], columns=["year", "round", "lap", "position", "driverId", "time", "milliseconds"])
+
+    # Pit stops (driverId only - the constructor mapping via results is
+    # part of what's under test):
+    #   round 1: alice (TeamX) 22.0/24.0 -> median 23.0; carol (TeamY) 30.0
+    #   round 2: bob (TeamX) 25.0; dave (TeamY) 32.0/34.0 -> median 33.0
+    pitstops = pd.DataFrame([
+        (2026, 1, "alice", 12, 1, "22.0"),
+        (2026, 1, "alice", 40, 2, "24.0"),
+        (2026, 1, "carol", 30, 1, "30.0"),
+        (2026, 2, "bob",   15, 1, "25.0"),
+        (2026, 2, "dave",  20, 1, "32.0"),
+        (2026, 2, "dave",  55, 2, "34.0"),
+    ], columns=["year", "round", "driverId", "lap", "stop", "duration"])
+
     datasets.mkdir(parents=True, exist_ok=True)
     results.to_csv(datasets / "results.csv", index=False)
     qualifying.to_csv(datasets / "qualifying.csv", index=False)
     driver_standings.to_csv(datasets / "driver_standings.csv", index=False)
     constructor_standings.to_csv(datasets / "constructor_standings.csv", index=False)
     races.to_csv(datasets / "races.csv", index=False)
+    laps.to_csv(datasets / "lap_times_jolpica.csv", index=False)
+    pitstops.to_csv(datasets / "pit_stops_jolpica.csv", index=False)
 
 
 def _run_build(datasets: Path, out: Path, monkeypatch):
@@ -218,6 +252,7 @@ class TestLeakageFix:
             "driver_champ_pos", "driver_champ_points_ratio",
             "constructor_champ_pos", "constructor_champ_points_ratio",
             "driver_recent_form", "constructor_recent_form",
+            "lap_pace_delta_s", "constructor_pit_time_s",
             "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
             "is_street_circuit",
             "active_driver", "active_constructor",
@@ -276,6 +311,71 @@ class TestLeakageFix:
         assert teamy_r2["constructor_recent_form"].iloc[0] == pytest.approx(27.0)
         teamx_r2 = cleaned[(cleaned["constructor"] == "TeamX") & (cleaned["round"] == 2)]
         assert teamx_r2["constructor_recent_form"].iloc[0] == pytest.approx(43.0)
+
+    def test_lap_pace_is_prior_window_median_delta(self, tmp_path, monkeypatch):
+        """
+        Lap-pace = mean per-race MEDIAN lap delta to the field median over
+        the driver's strictly prior <=5 races, in SECONDS. Round-1 field
+        median = 90250 ms -> Alice's delta -750 ms = -0.75 s; round-2 median
+        90400 -> -700 ms = -0.7 s. Alice's round-1 value is the neutral
+        prior (no prior races); her round-2 value is EXACTLY her round-1
+        delta (-0.75) — her own round-2 laps must not appear.
+        """
+        cleaned = _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
+        alice = cleaned[cleaned["driver"] == "Alice"].sort_values("round")
+        assert alice["lap_pace_delta_s"].iloc[0] == pytest.approx(
+            build_training_data.LAP_PACE_PRIOR
+        )
+        assert alice["lap_pace_delta_s"].iloc[1] == pytest.approx(-0.75)
+
+    def test_lap_pace_dnf_races_excluded_from_own_sample(self, tmp_path, monkeypatch):
+        """A driver's laps in a race they DNF'd are excluded from THEIR OWN
+        sample (per-race, not globally) but stay in the field median.
+        Dave DNF'd round 1 only: his round-1 value is the prior (no prior
+        races), and his round-2 value must ALSO be the prior — his only
+        prior race was the DNF, so he has no usable pace history. Carol
+        DNF'd round 2: her round-2 value still carries her round-1 pace
+        (-0.25 s); her own round-2 laps must not appear."""
+        cleaned = _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
+        dave = cleaned[cleaned["driver"] == "Dave"].sort_values("round")
+        assert dave["lap_pace_delta_s"].iloc[0] == pytest.approx(
+            build_training_data.LAP_PACE_PRIOR
+        )
+        assert dave["lap_pace_delta_s"].iloc[1] == pytest.approx(
+            build_training_data.LAP_PACE_PRIOR
+        )
+        carol = cleaned[cleaned["driver"] == "Carol"].sort_values("round")
+        assert carol["lap_pace_delta_s"].iloc[1] == pytest.approx(-0.25)
+
+    def test_pit_time_maps_stops_to_constructor(self, tmp_path, monkeypatch):
+        """Pitstops carry driverId only - the feature must reach the
+        CONSTRUCTOR via that race's results mapping. TeamX: round-1 stops
+        (Alice, 22/24 -> median 23.0), so round-2 rows carry 23.0 (their
+        own round-2 stop must not appear). TeamY: round-1 median 30.0,
+        round-2 (Dave 32/34) median 33.0 -> round-2 rows carry 30.0."""
+        cleaned = _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
+        teamy_r1 = cleaned[(cleaned["constructor"] == "TeamY") & (cleaned["round"] == 1)]
+        teamy_r2 = cleaned[(cleaned["constructor"] == "TeamY") & (cleaned["round"] == 2)]
+        assert teamy_r1["constructor_pit_time_s"].iloc[0] == pytest.approx(
+            build_training_data.PIT_TIME_PRIOR
+        )
+        assert teamy_r2["constructor_pit_time_s"].iloc[0] == pytest.approx(30.0)
+        teamx_r2 = cleaned[(cleaned["constructor"] == "TeamX") & (cleaned["round"] == 2)]
+        assert teamx_r2["constructor_pit_time_s"].iloc[0] == pytest.approx(23.0)
+
+    def test_roster_exports_pace_and_pit_for_serving(self, tmp_path, monkeypatch):
+        """Serving values = mean over the driver's / team's last <=window
+        races, all data to date (point-in-time for a future race).
+        Alice: mean(-0.75, -0.7) = -0.725 s. Dave: 0.5 s — his only race
+        with usable laps is round 2 (round 1 was the DNF), so the serving
+        mean over his last <=window usable races is exactly that one.
+        TeamX: mean(23.0, 25.0) = 24.0 s; TeamY: mean(30.0, 33.0) = 31.5 s."""
+        _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
+        roster = json.loads((tmp_path / "out" / "current_roster.json").read_text())
+        assert roster["driver_lap_pace_delta_s"]["Alice"] == pytest.approx(-0.725)
+        assert roster["driver_lap_pace_delta_s"]["Dave"] == pytest.approx(0.5)
+        assert roster["constructor_pit_time_s"]["TeamX"] == pytest.approx(24.0)
+        assert roster["constructor_pit_time_s"]["TeamY"] == pytest.approx(31.5)
 
 
 class TestFeatureEngineering:
@@ -470,6 +570,8 @@ def _write_training_csv(out: Path):
             "constructor_champ_points_ratio": 1.0,
             "driver_recent_form": 1.0,
             "constructor_recent_form": 20.0,
+            "lap_pace_delta_s": 0.5,
+            "constructor_pit_time_s": 25.0,
             "constructor_mech_dnf_rate": 0.1,
             "driver_acc_dnf_rate": 0.05,
             "is_street_circuit": i % 2,
@@ -516,8 +618,8 @@ class TestTrainModelEndToEnd:
         id_maps = json.loads((tmp_path / "out" / "id_maps.json").read_text())
         # Production (flask-app/app.py /predictGrid) predicts on a DataFrame
         # with exactly these named columns — pin the inference contract.
-        # 16 columns since the street-circuit flag.
-        assert len(train_model.FEATURES) == 16
+        # 18 columns since the pace/pit features.
+        assert len(train_model.FEATURES) == 18
         row = pd.DataFrame([{
             "GP_name": id_maps["GP_name"]["GP0"],
             "quali_pos": 3,
@@ -532,6 +634,8 @@ class TestTrainModelEndToEnd:
             "constructor_champ_points_ratio": 1.0,
             "driver_recent_form": 1.0,
             "constructor_recent_form": 20.0,
+            "lap_pace_delta_s": 0.5,
+            "constructor_pit_time_s": 25.0,
             "constructor_mech_dnf_rate": 0.1,
             "driver_acc_dnf_rate": 0.05,
             "is_street_circuit": 0,

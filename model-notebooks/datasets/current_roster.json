@@ -210,6 +210,8 @@
     "Red Bull": 21.0,
     "Williams": 0.0
   },
+  "driver_lap_pace_delta_s": {},
+  "constructor_pit_time_s": {},
   "constructor_mech_dnf_rate": {
     "Alpine F1 Team": 0.04,
     "Aston Martin": 0.01606425702811245,
