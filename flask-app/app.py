@@ -331,6 +331,11 @@ CONSTRUCTOR_CHAMP_POS = ROSTER.get("constructor_champ_pos", {})
 CONSTRUCTOR_CHAMP_POINTS_RATIO = ROSTER.get("constructor_champ_points_ratio", {})
 DRIVER_RECENT_FORM = ROSTER.get("driver_recent_form", {})
 CONSTRUCTOR_RECENT_FORM = ROSTER.get("constructor_recent_form", {})
+# DNF-cause rates: mechanical failures (the car) and accident/collision
+# DNFs (the driver's racecraft), lifetime-to-date = point-in-time for a
+# future race. Serving fallback 0.10 matches training's FIRST_APPEARANCE_DNF_RATE.
+CONSTRUCTOR_MECH_DNF_RATE = ROSTER.get("constructor_mech_dnf_rate", {})
+DRIVER_ACC_DNF_RATE = ROSTER.get("driver_acc_dnf_rate", {})
 # Per-GP median qualifying gap-to-pole (seconds) from the latest season's
 # sessions, plus each driver's most recent actual gap. The frontend may
 # send a real gap_to_pole when it has quali times; the per-GP median is
@@ -349,6 +354,7 @@ PREDICT_FEATURES = [
     "driver_champ_pos", "driver_champ_points_ratio",
     "constructor_champ_pos", "constructor_champ_points_ratio",
     "driver_recent_form", "constructor_recent_form",
+    "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
 ]
 
 # case-insensitive lookup helpers, since the frontend sends free-text names
@@ -401,6 +407,11 @@ def predict_driver_position():
         # 0.0 prior) and the team's mean last-N race points
         "driver_recent_form": [DRIVER_RECENT_FORM.get(driver_name, 0.0)],
         "constructor_recent_form": [CONSTRUCTOR_RECENT_FORM.get(constructor_name, 0.0)],
+        # DNF-cause rates (lifetime-to-date = point-in-time for a future race):
+        # mechanical failures are the car's rate, accident/collision DNFs the
+        # driver's racecraft rate
+        "constructor_mech_dnf_rate": [CONSTRUCTOR_MECH_DNF_RATE.get(constructor_name, 0.10)],
+        "driver_acc_dnf_rate": [DRIVER_ACC_DNF_RATE.get(driver_name, 0.10)],
         # qualifying gap-to-pole in seconds (resolution above)
         "gap_to_pole": [request_gap],
     }

@@ -48,6 +48,11 @@ FINISHED_STATUSES = {"Finished", "Lapped"}
 # Must NOT be derived from the dataset - it is a fixed neutral value.
 FIRST_APPEARANCE_PRIOR = 0.90
 
+# Prior DNF-cause RATE for a first-ever row of the cause-split features
+# (mirror of FIRST_APPEARANCE_PRIOR: 1 - 0.90 reliability = 0.10 failure
+# rate, roughly the sport's real DNF base rate).
+FIRST_APPEARANCE_DNF_RATE = 0.10
+
 # Standings sentinels when no prior snapshot exists (first season's round 1,
 # or an entity absent from the championship table that round).
 NO_STANDING_POSITION = 0.0
@@ -93,6 +98,36 @@ def is_dnf(status: str) -> int:
     return 1
 
 
+# DNF-cause classification from Jolpica's text status field. The split
+# matters because the two causes live on different entities and different
+# time-scales: an engine/gearbox failure is the CAR (constructor) and is
+# fairly stationary year to year, while accidents/collisions are the
+# DRIVER's racecraft and can change with a seat move or experience.
+MECHANICAL_DNF_STATUSES = {
+    "Battery", "Brakes", "Clutch", "Cooling system", "Differential",
+    "Driveshaft", "Electrical", "Electronics", "Engine", "Exhaust",
+    "Fuel leak", "Fuel pressure", "Fuel pump", "Gearbox", "Hydraulics",
+    "Mechanical", "Oil leak", "Out of fuel", "Overheating", "Power Unit",
+    "Power loss", "Puncture", "Radiator", "Steering", "Suspension",
+    "Transmission", "Turbo", "Tyre", "Undertray", "Vibrations",
+    "Water leak", "Water pressure", "Water pump", "Wheel", "Wheel nut",
+}
+DRIVER_ERROR_DNF_STATUSES = {"Accident", "Collision", "Collision damage", "Spun off"}
+
+
+def dnf_cause(status: str) -> str:
+    """Classify a status: 'mech' (car failure), 'driver' (accident/collision),
+    'other' (DNF with ambiguous/external cause: damage, debris, illness,
+    disqualification, ...), or 'none' (not a DNF)."""
+    if not is_dnf(status):
+        return "none"
+    if status in MECHANICAL_DNF_STATUSES:
+        return "mech"
+    if status in DRIVER_ERROR_DNF_STATUSES:
+        return "driver"
+    return "other"
+
+
 def _expanding_reliability(results: pd.DataFrame, group_col: str) -> pd.Series:
     """
     Point-in-time reliability per row: 1 - (DNFs / entries) over races
@@ -123,6 +158,37 @@ def _expanding_reliability(results: pd.DataFrame, group_col: str) -> pd.Series:
         per_race[[group_col, "_order", "rel"]], on=[group_col, "_order"], how="left"
     )
     return pd.Series(out["rel"].to_numpy(), index=results.index)
+
+
+def _expanding_dnf_rate(results: pd.DataFrame, group_col: str, flag_col: str) -> pd.Series:
+    """
+    Point-in-time rate of a 0/1 DNF-cause flag per row: the entity's share
+    of prior ENTRIES flagged with this cause, over races STRICTLY BEFORE
+    the row's (year, round). Same expanding-window contract as
+    _expanding_reliability - a race never appears in its own features.
+    First-ever race gets FIRST_APPEARANCE_DNF_RATE.
+    """
+    frame = results[["year", "round", group_col, flag_col]].copy()
+    frame["_order"] = frame["year"] * 1000 + frame["round"]
+
+    per_race = (
+        frame.groupby([group_col, "_order"], as_index=False)[flag_col]
+        .agg(["sum", "count"])
+        .sort_values([group_col, "_order"])
+    )
+    g = per_race.groupby(group_col, sort=False)
+    shifted = g[["sum", "count"]].shift(1)  # drop the race itself
+    per_race["prior_sum"] = shifted["sum"].groupby(per_race[group_col], sort=False).cumsum()
+    per_race["prior_cnt"] = shifted["count"].groupby(per_race[group_col], sort=False).cumsum()
+
+    per_race["rate"] = (per_race["prior_sum"] / per_race["prior_cnt"]).fillna(
+        FIRST_APPEARANCE_DNF_RATE
+    )
+
+    out = frame[[group_col, "_order"]].merge(
+        per_race[[group_col, "_order", "rate"]], on=[group_col, "_order"], how="left"
+    )
+    return pd.Series(out["rate"].to_numpy(), index=results.index)
 
 
 def _attach_prior_standings(
@@ -303,8 +369,10 @@ def main():
     for table in (driver_standings, constructor_standings):
         table["position"] = pd.to_numeric(table["position"], errors="coerce")
 
-    # --- DNF flags from text status ---
+    # --- DNF flags from text status (+ cause split for the rate features) ---
     results["driver_dnf"] = results["status"].apply(is_dnf)
+    results["dnf_is_mech"] = (results["status"].apply(dnf_cause) == "mech").astype(int)
+    results["dnf_is_acc"] = (results["status"].apply(dnf_cause) == "driver").astype(int)
 
     # --- join qualifying position + gap-to-pole onto results ---
     # Gap-to-pole is point-in-time BY CONSTRUCTION: qualifying happens
@@ -319,6 +387,17 @@ def main():
     # --- point-in-time reliability (expanding window, strictly prior races) ---
     merged["driver_confidence"] = _expanding_reliability(merged, "driverName")
     merged["constructor_relaiblity"] = _expanding_reliability(merged, "constructorName")
+
+    # --- DNF-cause split (expanding window, strictly prior races) ---
+    # Mechanical failures belong to the CAR (constructor rate); accidents
+    # and collisions belong to the DRIVER (racecraft rate). Each entity
+    # only sees its own prior entries.
+    merged["constructor_mech_dnf_rate"] = _expanding_dnf_rate(
+        merged, "constructorName", "dnf_is_mech"
+    )
+    merged["driver_acc_dnf_rate"] = _expanding_dnf_rate(
+        merged, "driverName", "dnf_is_acc"
+    )
 
     # --- point-in-time championship standing (prior round / prev season final) ---
     # Points become share-of-leader WITHIN each snapshot (scale-invariant).
@@ -360,6 +439,12 @@ def main():
     con_dnf = results.groupby("constructorName")["driver_dnf"].sum()
     con_entered = results.groupby("constructorName")["driver_dnf"].count()
     constructor_reliability_lifetime = (1 - con_dnf / con_entered).to_dict()
+
+    # Lifetime DNF-cause rates for the ROSTER (serving side only): for a
+    # FUTURE race, lifetime-to-date is the correct point-in-time value.
+    # Rates are per ENTRY (driver-row), matching the training-side window.
+    constructor_mech_rate_lifetime = results.groupby("constructorName")["dnf_is_mech"].mean().to_dict()
+    driver_acc_rate_lifetime = results.groupby("driverName")["dnf_is_acc"].mean().to_dict()
 
     # Most recent championship snapshot (the standings entering the next,
     # not-yet-run race) - exactly what /predictGrid should send per row.
@@ -425,6 +510,7 @@ def main():
         "driver_champ_pos", "driver_champ_points_ratio",
         "constructor_champ_pos", "constructor_champ_points_ratio",
         "driver_recent_form", "constructor_recent_form",
+        "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
         "active_driver", "active_constructor",
     ]]
     # newline/line-terminator pinned: platform defaults (Windows CRLF vs
@@ -456,6 +542,8 @@ def main():
         # driver grid->finish delta; constructor mean last-N team points
         "driver_recent_form": {k: float(v) for k, v in form_latest.items() if k in active_drivers},
         "constructor_recent_form": {k: float(v) for k, v in con_form_latest.items() if k in active_constructors},
+        "constructor_mech_dnf_rate": {k: float(v) for k, v in constructor_mech_rate_lifetime.items() if k in active_constructors},
+        "driver_acc_dnf_rate": {k: float(v) for k, v in driver_acc_rate_lifetime.items() if k in active_drivers},
         "gp_median_gap_to_pole": gp_median_gap,
         "driver_last_gap_to_pole": driver_last_gap,
     }
@@ -468,7 +556,7 @@ def main():
     print(f"Most recent race in data: {latest_year} round {latest_round}")
     print(f"Active drivers ({len(active_drivers)}), constructors ({len(active_constructors)})")
     print("Features are point-in-time: expanding reliability + prior-round standings")
-    print("+ rolling driver delta / constructor points form.")
+    print("+ rolling driver delta / constructor points form + DNF-cause rates.")
 
 
 if __name__ == "__main__":

@@ -117,7 +117,7 @@ def _write_pipeline_inputs(datasets: Path):
         (2026, 1, "alice", "Alice", "teamx", "TeamX", "Test GP", 1, 25, "Finished"),
         (2026, 1, "bob",   "Bob",   "teamx", "TeamX", "Test GP", 2, 18, "Finished"),
         (2026, 1, "carol", "Carol", "teamy", "TeamY", "Test GP", 3, 15, "Finished"),
-        (2026, 1, "dave",  "Dave",  "teamy", "TeamY", "Test GP", 4, 12, "Finished"),
+        (2026, 1, "dave",  "Dave",  "teamy", "TeamY", "Test GP", 4, 12, "Gearbox"),
         (2026, 2, "alice", "Alice", "teamx", "TeamX", "Test GP 2", 1, 25, "Finished"),
         (2026, 2, "bob",   "Bob",   "teamx", "TeamX", "Test GP 2", 2, 18, "Finished"),
         (2026, 2, "carol", "Carol", "teamy", "TeamY", "Test GP 2", 3, 0, "Accident"),  # DNF, classified P3
@@ -209,6 +209,7 @@ class TestLeakageFix:
             "driver_champ_pos", "driver_champ_points_ratio",
             "constructor_champ_pos", "constructor_champ_points_ratio",
             "driver_recent_form", "constructor_recent_form",
+            "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
             "active_driver", "active_constructor",
         ]
 
@@ -346,6 +347,54 @@ class TestFeatureEngineering:
         assert roster["gp_median_gap_to_pole"]["Test GP 2"] == pytest.approx(0.1)
         assert roster["driver_last_gap_to_pole"]["Dave"] == pytest.approx(0.0)
 
+    def test_dnf_cause_classification(self):
+        assert build_training_data.dnf_cause("Engine") == "mech"
+        assert build_training_data.dnf_cause("Gearbox") == "mech"
+        assert build_training_data.dnf_cause("Power Unit") == "mech"
+        assert build_training_data.dnf_cause("Accident") == "driver"
+        assert build_training_data.dnf_cause("Collision") == "driver"
+        assert build_training_data.dnf_cause("Spun off") == "driver"
+        assert build_training_data.dnf_cause("Disqualified") == "other"
+        assert build_training_data.dnf_cause("Damage") == "other"
+        assert build_training_data.dnf_cause("Illness") == "other"
+        assert build_training_data.dnf_cause("Finished") == "none"
+        assert build_training_data.dnf_cause("+1 Lap") == "none"
+
+    def test_dnf_cause_rates_are_point_in_time(self, tmp_path, monkeypatch):
+        """
+        Cause-split rates over STRICTLY prior entries. Fixture: Dave's
+        round-1 DNF is mechanical (Gearbox) -> TeamY's round-2 mech rate is
+        1 mech DNF / 2 prior entries = 0.5 (its own round-2 rows must not
+count); TeamX has no mech DNFs -> first-appearance prior 0.10. Carol's
+        round-2 Accident: her round-2 acc rate is 0.0 (her prior entry
+        finished — her own DNF must not appear), round-1 is the 0.10 prior.
+        """
+        cleaned = _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
+        teamy_r1 = cleaned[(cleaned["constructor"] == "TeamY") & (cleaned["round"] == 1)]
+        teamy_r2 = cleaned[(cleaned["constructor"] == "TeamY") & (cleaned["round"] == 2)]
+        teamx_r2 = cleaned[(cleaned["constructor"] == "TeamX") & (cleaned["round"] == 2)]
+        assert teamy_r1["constructor_mech_dnf_rate"].iloc[0] == pytest.approx(
+            build_training_data.FIRST_APPEARANCE_DNF_RATE
+        )
+        assert teamy_r2["constructor_mech_dnf_rate"].iloc[0] == pytest.approx(0.5)
+        # TeamX has prior (round-1) entries with NO mech DNFs -> honest rate
+        # 0.0, not the 0.10 prior (the prior only fires with no history at all).
+        assert teamx_r2["constructor_mech_dnf_rate"].iloc[0] == pytest.approx(0.0)
+        carol = cleaned[cleaned["driver"] == "Carol"].sort_values("round")
+        assert carol["driver_acc_dnf_rate"].iloc[0] == pytest.approx(
+            build_training_data.FIRST_APPEARANCE_DNF_RATE
+        )
+        assert carol["driver_acc_dnf_rate"].iloc[1] == pytest.approx(0.0)
+
+    def test_roster_exports_cause_rates_for_serving(self, tmp_path, monkeypatch):
+        """Lifetime-to-date rates for future races: TeamY 1 mech DNF / 4
+        entries = 0.25; Carol 1 accident DNF / 2 entries = 0.5; Alice 0.0."""
+        _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
+        roster = json.loads((tmp_path / "out" / "current_roster.json").read_text())
+        assert roster["constructor_mech_dnf_rate"]["TeamY"] == pytest.approx(0.25)
+        assert roster["driver_acc_dnf_rate"]["Carol"] == pytest.approx(0.5)
+        assert roster["driver_acc_dnf_rate"]["Alice"] == pytest.approx(0.0)
+
     def test_dnf_driver_still_active_and_keeps_finish_position(self, tmp_path, monkeypatch):
         cleaned = _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
         carol_last = cleaned[(cleaned["driver"] == "Carol") & (cleaned["GP_name"] == "Test GP 2")]
@@ -400,6 +449,8 @@ def _write_training_csv(out: Path):
             "constructor_champ_points_ratio": 1.0,
             "driver_recent_form": 1.0,
             "constructor_recent_form": 20.0,
+            "constructor_mech_dnf_rate": 0.1,
+            "driver_acc_dnf_rate": 0.05,
             "active_driver": 1,
             "active_constructor": 1,
         })
@@ -443,8 +494,8 @@ class TestTrainModelEndToEnd:
         id_maps = json.loads((tmp_path / "out" / "id_maps.json").read_text())
         # Production (flask-app/app.py /predictGrid) predicts on a DataFrame
         # with exactly these named columns — pin the inference contract.
-        # 13 columns since the gap-to-pole feature.
-        assert len(train_model.FEATURES) == 13
+        # 15 columns since the DNF-cause split.
+        assert len(train_model.FEATURES) == 15
         row = pd.DataFrame([{
             "GP_name": id_maps["GP_name"]["GP0"],
             "quali_pos": 3,
@@ -459,6 +510,8 @@ class TestTrainModelEndToEnd:
             "constructor_champ_points_ratio": 1.0,
             "driver_recent_form": 1.0,
             "constructor_recent_form": 20.0,
+            "constructor_mech_dnf_rate": 0.1,
+            "driver_acc_dnf_rate": 0.05,
         }])
         preds = model.predict(row)
         assert preds[0] in (1, 2, 3)  # the three buckets the frontend renders
