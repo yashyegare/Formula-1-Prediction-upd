@@ -75,15 +75,35 @@ explicitly on every run for that reason.
    the coarse binary adds nothing. Kept on the branch as the experiment
    record.
 
-9. **Fetch-blocked follow-ups** (not run): lap-pace features (#1) and pit
-   stops (#4) both need a new Jolpica fetch — the committed
-   `lap_times.csv`/`pit_stops.csv` are Ergast-era leftovers keyed by
-   `raceId` (1-1033, pre-2021 coverage) with no mapping to the pipeline's
-   `year`/`round` keys, and `fetch_jolpica_data.py` does not fetch either
-   endpoint. Jolpica serves laps (~1,130 records/race); at the ~200
-   req/hour unauthenticated limit a full 2018-2026 laps fetch is a
-   multi-hour, cache-resumable job. This is the remaining feature lever
-   if the ceiling analysis is ever revisited.
+9. **Lap-pace + pit stops** (IN PROGRESS, ml-dev branch — verdict pending):
+   the remaining feature lever. The committed `lap_times.csv`/`pit_stops.csv`
+   are Ergast-era leftovers keyed by `raceId` (1-1033, pre-2021 coverage)
+   with no crosswalk to the pipeline's `year`/`round` keys (verified:
+   `id_maps.json` holds only label-encoder maps), so a fresh Jolpica fetch
+   was required. Status:
+
+   - `fetch_lap_pace.py` — checkpointed per-race-fragment fetcher (atomic
+     writes; a crash can neither duplicate nor lose a race), hardened with
+     5xx retry + multi-pass after a Jolpica 520 killed the first run.
+     Fetching all 184 completed 2018-2026 races (laps + pit stops), hours
+     at the unauthenticated rate limit.
+   - Features wired end to end and pinned by 39 tests: `lap_pace_delta_s`
+     (driver's mean per-race MEDIAN lap delta to the field median over
+     last ≤5 races, seconds, per-race DNF exclusion) and
+     `constructor_pit_time_s` (team's mean median stop duration; stops
+     mapped to constructors via results). Real-data schema smoke on the
+     partial fetch: 100% driverId join rate; 2018/1 deltas came out
+     Hamilton −1.87s / Räikkönen −1.57s / Vettel −1.44s fastest — sane.
+   - Measurement staged: `measure_pace_pit.py` runs the seed-swept
+     16-feature vs 18-feature ablation on identical splits and REFUSES to
+     run if the pace/pit columns are constant (a stale build must not
+     masquerade as a null result).
+   - Decision rule (same discipline as prior adoptions): keep only if the
+     18-feature contract wins the boundary metric (points recall) or
+     accuracy consistently across seeds; otherwise record the null. Two
+     nulls here would close the feature program: four independent
+     pace/form framings + two model families all landing in the same
+     place is the strongest ceiling proof this data supports.
 
 ## Why the ceiling sits where it sits
 

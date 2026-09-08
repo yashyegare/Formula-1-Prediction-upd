@@ -81,6 +81,13 @@ FEATURES = [
 ]
 
 
+# Production hyperparameters, shared by main() and the ablation scripts
+# (measure_pace_pit.py) so every walk-forward comparison uses identical
+# params. Chosen by the 5-config sweep documented below.
+RF_PARAMS = dict(n_estimators=400, max_depth=12, min_samples_leaf=20,
+                 max_features=0.8, random_state=42)
+
+
 def position_index(pos: int) -> int:
     """1 = podium (P1-3), 2 = points (P4-10), 3 = out of points (P11+)."""
     if pos < 4:
@@ -192,8 +199,7 @@ def main():
     # 3-5pt BELOW the RF and the baseline) this is the evidence that the
     # ceiling is the feature set / data volume, not the model — see
     # model-notebooks/MODEL_NOTES.md.
-    rf_params = dict(n_estimators=400, max_depth=12, min_samples_leaf=20,
-                     max_features=0.8, random_state=42)
+    rf_params = dict(RF_PARAMS)  # copy: evaluate_walk_forward mutates nothing, but stay safe
 
     # ── Honest walk-forward evaluation FIRST ──
     print("=== Walk-forward validation (train <= Y, test Y+1) ===")
