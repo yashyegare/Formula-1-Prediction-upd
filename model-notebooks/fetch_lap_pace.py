@@ -153,24 +153,51 @@ def main():
 
     n_rows = 0
     started = time.time()
-    for i, race in enumerate(races):
-        year, rnd = int(race["year"]), int(race["round"])
+    remaining = list(enumerate(races))
+    pass_no = 0
+    while remaining and pass_no < 5:
+        pass_no += 1
+        skipped = []
+        for i, race in remaining:
+            year, rnd = int(race["year"]), int(race["round"])
 
-        laps_path = _frag_path(args.out, "laps", year, rnd)
-        if not laps_path.exists():
-            rows = fetch_race_laps(session, args.cache_dir, year, rnd)
-            _write_atomic(laps_path, LAPS_HEADER, rows)
-            n_rows += len(rows)
-            print(f"[{i+1}/{len(races)}] {year}/{rnd}: {len(rows)} lap rows")
+            laps_path = _frag_path(args.out, "laps", year, rnd)
+            if not laps_path.exists():
+                try:
+                    rows = fetch_race_laps(session, args.cache_dir, year, rnd)
+                except Exception as exc:
+                    # multi-pass: a race that keeps failing is skipped and
+                    # retried on the next pass (raw pages are cached, so
+                    # the retry resumes for free); it only escalates if
+                    # every pass fails
+                    skipped.append((i, race))
+                    print(f"[{i+1}/{len(races)}] {year}/{rnd}: laps failed ({exc}); will retry next pass")
+                    continue
+                _write_atomic(laps_path, LAPS_HEADER, rows)
+                n_rows += len(rows)
+                print(f"[{i+1}/{len(races)}] {year}/{rnd}: {len(rows)} lap rows")
 
-        pits_path = _frag_path(args.out, "pitstops", year, rnd)
-        if not pits_path.exists():
-            rows = fetch_race_pitstops(session, args.cache_dir, year, rnd)
-            _write_atomic(pits_path, PITSTOPS_HEADER, rows)
-            print(f"[{i+1}/{len(races)}] {year}/{rnd}: {len(rows)} pit stops")
+            pits_path = _frag_path(args.out, "pitstops", year, rnd)
+            if not pits_path.exists():
+                try:
+                    rows = fetch_race_pitstops(session, args.cache_dir, year, rnd)
+                except Exception as exc:
+                    skipped.append((i, race))
+                    print(f"[{i+1}/{len(races)}] {year}/{rnd}: pit stops failed ({exc}); will retry next pass")
+                    continue
+                _write_atomic(pits_path, PITSTOPS_HEADER, rows)
+                print(f"[{i+1}/{len(races)}] {year}/{rnd}: {len(rows)} pit stops")
+
+        remaining = skipped
+        if remaining:
+            print(f"pass {pass_no} done: {len(remaining)} race(s) still failing, pausing 60s before retry")
+            time.sleep(60)
 
     elapsed = time.time() - started
-    print(f"done in {elapsed/60:.1f} min - {n_rows} new lap rows "
+    print(f"done in {elapsed/60:.1f} min - {n_rows} new lap rows - "
+          f"{len(remaining)} race(s) permanently failed"
+          if remaining else
+          f"done in {elapsed/60:.1f} min - {n_rows} new lap rows "
           f"(run --finalize to build the CSVs)")
 
 

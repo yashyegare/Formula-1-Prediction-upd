@@ -50,11 +50,19 @@ def get(session, cache_dir, path, params=None):
         return json.loads(cache_file.read_text())
 
     url = f"{BASE}/{path}"
-    for attempt in range(5):
+    for attempt in range(6):
         resp = session.get(url, params=params, timeout=15)
         if resp.status_code == 429:
             wait = 5 * (attempt + 1)
             print(f"  rate limited, waiting {wait}s...")
+            time.sleep(wait)
+            continue
+        if resp.status_code >= 500:
+            # Jolpica intermittently returns 520/5xx (origin/CDN errors).
+            # These are transient - back off and retry instead of failing
+            # the whole multi-hour run.
+            wait = 10 * (attempt + 1)
+            print(f"  server error {resp.status_code}, waiting {wait}s...")
             time.sleep(wait)
             continue
         resp.raise_for_status()
