@@ -55,12 +55,18 @@ from sklearn.preprocessing import LabelEncoder
 # session's fastest — point-in-time by construction (quali precedes the
 # race) and the resolution upgrade quali_pos (still ~50% of importance)
 # was missing: P3-by-0.05s and P3-by-1.4s are different situations.
+# constructor_mech_dnf_rate / driver_acc_dnf_rate split the DNF signal by
+# CAUSE: engine/gearbox-class failures belong to the CAR (constructor
+# rate), accidents/collisions to the DRIVER's racecraft. Each is an
+# expanding-window share of prior entries, replacing the cause-agnostic
+# DNF signal already inside driver_confidence/constructor_relaiblity.
 FEATURES = [
     "GP_name", "quali_pos", "gap_to_pole", "constructor", "driver",
     "driver_confidence", "constructor_relaiblity",
     "driver_champ_pos", "driver_champ_points_ratio",
     "constructor_champ_pos", "constructor_champ_points_ratio",
     "driver_recent_form", "constructor_recent_form",
+    "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
 ]
 
 

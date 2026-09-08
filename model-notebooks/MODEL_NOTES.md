@@ -56,6 +56,17 @@ explicitly on every run for that reason.
    0.098, log loss 0.754. No `CalibratedClassifierCV` needed if
    `predict_proba` is ever exposed in the UI.
 
+7. **DNF-cause split** (null result, ml-dev branch): statuses classified
+   into mechanical (engine/gearbox-class → the car's rate,
+   `constructor_mech_dnf_rate`) vs accident/collision (the driver's
+   racecraft, `driver_acc_dnf_rate`), both expanding-window over prior
+   entries. Measured identically to the 13-feature model — 66.6% / podium
+   74% / points 68% — with ~3% combined importance. The cause-agnostic DNF
+   signal already inside `driver_confidence`/`constructor_relaiblity`
+   covers what the split adds at this data size. Machinery kept on the
+   branch as the experiment record; the null strengthens the ceiling
+   evidence: another reliability-derived feature produced nothing.
+
 ## Why the ceiling sits where it sits
 
 Three independent lines of evidence:
