@@ -163,11 +163,20 @@ def _write_pipeline_inputs(datasets: Path):
         (2026, 2, "teamy", 27.0, 0, 2),
     ], columns=["year", "round", "constructorId", "points", "wins", "position"])
 
+    races = pd.DataFrame([
+        # round 1 on a permanent track, round 2 on a real street circuit -
+        # the fixture exercises both branches of the street-circuit flag
+        # (and the real STREET_CIRCUITS constant, not a patched copy)
+        (2026, 1, "testpark", "Test GP", "2026-03-01"),
+        (2026, 2, "monaco", "Test GP 2", "2026-03-08"),
+    ], columns=["year", "round", "circuitId", "name", "date"])
+
     datasets.mkdir(parents=True, exist_ok=True)
     results.to_csv(datasets / "results.csv", index=False)
     qualifying.to_csv(datasets / "qualifying.csv", index=False)
     driver_standings.to_csv(datasets / "driver_standings.csv", index=False)
     constructor_standings.to_csv(datasets / "constructor_standings.csv", index=False)
+    races.to_csv(datasets / "races.csv", index=False)
 
 
 def _run_build(datasets: Path, out: Path, monkeypatch):
@@ -210,6 +219,7 @@ class TestLeakageFix:
             "constructor_champ_pos", "constructor_champ_points_ratio",
             "driver_recent_form", "constructor_recent_form",
             "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
+            "is_street_circuit",
             "active_driver", "active_constructor",
         ]
 
@@ -402,6 +412,17 @@ count); TeamX has no mech DNFs -> first-appearance prior 0.10. Carol's
         assert carol_last["position"].iloc[0] == 3
         assert carol_last["active_driver"].iloc[0] == 1
 
+    def test_street_circuit_flag(self, tmp_path, monkeypatch):
+        """Round 1 is on 'testpark' (not in STREET_CIRCUITS -> 0); round 2 on
+        'monaco' (in STREET_CIRCUITS -> 1) - the real constant, not a patched
+        copy. The roster exports the flag keyed by race name for serving."""
+        cleaned = _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
+        assert (cleaned[cleaned["round"] == 1]["is_street_circuit"] == 0).all()
+        assert (cleaned[cleaned["round"] == 2]["is_street_circuit"] == 1).all()
+        roster = json.loads((tmp_path / "out" / "current_roster.json").read_text())
+        assert roster["gp_is_street"]["Test GP"] == 0
+        assert roster["gp_is_street"]["Test GP 2"] == 1
+
     def test_roster_json_written(self, tmp_path, monkeypatch):
         _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
         roster = json.loads((tmp_path / "out" / "current_roster.json").read_text())
@@ -451,6 +472,7 @@ def _write_training_csv(out: Path):
             "constructor_recent_form": 20.0,
             "constructor_mech_dnf_rate": 0.1,
             "driver_acc_dnf_rate": 0.05,
+            "is_street_circuit": i % 2,
             "active_driver": 1,
             "active_constructor": 1,
         })
@@ -494,8 +516,8 @@ class TestTrainModelEndToEnd:
         id_maps = json.loads((tmp_path / "out" / "id_maps.json").read_text())
         # Production (flask-app/app.py /predictGrid) predicts on a DataFrame
         # with exactly these named columns — pin the inference contract.
-        # 15 columns since the DNF-cause split.
-        assert len(train_model.FEATURES) == 15
+        # 16 columns since the street-circuit flag.
+        assert len(train_model.FEATURES) == 16
         row = pd.DataFrame([{
             "GP_name": id_maps["GP_name"]["GP0"],
             "quali_pos": 3,
@@ -512,6 +534,7 @@ class TestTrainModelEndToEnd:
             "constructor_recent_form": 20.0,
             "constructor_mech_dnf_rate": 0.1,
             "driver_acc_dnf_rate": 0.05,
+            "is_street_circuit": 0,
         }])
         preds = model.predict(row)
         assert preds[0] in (1, 2, 3)  # the three buckets the frontend renders

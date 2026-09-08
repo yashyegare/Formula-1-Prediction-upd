@@ -60,6 +60,9 @@ from sklearn.preprocessing import LabelEncoder
 # rate), accidents/collisions to the DRIVER's racecraft. Each is an
 # expanding-window share of prior entries, replacing the cause-agnostic
 # DNF signal already inside driver_confidence/constructor_relaiblity.
+# is_street_circuit is a coarse track-character signal (walls compress the
+# quali/pace relationship, punish mistakes) that the label-encoded GP_name
+# (37 categories, ~1% importance) fails to give the model.
 FEATURES = [
     "GP_name", "quali_pos", "gap_to_pole", "constructor", "driver",
     "driver_confidence", "constructor_relaiblity",
@@ -67,6 +70,7 @@ FEATURES = [
     "constructor_champ_pos", "constructor_champ_points_ratio",
     "driver_recent_form", "constructor_recent_form",
     "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
+    "is_street_circuit",
 ]
 
 
