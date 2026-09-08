@@ -98,6 +98,32 @@ RECENT_FORM_PRIOR = 0.0
 RECENT_FORM_WINDOW = 5
 
 
+# Priors for the pace/pit features when no history exists yet (first-ever
+# race, or the laps/pitstops data is absent). Fixed neutral constants -
+# never derived from data that could leak. 0.0 = "no pace/pit signal": for
+# the pace delta it is genuinely neutral; for pit TIME it understates
+# (0s is fast) but only applies to a first-ever row with no data at all.
+LAP_PACE_PRIOR = 0.0
+PIT_TIME_PRIOR = 0.0
+
+
+def _duration_to_s(value) -> float | None:
+    """Parse a pit-stop duration to seconds. Accepts numeric values
+    (pandas parses "22.213" columns as float64) and "M:SS.m" / "SS.m"
+    strings (slow stops with a minute component). None if unusable."""
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value)
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parts = value.strip().split(":")
+        secs = float(parts[-1])
+        mins = int(parts[-2]) if len(parts) > 1 else 0
+        return mins * 60 + secs
+    except (ValueError, IndexError):
+        return None
+
+
 def is_dnf(status: str) -> int:
     if status in FINISHED_STATUSES:
         return 0
@@ -325,6 +351,120 @@ def _rolling_constructor_form(results: pd.DataFrame, window: int = RECENT_FORM_W
     return pd.Series(out["form"].to_numpy(), index=results.index)
 
 
+def _rolling_lap_pace(results: pd.DataFrame, laps: pd.DataFrame | None,
+                      window: int = RECENT_FORM_WINDOW) -> pd.Series:
+    """
+    Lap-pace signal per results row: the driver's mean DELTA to the field's
+    median lap time over their previous <=window races (strictly prior -
+    the row's own race never counts).
+
+    Design notes:
+      - Delta is per-lap (driver lap ms - race median lap ms), MEDIANed per
+        race first. Per-race median is robust to pit laps, traffic, and
+        fuel-load trends inside a single race.
+      - Mean over the last <=window races then smooths single-race noise.
+      - Deltas, not raw lap times: raw lap times are track- and year-
+        specific (Monza vs Monaco, 2018 vs 2026 cars); delta-to-field is
+        comparable across every circuit and season.
+      - DNF'd entries are EXCLUDED from their own lap sample (a truncated
+        race under-represents pace); the race median still uses all laps.
+    First-ever race (or missing laps data) gets LAP_PACE_PRIOR. Returns
+    SECONDS relative to the field median (positive = slower than field).
+    """
+    if laps is None or laps.empty:
+        return pd.Series(LAP_PACE_PRIOR, index=results.index)
+    laps = laps.dropna(subset=["milliseconds"]).copy()
+    if laps.empty:
+        return pd.Series(LAP_PACE_PRIOR, index=results.index)
+
+    # field median over ALL laps (before any DNF drops)
+    med = laps.groupby(["year", "round"])["milliseconds"].median().rename("_race_med")
+    laps = laps.merge(med, left_on=["year", "round"], right_index=True, how="left")
+    laps["_lap_delta"] = laps["milliseconds"] - laps["_race_med"]
+
+    # A driver's laps in a race they DNF'd are excluded from their OWN
+    # sample (per-race, not globally), but the race keeps a NaN row in the
+    # per-race sequence: rolling().mean() skips NaNs, so the window counts
+    # only races with usable laps AND the next race still inherits prior
+    # values through the shift.
+    dnf_keys = results.loc[results["driver_dnf"] == 1, ["driverId", "year", "round"]].copy()
+    dnf_keys["_is_dnf"] = 1
+    laps = laps.merge(dnf_keys, on=["driverId", "year", "round"], how="left")
+    finished_laps = laps[laps["_is_dnf"] != 1]
+    per_race = (
+        finished_laps.groupby(["driverId", "year", "round"], as_index=False)["_lap_delta"]
+        .median()
+    )
+    # re-add every (driver, race) the driver entered but has no usable laps
+    # for (DNF'd or absent from the laps data) as NaN rows
+    entered = results[["driverId", "year", "round"]].drop_duplicates()
+    per_race = entered.merge(per_race, on=["driverId", "year", "round"], how="left")
+    per_race = per_race.sort_values(["driverId", "year", "round"])
+    g = per_race.groupby("driverId", sort=False)
+    per_race["prev"] = g["_lap_delta"].shift(1)  # drop the race itself
+    per_race["pace"] = (
+        per_race.groupby("driverId", sort=False)["prev"]
+        .transform(lambda s: s.rolling(window, min_periods=1).mean())
+    ) / 1000.0  # ms -> seconds
+
+    out = results[["driverId"]].copy()
+    out["_order"] = results["year"] * 1000 + results["round"]
+    per_race["_order"] = per_race["year"] * 1000 + per_race["round"]
+    out = out.merge(per_race[["driverId", "_order", "pace"]],
+                    on=["driverId", "_order"], how="left")
+    return pd.Series(out["pace"].fillna(LAP_PACE_PRIOR).to_numpy(), index=results.index)
+
+
+def _rolling_pit_time(results: pd.DataFrame, pitstops: pd.DataFrame | None,
+                      window: int = RECENT_FORM_WINDOW) -> pd.Series:
+    """
+    Pit-crew execution signal per results row: the CONSTRUCTOR's mean
+    median pit-stop duration over its previous <=window races (strictly
+    prior - the row's own race never counts).
+
+    Per-race MEDIAN stop time is robust to outlier stops (slow repairs,
+    penalties); the mean over the last <=window races smooths noise. Crew
+    performance is a team attribute (the pit crew, not the driver), so the
+    feature is attached to the constructor. Deltas are unnecessary: stop
+    durations are roughly comparable across circuits/seasons (same task),
+    unlike lap times. First-ever race (or missing pitstop data) gets
+    PIT_TIME_PRIOR. Returns SECONDS.
+    """
+    if pitstops is None or pitstops.empty:
+        return pd.Series(PIT_TIME_PRIOR, index=results.index)
+    stops = pitstops.copy()
+    stops["_dur"] = stops["duration"].map(_duration_to_s)
+    stops = stops.dropna(subset=["_dur"])
+    if stops.empty:
+        return pd.Series(PIT_TIME_PRIOR, index=results.index)
+
+    # Jolpica pitstops carry driverId only - map each stop to the
+    # constructor via that race's results (drivers change teams across years)
+    stops = stops.merge(
+        results[["year", "round", "driverId", "constructorId"]].drop_duplicates(),
+        on=["year", "round", "driverId"], how="left",
+    )
+
+    per_race = (
+        stops.groupby(["constructorId", "year", "round"], as_index=False)["_dur"]
+        .median()
+        .sort_values(["constructorId", "year", "round"])
+    )
+    g = per_race.groupby("constructorId", sort=False)
+    per_race["prev"] = g["_dur"].shift(1)  # drop the race itself
+    per_race["pit"] = (
+        per_race.groupby("constructorId", sort=False)["prev"]
+        .transform(lambda s: s.rolling(window, min_periods=1).mean())
+    )
+
+    out = results[["constructorId"]].copy()
+    out["_order"] = results["year"] * 1000 + results["round"]
+    per_race["_order"] = per_race["year"] * 1000 + per_race["round"]
+    out = out.merge(per_race[["constructorId", "_order", "pit"]],
+                    on=["constructorId", "_order"], how="left")
+    return pd.Series(out["pit"].fillna(PIT_TIME_PRIOR).to_numpy(), index=results.index)
+
+
 def _gap_to_pole(qualifying: pd.DataFrame) -> pd.Series:
     """
     Gap-to-pole per qualifying row, in SECONDS behind the session's fastest
@@ -371,6 +511,18 @@ def main():
     driver_standings = pd.read_csv(f"{d}/driver_standings.csv")
     constructor_standings = pd.read_csv(f"{d}/constructor_standings.csv")
     races = pd.read_csv(f"{d}/races.csv")
+
+    # Laps / pit stops from fetch_lap_pace.py. Tolerant load: the feature
+    # is skipped (neutral prior) if the fetch has not run yet, so the
+    # pipeline never hard-depends on the multi-hour fetch being complete.
+    try:
+        laps = pd.read_csv(f"{d}/lap_times_jolpica.csv")
+    except (OSError, pd.errors.EmptyDataError):
+        laps = None
+    try:
+        pitstops = pd.read_csv(f"{d}/pit_stops_jolpica.csv")
+    except (OSError, pd.errors.EmptyDataError):
+        pitstops = None
 
     # Jolpica writes position="-" for unclassified entries (e.g. 0-point
     # drivers before they score); treat those as "no snapshot" so the join
@@ -428,6 +580,12 @@ def main():
     # than the season-cumulative championship ratio).
     merged["driver_recent_form"] = _rolling_driver_form(merged)
     merged["constructor_recent_form"] = _rolling_constructor_form(merged)
+
+    # --- pace & execution: rolling lap-pace delta (driver) and pit-stop
+    # time (constructor), strictly prior races. Both tolerate absent data
+    # (neutral prior) until the fetch_lap_pace run completes.
+    merged["lap_pace_delta_s"] = _rolling_lap_pace(merged, laps)
+    merged["constructor_pit_time_s"] = _rolling_pit_time(merged, pitstops)
 
     # --- track character: street-circuit flag (known pre-race) ---
     circuit_is_street = dict.fromkeys(races["circuitId"].unique(), 0)
@@ -520,6 +678,58 @@ def main():
         )
     )
 
+    # Pace & pit references for serving a FUTURE race: each driver's /
+    # constructor's mean over their last <=window races (all data to date
+    # is the correct point-in-time value for a future race; the driver's
+    # DNF'd races are excluded from their lap sample, matching training).
+    # Empty dicts when the lap/pit data is absent - app.py then falls back
+    # to the fixed priors, keeping the serving contract total.
+    driver_id_to_name = dict(results[["driverId", "driverName"]].drop_duplicates().to_numpy())
+    constructor_id_to_name = dict(results[["constructorId", "constructorName"]].drop_duplicates().to_numpy())
+    pace_latest = {}
+    if laps is not None and not laps.empty:
+        l = laps.dropna(subset=["milliseconds"]).copy()
+        med = l.groupby(["year", "round"])["milliseconds"].median()
+        l = l.merge(med.rename("_race_med"), left_on=["year", "round"],
+                    right_index=True, how="left")
+        l["_lap_delta"] = (l["milliseconds"] - l["_race_med"]) / 1000.0
+        # per-race DNF exclusion (same contract as training: a driver's laps
+        # are dropped only in races they DNF'd, never globally)
+        dnf_keys = results.loc[results["driver_dnf"] == 1, ["driverId", "year", "round"]].copy()
+        dnf_keys["_is_dnf"] = 1
+        l = l.merge(dnf_keys, on=["driverId", "year", "round"], how="left")
+        l = l[l["_is_dnf"] != 1]
+        pace_latest = {
+            driver_id_to_name[k]: float(v)
+            for k, v in (l.groupby(["driverId", "year", "round"], as_index=False)["_lap_delta"]
+                         .median()
+                         .sort_values(["driverId", "year", "round"])
+                         .groupby("driverId")["_lap_delta"]
+                         .apply(lambda s: s.tail(RECENT_FORM_WINDOW).mean())
+                         .to_dict()).items()
+            if k in driver_id_to_name
+        }
+    pit_latest = {}
+    if pitstops is not None and not pitstops.empty:
+        s = pitstops.copy()
+        s["_dur"] = s["duration"].map(_duration_to_s)
+        s = s.dropna(subset=["_dur"])
+        # driver->constructor mapping per race (pitstops carry driverId only)
+        s = s.merge(
+            results[["year", "round", "driverId", "constructorId"]].drop_duplicates(),
+            on=["year", "round", "driverId"], how="left",
+        )
+        pit_latest = {
+            constructor_id_to_name[k]: float(v)
+            for k, v in (s.groupby(["constructorId", "year", "round"], as_index=False)["_dur"]
+                         .median()
+                         .sort_values(["constructorId", "year", "round"])
+                         .groupby("constructorId")["_dur"]
+                         .apply(lambda s: s.tail(RECENT_FORM_WINDOW).mean())
+                         .to_dict()).items()
+            if k in constructor_id_to_name
+        }
+
     cleaned = merged.rename(columns={
         "raceName": "GP_name",
         "constructorName": "constructor",
@@ -530,6 +740,7 @@ def main():
         "driver_champ_pos", "driver_champ_points_ratio",
         "constructor_champ_pos", "constructor_champ_points_ratio",
         "driver_recent_form", "constructor_recent_form",
+        "lap_pace_delta_s", "constructor_pit_time_s",
         "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
         "is_street_circuit",
         "active_driver", "active_constructor",
@@ -563,6 +774,9 @@ def main():
         # driver grid->finish delta; constructor mean last-N team points
         "driver_recent_form": {k: float(v) for k, v in form_latest.items() if k in active_drivers},
         "constructor_recent_form": {k: float(v) for k, v in con_form_latest.items() if k in active_constructors},
+        # pace & execution entering the next race (point-in-time for serving)
+        "driver_lap_pace_delta_s": {k: v for k, v in pace_latest.items() if k in active_drivers},
+        "constructor_pit_time_s": {k: v for k, v in pit_latest.items() if k in active_constructors},
         "constructor_mech_dnf_rate": {k: float(v) for k, v in constructor_mech_rate_lifetime.items() if k in active_constructors},
         "driver_acc_dnf_rate": {k: float(v) for k, v in driver_acc_rate_lifetime.items() if k in active_drivers},
         # street-circuit flag keyed by RACE NAME for serving (app.py looks
@@ -586,7 +800,7 @@ def main():
     print(f"Active drivers ({len(active_drivers)}), constructors ({len(active_constructors)})")
     print("Features are point-in-time: expanding reliability + prior-round standings")
     print("+ rolling driver delta / constructor points form + DNF-cause rates")
-    print("+ street-circuit flag.")
+    print("+ street-circuit flag + lap-pace delta / pit-stop time.")
 
 
 if __name__ == "__main__":

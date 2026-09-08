@@ -331,6 +331,13 @@ CONSTRUCTOR_CHAMP_POS = ROSTER.get("constructor_champ_pos", {})
 CONSTRUCTOR_CHAMP_POINTS_RATIO = ROSTER.get("constructor_champ_points_ratio", {})
 DRIVER_RECENT_FORM = ROSTER.get("driver_recent_form", {})
 CONSTRUCTOR_RECENT_FORM = ROSTER.get("constructor_recent_form", {})
+# Pace & execution: driver's mean per-race median lap delta to the field
+# median over last <=5 races (seconds, positive = slower), and the team's
+# mean median pit-stop duration (seconds). Empty roster dicts (lap/pit data
+# not yet fetched) fall back to the training priors (0.0), keeping the
+# serving contract total regardless of fetch state.
+DRIVER_LAP_PACE = ROSTER.get("driver_lap_pace_delta_s", {})
+CONSTRUCTOR_PIT_TIME = ROSTER.get("constructor_pit_time_s", {})
 # DNF-cause rates: mechanical failures (the car) and accident/collision
 # DNFs (the driver's racecraft), lifetime-to-date = point-in-time for a
 # future race. Serving fallback 0.10 matches training's FIRST_APPEARANCE_DNF_RATE.
@@ -357,6 +364,7 @@ PREDICT_FEATURES = [
     "driver_champ_pos", "driver_champ_points_ratio",
     "constructor_champ_pos", "constructor_champ_points_ratio",
     "driver_recent_form", "constructor_recent_form",
+    "lap_pace_delta_s", "constructor_pit_time_s",
     "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
     "is_street_circuit",
 ]
@@ -411,6 +419,10 @@ def predict_driver_position():
         # 0.0 prior) and the team's mean last-N race points
         "driver_recent_form": [DRIVER_RECENT_FORM.get(driver_name, 0.0)],
         "constructor_recent_form": [CONSTRUCTOR_RECENT_FORM.get(constructor_name, 0.0)],
+        # lap-pace delta (driver) and pit-stop time (constructor); 0.0 =
+        # training's neutral prior when the roster lacks the data
+        "lap_pace_delta_s": [DRIVER_LAP_PACE.get(driver_name, 0.0)],
+        "constructor_pit_time_s": [CONSTRUCTOR_PIT_TIME.get(constructor_name, 0.0)],
         # DNF-cause rates (lifetime-to-date = point-in-time for a future race):
         # mechanical failures are the car's rate, accident/collision DNFs the
         # driver's racecraft rate

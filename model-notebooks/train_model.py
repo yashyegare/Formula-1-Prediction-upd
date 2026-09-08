@@ -63,12 +63,19 @@ from sklearn.preprocessing import LabelEncoder
 # is_street_circuit is a coarse track-character signal (walls compress the
 # quali/pace relationship, punish mistakes) that the label-encoded GP_name
 # (37 categories, ~1% importance) fails to give the model.
+# lap_pace_delta_s is the driver's mean per-race median lap DELTA to the
+# field median over their last <=5 races, in seconds (positive = slower) —
+# a mechanical-pace signal independent of grid slot. constructor_pit_time_s
+# is the team's mean median pit-stop duration over its last <=5 races —
+# crew execution, a team attribute. Both are rolling/strictly-prior like
+# every form feature and tolerate absent data via neutral priors.
 FEATURES = [
     "GP_name", "quali_pos", "gap_to_pole", "constructor", "driver",
     "driver_confidence", "constructor_relaiblity",
     "driver_champ_pos", "driver_champ_points_ratio",
     "constructor_champ_pos", "constructor_champ_points_ratio",
     "driver_recent_form", "constructor_recent_form",
+    "lap_pace_delta_s", "constructor_pit_time_s",
     "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
     "is_street_circuit",
 ]
