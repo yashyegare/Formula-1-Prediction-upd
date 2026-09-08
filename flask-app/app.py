@@ -336,6 +336,9 @@ CONSTRUCTOR_RECENT_FORM = ROSTER.get("constructor_recent_form", {})
 # future race. Serving fallback 0.10 matches training's FIRST_APPEARANCE_DNF_RATE.
 CONSTRUCTOR_MECH_DNF_RATE = ROSTER.get("constructor_mech_dnf_rate", {})
 DRIVER_ACC_DNF_RATE = ROSTER.get("driver_acc_dnf_rate", {})
+# Street-circuit flag per GP name (walls compress the quali/pace
+# relationship; a coarse track-character signal known pre-race).
+GP_IS_STREET = ROSTER.get("gp_is_street", {})
 # Per-GP median qualifying gap-to-pole (seconds) from the latest season's
 # sessions, plus each driver's most recent actual gap. The frontend may
 # send a real gap_to_pole when it has quali times; the per-GP median is
@@ -355,6 +358,7 @@ PREDICT_FEATURES = [
     "constructor_champ_pos", "constructor_champ_points_ratio",
     "driver_recent_form", "constructor_recent_form",
     "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
+    "is_street_circuit",
 ]
 
 # case-insensitive lookup helpers, since the frontend sends free-text names
@@ -412,6 +416,8 @@ def predict_driver_position():
         # driver's racecraft rate
         "constructor_mech_dnf_rate": [CONSTRUCTOR_MECH_DNF_RATE.get(constructor_name, 0.10)],
         "driver_acc_dnf_rate": [DRIVER_ACC_DNF_RATE.get(driver_name, 0.10)],
+        # street-circuit flag for this GP (0 if unknown)
+        "is_street_circuit": [GP_IS_STREET.get(gp_name, 0)],
         # qualifying gap-to-pole in seconds (resolution above)
         "gap_to_pole": [request_gap],
     }

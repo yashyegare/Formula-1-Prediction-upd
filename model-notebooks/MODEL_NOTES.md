@@ -67,6 +67,24 @@ explicitly on every run for that reason.
    branch as the experiment record; the null strengthens the ceiling
    evidence: another reliability-derived feature produced nothing.
 
+8. **Street-circuit flag** (null result, ml-dev branch): binary flag for
+   Monaco/Baku/Singapore/Jeddah/Las Vegas keyed by circuitId — a coarse
+   track-character signal the label-encoded GP_name fails to give the
+   model. Measured identically (66.6% / 74% / 68%), importance 0.00: the
+   RF already extracts track character through GP_name + gap_to_pole, so
+   the coarse binary adds nothing. Kept on the branch as the experiment
+   record.
+
+9. **Fetch-blocked follow-ups** (not run): lap-pace features (#1) and pit
+   stops (#4) both need a new Jolpica fetch — the committed
+   `lap_times.csv`/`pit_stops.csv` are Ergast-era leftovers keyed by
+   `raceId` (1-1033, pre-2021 coverage) with no mapping to the pipeline's
+   `year`/`round` keys, and `fetch_jolpica_data.py` does not fetch either
+   endpoint. Jolpica serves laps (~1,130 records/race); at the ~200
+   req/hour unauthenticated limit a full 2018-2026 laps fetch is a
+   multi-hour, cache-resumable job. This is the remaining feature lever
+   if the ceiling analysis is ever revisited.
+
 ## Why the ceiling sits where it sits
 
 Three independent lines of evidence:

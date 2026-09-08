@@ -247,6 +247,19 @@
     "Sergio Pérez": 0.03164556962025317,
     "Valtteri Bottas": 0.03125
   },
+  "gp_is_street": {
+    "Australian Grand Prix": 0,
+    "Chinese Grand Prix": 0,
+    "Japanese Grand Prix": 0,
+    "Miami Grand Prix": 0,
+    "Canadian Grand Prix": 0,
+    "Monaco Grand Prix": 1,
+    "Barcelona Grand Prix": 0,
+    "Austrian Grand Prix": 0,
+    "British Grand Prix": 0,
+    "Belgian Grand Prix": 0,
+    "Hungarian Grand Prix": 0
+  },
   "gp_median_gap_to_pole": {
     "Australian Grand Prix": 1.703,
     "Chinese Grand Prix": 1.2915,

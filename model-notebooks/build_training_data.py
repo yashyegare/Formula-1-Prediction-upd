@@ -62,6 +62,14 @@ NO_STANDING_POINTS = 0.0
 # zero points. Fixed constant - never derived from data that could leak.
 CONSTRUCTOR_FORM_PRIOR = 0.0
 
+# Street circuits in the 2018-2026 calendar, keyed by circuitId. Wall
+# proximity compresses the quali/pace relationship, punishes mistakes and
+# raises attrition - a coarse track-character signal that the label-encoded
+# GP_name (37 categories, ~1% importance) fails to give the model. Miami is
+# deliberately 0: a permanent-section hybrid, not unambiguously a street
+# race. Keyed by circuitId (not race name) so renames cannot break it.
+STREET_CIRCUITS = {"monaco", "baku", "singapore", "jeddah", "las_vegas"}
+
 
 def _lap_time_ms(value) -> float | None:
     """Parse a Jolpica/Ergast lap-time string ("M:SS.mmm", "SS.mmm") to ms.
@@ -362,6 +370,7 @@ def main():
     qualifying = pd.read_csv(f"{d}/qualifying.csv")
     driver_standings = pd.read_csv(f"{d}/driver_standings.csv")
     constructor_standings = pd.read_csv(f"{d}/constructor_standings.csv")
+    races = pd.read_csv(f"{d}/races.csv")
 
     # Jolpica writes position="-" for unclassified entries (e.g. 0-point
     # drivers before they score); treat those as "no snapshot" so the join
@@ -419,6 +428,17 @@ def main():
     # than the season-cumulative championship ratio).
     merged["driver_recent_form"] = _rolling_driver_form(merged)
     merged["constructor_recent_form"] = _rolling_constructor_form(merged)
+
+    # --- track character: street-circuit flag (known pre-race) ---
+    circuit_is_street = dict.fromkeys(races["circuitId"].unique(), 0)
+    for cid in STREET_CIRCUITS:
+        if cid in circuit_is_street:
+            circuit_is_street[cid] = 1
+    race_circuit = races.set_index(["year", "round"])["circuitId"]
+    merged["is_street_circuit"] = [
+        circuit_is_street[race_circuit.loc[(y, r)]]
+        for y, r in zip(merged["year"], merged["round"])
+    ]
 
     # --- current/active roster = whoever raced in the single most recent round ---
     latest_year = merged["year"].max()
@@ -511,6 +531,7 @@ def main():
         "constructor_champ_pos", "constructor_champ_points_ratio",
         "driver_recent_form", "constructor_recent_form",
         "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
+        "is_street_circuit",
         "active_driver", "active_constructor",
     ]]
     # newline/line-terminator pinned: platform defaults (Windows CRLF vs
@@ -544,6 +565,14 @@ def main():
         "constructor_recent_form": {k: float(v) for k, v in con_form_latest.items() if k in active_constructors},
         "constructor_mech_dnf_rate": {k: float(v) for k, v in constructor_mech_rate_lifetime.items() if k in active_constructors},
         "driver_acc_dnf_rate": {k: float(v) for k, v in driver_acc_rate_lifetime.items() if k in active_drivers},
+        # street-circuit flag keyed by RACE NAME for serving (app.py looks
+        # rows up by the GP name the frontend sends)
+        "gp_is_street": {
+            round_to_gp[r]: int(circuit_is_street.get(cid, 0))
+            for r, cid in races[races["year"] == latest_year]
+            .set_index("round")["circuitId"].items()
+            if r in round_to_gp.index
+        },
         "gp_median_gap_to_pole": gp_median_gap,
         "driver_last_gap_to_pole": driver_last_gap,
     }
@@ -556,7 +585,8 @@ def main():
     print(f"Most recent race in data: {latest_year} round {latest_round}")
     print(f"Active drivers ({len(active_drivers)}), constructors ({len(active_constructors)})")
     print("Features are point-in-time: expanding reliability + prior-round standings")
-    print("+ rolling driver delta / constructor points form + DNF-cause rates.")
+    print("+ rolling driver delta / constructor points form + DNF-cause rates")
+    print("+ street-circuit flag.")
 
 
 if __name__ == "__main__":
