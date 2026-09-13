@@ -94,6 +94,18 @@ explicitly on every run for that reason.
      mapped to constructors via results). Real-data schema smoke on the
      partial fetch: 100% driverId join rate; 2018/1 deltas came out
      Hamilton −1.87s / Räikkönen −1.57s / Vettel −1.44s fastest — sane.
+   - Known limitation (deliberate design, not an oversight): pit in/out
+     laps and safety-car laps are NOT excluded via an explicit join to
+     pit-stop lap numbers. Instead the signal stacks two medians: each
+     driver's per-lap delta is measured against the race's field-MEDIAN
+     lap time, and the driver's per-race value is the median across
+     their own laps. A full-field safety-car slowdown shifts every lap
+     uniformly and cancels in the delta; isolated pit laps sit in the
+     tails the median discards. Not bulletproof — a race with many
+     pit-affected laps for one driver could still leak a little noise
+     through — but a defensible choice that avoids a fragile
+     lap-number join. If the eventual verdict is surprising in either
+     direction, check this first.
    - Measurement staged: `measure_pace_pit.py` runs the seed-swept
      16-feature vs 18-feature ablation on identical splits and REFUSES to
      run if the pace/pit columns are constant (a stale build must not
