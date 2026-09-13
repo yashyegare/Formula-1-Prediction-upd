@@ -138,6 +138,20 @@ jobs:
             fi
           done
           echo "Committed derived artifacts match the pipeline output."
+      - name: Guard against stale serving copies
+        # flask-app keeps its own copies of the artifacts it loads at startup
+        # (rffinal.pkl, current_roster.json). They are NOT rebuilt by CI, so a
+        # retrain can silently leave the serving roster behind (roster values
+        # feed live predictions). The model notebook copy is guard-checked
+        # above; here we pin the serving copy to it byte-for-byte. rffinal.pkl
+        # is excluded everywhere: pickles are not byte-deterministic.
+        run: |
+          if ! cmp -s ../flask-app/current_roster.json datasets/current_roster.json; then
+            echo "::error::flask-app/current_roster.json is stale - the serving copy must match model-notebooks/datasets/current_roster.json."
+            echo "Fix: cp model-notebooks/datasets/current_roster.json flask-app/current_roster.json"
+            exit 1
+          fi
+          echo "Serving roster copy matches the canonical build."
 
   dependency-audit:
     name: Dependency Audit
