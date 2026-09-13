@@ -701,7 +701,7 @@ const ExportPreview: React.FC<ExportPreviewProps> = ({ data }) => {
                 marginTop: '2px',
               }}
             >
-              f1pointscalculator.yashyegare.com
+              formula-1-prediction-upd-fxzg.vercel.app
             </span>
           </div>
         </div>
@@ -1350,7 +1350,7 @@ const ExportPreview: React.FC<ExportPreviewProps> = ({ data }) => {
                   marginTop: '2px',
                 }}
               >
-                f1pointscalculator.yashyegare.com
+                formula-1-prediction-upd-fxzg.vercel.app
               </span>
             </div>
           </div>

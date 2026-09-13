@@ -8,7 +8,9 @@ Set DATABASE_URL env var to switch:
 
 import datetime
 import os
+import re
 import sqlite3
+from collections import Counter
 from contextlib import contextmanager
 from typing import Any, Optional
 
@@ -579,6 +581,193 @@ def get_circuit_data(circuit_id: str, year: Optional[int] = None) -> Optional[di
         if not races:
             return None
         return {"circuitId": circuit_id, "races": races}
+
+
+# ── Circuit list & history (track pages) ──────────────────────────────
+# The Season Simulator's track pages were originally served by a Cloudflare
+# Worker on a now-dead domain (f1pointscalculator.yashyegare.com). These
+# functions reimplement the two endpoints the frontend still calls —
+# /api/circuits (slug list) and /api/circuit (per-circuit history) — from
+# the seeded season database, in the exact shapes those consumers expect.
+
+def get_circuit_slugs() -> dict:
+    """Return {"circuits": [{circuitId, slug, fullName, country}, ...]} for
+    every circuit that has hosted a race.
+
+    Shape note: the seasonDataSlice and tracks/[track].astro getStaticPaths
+    both read data.circuits[] with {circuitId, slug} — NOT the old Flask
+    {"<raceId>": "<circuitId>"} map, which the slice silently ignored
+    (data.circuits was always undefined → no track links ever rendered).
+    fullName is derived from the slug (the races table stores race names,
+    not circuit names); /api/circuit remains the richer source at request
+    time.
+    """
+    with get_connection() as conn:
+        rows = _fetchall(conn,
+            "SELECT circuit_id, country, MAX(year) AS last_year "
+            "FROM races GROUP BY circuit_id ORDER BY circuit_id")
+    circuits = []
+    for r in rows:
+        cid = r["circuit_id"]
+        circuits.append({
+            "circuitId": cid,
+            "slug": cid,
+            "fullName": cid.replace("_", " ").title(),
+            "country": r["country"] or "",
+        })
+    return {"circuits": circuits}
+
+
+def get_circuit_history(circuit_id: str) -> Optional[dict]:
+    """Full history for one circuit in the frontend's CircuitHistory shape
+    (types/track.ts): editions newest-first with the complete finishing
+    classification per race, plus aggregated stats. All seasons are served
+    unlocked — the Flask API has no subscription layer (the calculator
+    serves every year free); a paywall can be re-introduced by flipping
+    `locked` here.
+    """
+    with get_connection() as conn:
+        races = _fetchall(conn,
+            "SELECT id, name, year, round_num, country, country_code, date "
+            "FROM races WHERE circuit_id = ? ORDER BY year DESC, round_num DESC"
+            if not _is_pg() else
+            "SELECT id, name, year, round_num, country, country_code, date "
+            "FROM races WHERE circuit_id = %s ORDER BY year DESC, round_num DESC",
+            (circuit_id,))
+        if not races:
+            return None
+
+        # Every result for this circuit, joined to its race, newest first.
+        result_rows = _fetchall(conn,
+            "SELECT r.year, r.round_num, res.driver_id, res.team_id, res.position "
+            "FROM races r JOIN results res "
+            "ON res.year = r.year AND res.round_num = r.round_num "
+            "WHERE r.circuit_id = ? "
+            "ORDER BY r.year DESC, r.round_num DESC, res.position"
+            if not _is_pg() else
+            "SELECT r.year, r.round_num, res.driver_id, res.team_id, res.position "
+            "FROM races r JOIN results res "
+            "ON res.year = r.year AND res.round_num = r.round_num "
+            "WHERE r.circuit_id = %s "
+            "ORDER BY r.year DESC, r.round_num DESC, res.position",
+            (circuit_id,))
+
+        # Identity lookups (year-scoped tables; later rows win — names are
+        # stable, and a driver absent from one year still resolves).
+        drivers = {}
+        for d in _fetchall(conn, "SELECT id, code, given_name, family_name FROM drivers"):
+            drivers[d["id"]] = d
+        teams = {}
+        for t in _fetchall(conn,
+                "SELECT id, name, color, secondary_color FROM constructors ORDER BY year"):
+            teams[t["id"]] = t
+
+    country = races[0]["country"] or ""
+    country_code = races[0]["country_code"] or ""
+
+    # Editions are derived from RESULTS, not from the races table: a race
+    # with no results yet (a future round) has nothing to show on a
+    # results-by-year page and would corrupt the "N races" stat.
+    races_by_key = {(r["year"], r["round_num"]): r for r in races}
+    editions_by_key = {}
+    for row in result_rows:
+        key = (row["year"], row["round_num"])
+        race = races_by_key.get(key)
+        if race is None:
+            continue
+        edition = editions_by_key.get(key)
+        if edition is None:
+            name = re.sub(r"\s+Grand\s+Prix$", "", race["name"] or "")
+            edition = {
+                "season": race["year"],
+                "raceId": race["id"],
+                "name": name,
+                "date": race["date"] or "",
+                "locked": False,
+                "results": [],
+            }
+            editions_by_key[key] = edition
+        drv = drivers.get(row["driver_id"], {})
+        team = teams.get(row["team_id"], {})
+        family = drv.get("family_name") or row["driver_id"]
+        given = drv.get("given_name") or ""
+        edition["results"].append({
+            "position": row["position"],
+            "driverId": row["driver_id"],
+            "driverName": (given + " " + family).strip(),
+            "driverLast": family,
+            "driverCode": drv.get("code") or "",
+            "teamId": row["team_id"],
+            "teamName": team.get("name") or row["team_id"],
+            "teamColor": team.get("color"),
+            "teamSecondaryColor": team.get("secondary_color"),
+        })
+    editions = list(editions_by_key.values())
+    editions.sort(key=lambda e: e["season"], reverse=True)
+
+    # ── Aggregate trivia (computed over the full history) ──
+    def leader(counter):
+        if not counter:
+            return None
+        name, count = counter.most_common(1)[0]
+        return {"name": name, "count": count}
+
+    wins_d, wins_t, podiums_d, top10s_d, appearances_d = (Counter() for _ in range(5))
+    one_two_t = Counter()
+    winners = set()
+    streak_name, streak_best, streak_cur = None, 0, 0
+    for edition in sorted(editions, key=lambda e: e["season"]):
+        results = edition["results"]
+        if not results:
+            continue
+        p1 = next((r for r in results if r["position"] == 1), None)
+        if p1:
+            wins_d[p1["driverName"]] += 1
+            wins_t[p1["teamName"]] += 1
+            winners.add(p1["driverId"])
+            if p1["driverName"] == streak_name:
+                streak_cur += 1
+            else:
+                streak_name, streak_cur = p1["driverName"], 1
+            streak_best = max(streak_best, streak_cur)
+        else:
+            streak_name, streak_cur = None, 0
+        for r in results:
+            if r["position"] <= 3:
+                podiums_d[r["driverName"]] += 1
+            if r["position"] <= 10:
+                top10s_d[r["driverName"]] += 1
+            appearances_d[r["driverName"]] += 1
+        team_positions = {}
+        for r in results:
+            team_positions.setdefault(r["teamId"], set()).add(r["position"])
+        for tid, positions in team_positions.items():
+            if 1 in positions and 2 in positions:
+                one_two_t[teams.get(tid, {}).get("name") or tid] += 1
+
+    stats = {
+        "mostWinsDriver": leader(wins_d),
+        "mostWinsTeam": leader(wins_t),
+        "mostPodiumsDriver": leader(podiums_d),
+        "mostTopTensDriver": leader(top10s_d),
+        "mostOneTwoTeam": leader(one_two_t),
+        "mostAppearances": leader(appearances_d),
+        "longestWinStreak": ({"name": streak_name, "count": streak_best}
+                             if streak_name and streak_best > 1 else None),
+        "uniqueWinners": len(winners),
+        "totalEditions": len(editions),
+    }
+
+    return {
+        "circuitId": circuit_id,
+        "fullName": circuit_id.replace("_", " ").title(),
+        "country": country,
+        "locality": "",
+        "editions": editions,
+        "stats": stats,
+        "hasLockedEditions": False,
+        "countryCode": country_code,
+    }
 
 
 # ── User queries ───────────────────────────────────────────────────────

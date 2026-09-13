@@ -9,7 +9,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS, cross_origin
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from database import init_db, is_seeded, get_season_init_data, get_circuits as db_get_circuits
+from database import init_db, is_seeded, get_season_init_data, get_circuits as db_get_circuits, get_circuit_slugs, get_circuit_history
 from auth import auth_bp, login_manager
 from predictions_api import predictions_bp
 from extensions import limiter, register_limiter_error_handlers
@@ -310,22 +310,50 @@ def api_init():
 
 @app.route("/api/circuits", methods=["GET"])
 def api_circuits():
-    """Return circuit slugs for the upstream frontend."""
+    """Circuit slug list for the upstream frontend's track pages.
+    Shape: {"circuits": [{circuitId, slug, fullName, country}, ...]} — the
+    seasonDataSlice and tracks/[track].astro getStaticPaths both read
+    data.circuits[]. (The old raceId→slug map matched no consumer.)
+    """
     year = request.args.get("year", 2026, type=int)
     # Try SQLite first
-    data = db_get_circuits(year)
-    if data:
+    data = get_circuit_slugs()
+    if data["circuits"]:
         return jsonify(data)
     # Fallback to live Jolpica
     base = f"https://api.jolpi.ca/ergast/f1/{year}"
     raw = _fetch_jolpica(f"{base}.json?limit=100")
     races = raw.get("MRData", {}).get("RaceTable", {}).get("Races", []) if raw else []
-    slugs = {}
+    seen = {}
     for race in races:
-        rnd = int(race.get("round", 0))
         circ = race.get("Circuit", {})
-        slugs[f"{year}_r{rnd}"] = circ.get("circuitId", f"r{rnd}")
-    return jsonify(slugs)
+        cid = circ.get("circuitId", "")
+        if not cid or cid in seen:
+            continue
+        seen[cid] = True
+        seen.setdefault("_list", []).append({
+            "circuitId": cid, "slug": cid,
+            "fullName": cid.replace("_", " ").title(),
+            "country": circ.get("Location", {}).get("country", ""),
+        })
+    return jsonify({"circuits": seen.get("_list", [])})
+
+
+@app.route("/api/circuit", methods=["GET"])
+def api_circuit():
+    """Full race history for one circuit (track pages' data source):
+    editions newest-first with the complete finishing classification per
+    race plus aggregated stats — the CircuitHistory shape in the
+    frontend's types/track.ts. Serves everything unlocked: the Flask API
+    has no subscription layer.
+    """
+    circuit_id = request.args.get("circuitId", "", type=str).strip()
+    if not circuit_id:
+        return jsonify({"error": "circuitId query parameter is required"}), 400
+    data = get_circuit_history(circuit_id)
+    if data is None:
+        return jsonify({"error": f"Unknown circuit: {circuit_id}"}), 404
+    return jsonify(data)
 
 
 # 3-class output: 1 = podium (P1-3), 2 = points (P4-10), 3 = out of points (P11+)

@@ -20,7 +20,7 @@ A full-stack ML prediction platform with community season simulations.
 - Season simulator with 20+ scoring systems and Monte Carlo projections
 - Community leaderboard with server-side accuracy scoring
 
-[Live Demo ↗](https://nextjs-app-yashyegare.vercel.app/) · [Source ↗](https://github.com/yashyegare/Formula-1-Prediction)
+[Live Demo ↗](https://nextjs-app-yashyegare.vercel.app/) · [Source ↗](https://github.com/yashyegare/Formula-1-Prediction-upd)
 
 </td>
     <td width="50%" valign="top">

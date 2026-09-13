@@ -340,8 +340,18 @@ def main():
     print(f"   Database: {get_db_path()}")
 
     if args.reseed:
-        from database import DB_PATH
-        if os.path.exists(DB_PATH):
+        from database import DB_PATH, get_connection, _execute, _is_pg
+        if args.year:
+            # Scoped reseed: wipe ONLY this season's rows. (--reseed used to
+            # delete the whole database file even with --year, silently
+            # destroying the other 45 seasons on the next single-year run.)
+            ph = "%s" if _is_pg() else "?"
+            with get_connection() as conn:
+                for table in ("results", "standings", "drivers",
+                              "constructors", "races", "seasons"):
+                    _execute(conn, f"DELETE FROM {table} WHERE year = {ph}", (args.year,))
+            print(f"   Cleared existing {args.year} data (other seasons untouched)")
+        elif os.path.exists(DB_PATH):
             os.remove(DB_PATH)
             print("   Deleted old database")
 

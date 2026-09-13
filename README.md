@@ -5,7 +5,7 @@ Full-stack Formula 1 prediction platform: an ML race predictor, an interactive s
 | App | Stack | Live |
 |-----|-------|------|
 | Race Predictor | Next.js 15 · React 18 · Tailwind | [nextjs-app-yashyegare.vercel.app](https://nextjs-app-yashyegare.vercel.app/) |
-| Season Simulator | Astro 5 · React · Redux Toolkit | [f1pointscalculator.yashyegare.com](https://f1pointscalculator.yashyegare.com) |
+| Season Simulator | Astro 5 · React · Redux Toolkit | [formula-1-prediction-upd-fxzg.vercel.app](https://formula-1-prediction-upd-fxzg.vercel.app/) |
 | Backend API | Flask · PostgreSQL/SQLite · scikit-learn | [f1-predictor-api-nddf.onrender.com](https://f1-predictor-api-nddf.onrender.com/health) |
 
 ## Features
@@ -71,7 +71,7 @@ Example:
 
 ```
 SECRET_KEY=<openssl rand -hex 32>
-CORS_ORIGINS=https://nextjs-app-yashyegare.vercel.app,https://f1pointscalculator.yashyegare.com,https://formula-1-prediction-upd-fxzg.vercel.app
+CORS_ORIGINS=https://nextjs-app-yashyegare.vercel.app,https://formula-1-prediction-upd-fxzg.vercel.app
 DATABASE_URL=postgres://<user>:<password>@<host>/<db>
 ```
 
