@@ -1,7 +1,6 @@
 import json
 import os
 import secrets
-import time
 import urllib.request
 
 import joblib
@@ -174,21 +173,48 @@ def api_init():
     races_data = _fetch_jolpica(f"{base}.json?limit=100")
     drivers_data = _fetch_jolpica(f"{base}/drivers.json?limit=100")
     constructors_data = _fetch_jolpica(f"{base}/constructors.json?limit=100")
-    results_data = {"MRData": {"RaceTable": {"Races": []}}}
-    all_races = []
+
+    # Bulk-fetch all season results with pagination (Jolpica caps pages at 100
+    # result ROWS, so a race's Results block can straddle a page boundary —
+    # merge by round rather than dedupe). This replaces the old per-round loop
+    # (~24 sequential requests + sleeps ≈ 90s+), which could occupy both
+    # gunicorn workers and starve every other endpoint on the service.
+    races_by_round = {}
+    offset = 0
+    total = None
+    for _ in range(50):  # hard cap: 50 pages = 5,000 result rows
+        page = _fetch_jolpica(f"{base}/results.json?limit=100&offset={offset}")
+        if not page:
+            break
+        mr = page.get("MRData", {})
+        page_races = mr.get("RaceTable", {}).get("Races", [])
+        if not page_races:
+            break
+        if total is None:
+            try:
+                total = int(mr.get("total", 0))
+            except (TypeError, ValueError):
+                total = 0
+        for race in page_races:
+            rnd = race.get("round")
+            if not rnd or not race.get("Results"):
+                continue
+            existing = races_by_round.get(rnd)
+            if existing is None:
+                races_by_round[rnd] = race
+            else:
+                have = {res.get("Driver", {}).get("driverId") for res in existing.get("Results", [])}
+                for res in race.get("Results", []):
+                    did = res.get("Driver", {}).get("driverId")
+                    if did not in have:
+                        existing.setdefault("Results", []).append(res)
+        offset += sum(len(r.get("Results", [])) for r in page_races)
+        if total and offset >= total:
+            break
+    all_races = [races_by_round[k] for k in sorted(races_by_round, key=lambda x: int(x) if str(x).isdigit() else 0)]
+    results_data = {"MRData": {"RaceTable": {"Races": all_races}}}
+
     races = races_data.get("MRData", {}).get("RaceTable", {}).get("Races", []) if races_data else []
-    max_rounds = len(races) if races else 24
-    for rnd in range(1, max_rounds + 1):
-        try:
-            rnd_data = _fetch_jolpica(f"{base}/{rnd}/results.json")
-            if rnd_data:
-                rnd_races = rnd_data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
-                if rnd_races and rnd_races[0].get("Results"):
-                    all_races.append(rnd_races[0])
-            time.sleep(0.3)
-        except Exception:
-            continue
-    results_data["MRData"]["RaceTable"]["Races"] = all_races
 
     schedule = []
     for race in races:

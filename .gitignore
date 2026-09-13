@@ -16,6 +16,9 @@ model-notebooks/.pytest_cache/
 # database
 *.db
 *.db-journal
+# Exception: the seeded season database ships with the API so /api/init serves
+# from SQLite on Render instead of falling into the slow live-Jolpica fallback.
+!flask-app/f1_data.db
 /prisma/db.sqlite
 /prisma/db.sqlite-journal
 

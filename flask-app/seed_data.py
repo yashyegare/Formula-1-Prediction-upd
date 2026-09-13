@@ -302,7 +302,9 @@ def _seed_standings(year: int, all_results: dict, constructor_map: dict):
             for s in standings[0].get("DriverStandings", []):
                 did = normalize_driver_id(s.get("Driver", {}).get("driverId", ""))
                 pos = int(s.get("position", 0))
-                pts = int(s.get("points", 0))
+                # Half-points seasons exist (e.g. 1984 Prost 71.5 after the
+                # half-points Monaco GP) — parse as float, never int().
+                pts = float(s.get("points", 0))
                 if did and pos > 0:
                     insert_standing(year, did, "driver", pos, pts)
 
@@ -314,7 +316,7 @@ def _seed_standings(year: int, all_results: dict, constructor_map: dict):
             for s in standings[0].get("ConstructorStandings", []):
                 tid = s.get("Constructor", {}).get("constructorId", "")
                 pos = int(s.get("position", 0))
-                pts = int(s.get("points", 0))
+                pts = float(s.get("points", 0))
                 if tid and pos > 0:
                     insert_standing(year, tid, "constructor", pos, pts)
 

@@ -241,7 +241,7 @@ def _init_sqlite(conn):
             entity_id TEXT NOT NULL,
             entity_type TEXT NOT NULL,
             position INTEGER NOT NULL,
-            points INTEGER NOT NULL DEFAULT 0,
+            points NUMERIC(6,1) NOT NULL DEFAULT 0,
             PRIMARY KEY (year, entity_id, entity_type)
         );
         CREATE INDEX IF NOT EXISTS idx_races_year ON races(year);
@@ -348,7 +348,7 @@ def _init_pg(conn):
             entity_id TEXT NOT NULL,
             entity_type TEXT NOT NULL,
             position INTEGER NOT NULL,
-            points INTEGER NOT NULL DEFAULT 0,
+            points NUMERIC(6,1) NOT NULL DEFAULT 0,
             PRIMARY KEY (year, entity_id, entity_type)
         );
         CREATE INDEX IF NOT EXISTS idx_races_year ON races(year);
@@ -458,9 +458,12 @@ def get_season_init_data(year: int) -> Optional[dict]:
                 "FROM drivers WHERE year = ? ORDER BY id", (year,))
         drivers = [
             {
-                "driverId": d["id"], "code": d["code"],
+                # Shape matches the /api/init Jolpica fallback exactly: the
+                # frontend's Driver type is { id, code, givenName, familyName,
+                # nationality, team } — NOT { driverId, ..., teamId }.
+                "id": d["id"], "code": d["code"],
                 "givenName": d["given_name"], "familyName": d["family_name"],
-                "nationality": d["nationality"], "teamId": d["team_id"],
+                "nationality": d["nationality"], "team": d["team_id"],
             }
             for d in driver_rows
         ]
@@ -476,7 +479,8 @@ def get_season_init_data(year: int) -> Optional[dict]:
                 "FROM constructors WHERE year = ? ORDER BY id", (year,))
         teams = [
             {
-                "constructorId": t["id"], "name": t["name"],
+                # Frontend Team type is { id, ... } — NOT constructorId.
+                "id": t["id"], "name": t["name"],
                 "nationality": t["nationality"], "color": t["color"],
                 "secondaryColor": t["secondary_color"],
             }
@@ -494,10 +498,13 @@ def get_season_init_data(year: int) -> Optional[dict]:
                 "FROM results WHERE year = ? ORDER BY round_num, position", (year,))
         race_results = {}
         for r in result_rows:
-            rnd = str(r["round_num"])
-            if rnd not in race_results:
-                race_results[rnd] = []
-            race_results[rnd].append({
+            # Keyed by race id ("<year>_r<round>") — the same key the schedule
+            # uses and the frontend's pastResults[<raceId>] lookups expect.
+            # (Previously keyed by bare round number, which matched nothing.)
+            race_id = f"{year}_r{r['round_num']}"
+            if race_id not in race_results:
+                race_results[race_id] = []
+            race_results[race_id].append({
                 "driverId": r["driver_id"], "teamId": r["team_id"],
                 "position": r["position"], "fastestLap": bool(r["fastest_lap"]),
             })
@@ -514,13 +521,16 @@ def get_season_init_data(year: int) -> Optional[dict]:
         driver_standings = []
         constructor_standings = []
         for s in standing_rows:
+            # Frontend contract: driverId / teamId — NOT entityId.
             entry = {
-                "entityId": s["entity_id"], "position": s["position"],
+                "position": s["position"],
                 "points": s["points"],
             }
             if s["entity_type"] == "driver":
+                entry["driverId"] = s["entity_id"]
                 driver_standings.append(entry)
             else:
+                entry["teamId"] = s["entity_id"]
                 constructor_standings.append(entry)
 
         return {
@@ -1095,7 +1105,7 @@ def insert_result(year: int, round_num: int, driver_id: str, team_id: str,
 
 
 def insert_standing(year: int, entity_id: str, entity_type: str,
-                    position: int, points: int):
+                    position: int, points: float):
     with get_connection() as conn:
         if _is_pg():
             _execute(conn,
