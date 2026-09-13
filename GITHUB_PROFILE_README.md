@@ -38,7 +38,7 @@ Interactive 3D circuit visualization with live timing data.
 - Driver comparison and telemetry analysis
 - Loads in under a second on mobile — no server dependency
 
-[Live Demo ↗](https://f1-track-metrics-lab.vercel.app/) · [Source ↗](https://github.com/yashyegare/f1-track-metrics-lab)
+[Live Demo ↗](https://f1-track-metrics-lab.vercel.app/) · [Containerized deploy ↗](https://track-metrics-lab-859763063159.asia-south1.run.app) · [Source ↗](https://github.com/yashyegare/F1TrackMetricsLab)
 
 </td>
   </tr>
