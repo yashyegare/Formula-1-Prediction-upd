@@ -618,8 +618,9 @@ class TestTrainModelEndToEnd:
         id_maps = json.loads((tmp_path / "out" / "id_maps.json").read_text())
         # Production (flask-app/app.py /predictGrid) predicts on a DataFrame
         # with exactly these named columns — pin the inference contract.
-        # 18 columns since the pace/pit features.
-        assert len(train_model.FEATURES) == 18
+        # Pruned back to 13 post-verdict (MODEL_NOTES #9): pace/pit and
+        # DNF-cause/street features measured as nulls and excluded.
+        assert len(train_model.FEATURES) == 13
         row = pd.DataFrame([{
             "GP_name": id_maps["GP_name"]["GP0"],
             "quali_pos": 3,
@@ -634,11 +635,6 @@ class TestTrainModelEndToEnd:
             "constructor_champ_points_ratio": 1.0,
             "driver_recent_form": 1.0,
             "constructor_recent_form": 20.0,
-            "lap_pace_delta_s": 0.5,
-            "constructor_pit_time_s": 25.0,
-            "constructor_mech_dnf_rate": 0.1,
-            "driver_acc_dnf_rate": 0.05,
-            "is_street_circuit": 0,
         }])
         preds = model.predict(row)
         assert preds[0] in (1, 2, 3)  # the three buckets the frontend renders

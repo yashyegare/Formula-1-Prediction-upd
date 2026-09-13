@@ -75,10 +75,14 @@ FEATURES = [
     "driver_champ_pos", "driver_champ_points_ratio",
     "constructor_champ_pos", "constructor_champ_points_ratio",
     "driver_recent_form", "constructor_recent_form",
-    "lap_pace_delta_s", "constructor_pit_time_s",
-    "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
-    "is_street_circuit",
 ]
+
+# Pruned post-verdict (MODEL_NOTES #9): lap_pace_delta_s and
+# constructor_pit_time_s measured as a regressive null (0/4 seeds better,
+# -1.7pt points recall), constructor_mech_dnf_rate / driver_acc_dnf_rate /
+# is_street_circuit as nulls (experiments #7/#8). All five remain
+# computed in build_training_data.py and pinned by tests; they are
+# excluded from the production contract only.
 
 
 # Production hyperparameters, shared by main() and the ablation scripts

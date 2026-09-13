@@ -27,6 +27,22 @@ import train_model
 PACE_PIT_FEATURES = ["lap_pace_delta_s", "constructor_pit_time_s"]
 SEEDS = [42, 7, 123, 2026]
 
+# The two contracts the recorded experiment compared (MODEL_NOTES #9),
+# pinned literally. The production FEATURES list moves with merge
+# decisions (post-verdict it was pruned back to 13 features), and this
+# script must keep reproducing the recorded 16-vs-18 comparison
+# regardless of what the production contract becomes.
+BASELINE_FEATURES = [
+    "GP_name", "quali_pos", "gap_to_pole", "constructor", "driver",
+    "driver_confidence", "constructor_relaiblity",
+    "driver_champ_pos", "driver_champ_points_ratio",
+    "constructor_champ_pos", "constructor_champ_points_ratio",
+    "driver_recent_form", "constructor_recent_form",
+    "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
+    "is_street_circuit",
+]  # 16 = 13-feature production contract + the three experiment features
+FULL_FEATURES = BASELINE_FEATURES + PACE_PIT_FEATURES  # 18
+
 
 def main():
     ap = argparse.ArgumentParser(description="Seed-swept pace/pit feature ablation")
