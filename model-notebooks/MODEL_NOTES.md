@@ -75,8 +75,9 @@ explicitly on every run for that reason.
    the coarse binary adds nothing. Kept on the branch as the experiment
    record.
 
-9. **Lap-pace + pit stops** (IN PROGRESS, ml-dev branch — verdict pending):
-   the remaining feature lever. The committed `lap_times.csv`/`pit_stops.csv`
+9. **Lap-pace + pit stops** (regressive null, ml-dev branch):
+   the last feature lever, and the one that closed the feature program. The
+   committed `lap_times.csv`/`pit_stops.csv`
    are Ergast-era leftovers keyed by `raceId` (1-1033, pre-2021 coverage)
    with no crosswalk to the pipeline's `year`/`round` keys (verified:
    `id_maps.json` holds only label-encoder maps), so a fresh Jolpica fetch
@@ -110,12 +111,32 @@ explicitly on every run for that reason.
      16-feature vs 18-feature ablation on identical splits and REFUSES to
      run if the pace/pit columns are constant (a stale build must not
      masquerade as a null result).
-   - Decision rule (same discipline as prior adoptions): keep only if the
-     18-feature contract wins the boundary metric (points recall) or
-     accuracy consistently across seeds; otherwise record the null. Two
-     nulls here would close the feature program: four independent
-     pace/form framings + two model families all landing in the same
-     place is the strongest ceiling proof this data supports.
+   - **Verdict (recorded 2026-09-13, fetch complete at 184/184 races —
+     201,811 laps, 6,376 pit stops; 2024-25 validation folds 99-100%
+     covered, so this is not a coverage artifact):** seed-swept 16f vs
+     18f on identical splits — accuracy 66.7% → 66.3% (−0.4pt), points
+     recall 68.1% → 66.3% (**−1.7pt**), podium recall 74.1% → 74.0%
+     (wash). The 18-feature contract was worse on **4/4 seeds including
+     the boundary metric** — a regressive null under the pre-registered
+     decision rule, not a wash to keep. Notable: `lap_pace_delta_s`
+     carried 0.09 importance (third overall) yet *degraded* accuracy —
+     the model uses the signal but generalizes worse, because recent
+     pace is already encoded in `driver_recent_form` + the quali
+     features, and the lap-time distribution shifts hardest across the
+     2022 regulation change, exactly inside the validation folds.
+   - **Post-verdict actions:** production `FEATURES` pruned 18 → 13
+     (`train_model.py`, and `PREDICT_FEATURES` in `flask-app/app.py`);
+     all five experiment features stay computed in
+     `build_training_data.py` and pinned by the schema test, so every
+     null stays reproducible; `measure_pace_pit.py` now pins its
+     16-vs-18 contracts literally, keeping the recorded comparison
+     reproducible regardless of what the production contract becomes
+     (supersedes the “kept on the branch” notes in #7/#8). Finalized
+     data committed: `lap_times_jolpica.csv` / `pit_stops_jolpica.csv`.
+   - **Feature program closed.** Six independent angles, one ceiling:
+     recent-form framings (#3), gap-to-pole (#4), model families (#5),
+     DNF-cause split (#7), circuit type (#8), lap-pace + pit stops
+     (#9). 13 features is the final contract.
 
 ## Why the ceiling sits where it sits
 
@@ -132,12 +153,18 @@ Three independent lines of evidence:
   first-lap incidents, safety cars, and strategy variance are invisible to
   any pre-race feature set. That is a property of the sport, not a gap in
   the modeling.
+- **Every remaining feature family measured null or regressive.** The
+  DNF-cause split (#7), street-circuit flag (#8), and lap-pace + pit stops
+  (#9) — the last on 201,811 real laps with 99-100% coverage in the
+  validation folds — all landed at identical-or-worse. Above quali +
+  standings + form, the feature space is exhausted at this data size.
 
 ## What this means going forward
 
 - **Don't bolt on more standings-derived features.** The two cheapest
-  experiments (driver delta, constructor form) and the resolution upgrade
-  (gap-to-pole) have all been spent; returns are diminishing at the
+  experiments (driver delta, constructor form), the resolution upgrade
+  (gap-to-pole), and the lap-pace program have all been spent; the feature
+  program is closed outright (#7-#9). Returns are diminishing at the
   boundary of what pre-race data can say.
 - **The remaining lever is data volume and granularity**, not architecture:
   more seasons (the 2018+ window is ~3,700 rows), and weather/track-state

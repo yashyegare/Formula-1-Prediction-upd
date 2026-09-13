@@ -364,10 +364,11 @@ PREDICT_FEATURES = [
     "driver_champ_pos", "driver_champ_points_ratio",
     "constructor_champ_pos", "constructor_champ_points_ratio",
     "driver_recent_form", "constructor_recent_form",
-    "lap_pace_delta_s", "constructor_pit_time_s",
-    "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
-    "is_street_circuit",
 ]
+# Pruned post-verdict (MODEL_NOTES #9 + #7/#8): pace/pit and DNF-cause
+# features measured as nulls/regressive and excluded from the contract.
+# The roster still carries their values for experiment reproducibility;
+# they are simply not fed to the production model.
 
 # case-insensitive lookup helpers, since the frontend sends free-text names
 _GP_LOOKUP = {name.lower(): name for name in GP_IDS}
