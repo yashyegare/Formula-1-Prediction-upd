@@ -226,12 +226,22 @@ jobs:
   live-smoke:
     name: Live Deployment Smoke Tests
     runs-on: ubuntu-latest
+    # Runs AFTER deploy-render (main pushes only): it must probe the service
+    # that just swapped in, not the one being replaced — running in parallel
+    # raced the deploy and checked the old build's behavior.
+    needs: [deploy-render]
+    if: always() && needs.deploy-render.result == 'success'
     # Genuine production checks: they verify the real deployed URLs, so a
     # failure means a stale/broken deployment, not a code regression in this
     # push. Use continue-on-error so an ambient outage can't block unrelated
     # merges while still being loudly visible.
     continue-on-error: true
     steps:
+      - name: Wait for the Render swap to propagate
+        # deploy-render's /health poll can't tell old from new service (both
+        # answer 200 while Render assembles the new build). Give the swap time
+        # before probing behavior that differs between builds.
+        run: sleep 480
       - name: API — health, init, circuits, roster
         run: |
           API=https://f1-predictor-api-nddf.onrender.com
