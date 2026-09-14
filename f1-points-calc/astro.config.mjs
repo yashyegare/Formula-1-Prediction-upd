@@ -7,11 +7,11 @@ export default defineConfig({
   output: 'static',
   trailingSlash: 'never',
   // Emit flat files (about.html) rather than directory-style (about/index.html).
-  // Cloudflare Pages auto-appends a slash to directory URLs, which 308-redirects
-  // every no-slash URL in our sitemap/canonicals. Flat files serve those URLs
-  // directly with a 200, keeping the whole site consistent with trailingSlash:'never'.
+  // The static host serves clean URLs (/2017 -> 2017.html) via vercel.json's
+  // cleanUrls on Vercel — keeping extensionless URLs consistent with
+  // trailingSlash:'never' across the sitemap and canonicals.
   build: { format: 'file' },
-  site: 'https://f1pointscalculator.yashyegare.com',
+  site: 'https://formula-1-prediction-upd-fxzg.vercel.app',
   integrations: [
     react(),
     tailwind(),
