@@ -523,10 +523,15 @@ def get_season_init_data(year: int) -> Optional[dict]:
         driver_standings = []
         constructor_standings = []
         for s in standing_rows:
+            # Normalize points across backends: PG NUMERIC returns Decimal
+            # (which JSON-encodes as a string — the frontend does arithmetic
+            # on these), SQLite returns int/float. Whole numbers stay ints.
+            pts = float(s["points"])
+            pts = int(pts) if pts == int(pts) else pts
             # Frontend contract: driverId / teamId — NOT entityId.
             entry = {
                 "position": s["position"],
-                "points": s["points"],
+                "points": pts,
             }
             if s["entity_type"] == "driver":
                 entry["driverId"] = s["entity_id"]
@@ -604,8 +609,8 @@ def get_circuit_slugs() -> dict:
     """
     with get_connection() as conn:
         rows = _fetchall(conn,
-            "SELECT circuit_id, country, MAX(year) AS last_year "
-            "FROM races GROUP BY circuit_id ORDER BY circuit_id")
+            "SELECT circuit_id, country FROM races GROUP BY circuit_id, country "
+            "ORDER BY circuit_id")
     circuits = []
     for r in rows:
         cid = r["circuit_id"]

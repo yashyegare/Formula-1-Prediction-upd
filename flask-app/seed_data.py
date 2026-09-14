@@ -5,7 +5,7 @@ Seed the F1 SQLite database from the Jolpica (Ergast) API.
 Usage:
     python seed_data.py              # Seed all seasons (1981–2026)
     python seed_data.py --year 2026  # Seed only one season
-    python seed_data.py --reseed     # Drop and re-create everything
+    python seed_data.py --reseed     # Re-seed (scoped to --year if given)
 
 First run takes ~5-8 minutes (fetches ~40 seasons × ~23 rounds each).
 Subsequent runs skip already-seeded years unless --reseed is used.
@@ -333,7 +333,8 @@ def main():
     parser.add_argument("--end", type=int, default=SEED_END_YEAR,
                         help=f"End year (default: {SEED_END_YEAR})")
     parser.add_argument("--reseed", action="store_true",
-                        help="Drop all data and re-seed")
+                        help="Re-seed: the whole DB without --year, only that "
+                             "season when --year is given")
     args = parser.parse_args()
 
     print("F1 Data Seeder")
