@@ -223,6 +223,78 @@ jobs:
         continue-on-error: true
         run: npm audit --omit=dev
 
+  live-smoke:
+    name: Live Deployment Smoke Tests
+    runs-on: ubuntu-latest
+    # Genuine production checks: they verify the real deployed URLs, so a
+    # failure means a stale/broken deployment, not a code regression in this
+    # push. Use continue-on-error so an ambient outage can't block unrelated
+    # merges while still being loudly visible.
+    continue-on-error: true
+    steps:
+      - name: API — health, init, circuits, roster
+        run: |
+          API=https://f1-predictor-api-nddf.onrender.com
+          for path in "/health" "/api/init?year=2024" "/api/circuits" "/roster"; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$API$path")
+            echo "$path -> $STATUS"
+            if [ "$STATUS" != "200" ]; then
+              echo "::warning::API $path returned $STATUS"
+              exit 1
+            fi
+          done
+      - name: API — init speed (seeded DB fast path)
+        run: |
+          # The committed f1_data.db must serve /api/init in ~1s; a regression
+          # to the 90s+ Jolpica fallback would starve the 2-worker service.
+          SECS=$(curl -s -o /dev/null -w "%{time_total}" --max-time 15 "https://f1-predictor-api-nddf.onrender.com/api/init?year=1984")
+          echo "init(1984) took ${SECS}s"
+          awk -v t="$SECS" 'BEGIN { exit !(t < 5) }' || { echo "::warning::init latency regressed (${SECS}s)"; exit 1; }
+      - name: API — CORS allowlist live (no foreign reflection, both frontends allowed)
+        run: |
+          API=https://f1-predictor-api-nddf.onrender.com
+          # 1) A foreign origin must get NO Access-Control-Allow-Origin.
+          #    (A bare @cross_origin() once reflected any Origin on /predictGrid,
+          #    silently bypassing the CORS_ORIGINS allowlist.)
+          if curl -s -D - -o /dev/null --max-time 30 -H "Origin: https://evil-test.example.com" "$API/roster" \
+               | grep -qi "access-control-allow-origin"; then
+            echo "::warning::API reflects foreign origins on /roster - allowlist bypassed"
+            exit 1
+          fi
+          # 2) Both deployed frontends MUST stay allowlisted - a missing origin
+          #    silently breaks that app's browser requests (roster/predictions).
+          for origin in \
+            https://nextjs-app-yashyegare.vercel.app \
+            https://formula-1-prediction-upd-fxzg.vercel.app; do
+            if ! curl -s -D - -o /dev/null --max-time 30 -H "Origin: $origin" "$API/roster" \
+                 | grep -qi "access-control-allow-origin: $origin"; then
+              echo "::warning::$origin missing from live CORS allowlist"
+              exit 1
+            fi
+            echo "$origin allowlisted OK"
+          done
+      - name: Predictor — homepage serves current build
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://nextjs-app-yashyegare.vercel.app)
+          [ "$STATUS" = "200" ] || { echo "::warning::predictor homepage -> $STATUS"; exit 1; }
+          # The old code hardcoded the 2023 grid into the SSR HTML; the current
+          # app fetches /roster client-side. Presence of a 2023-only driver is
+          # the fingerprint of a stale deployment.
+          if curl -s --max-time 30 https://nextjs-app-yashyegare.vercel.app | grep -qi "magnussen"; then
+            echo "::warning::predictor is serving the stale hardcoded-2023 build"; exit 1
+          fi
+      - name: Simulator — homepage, year pages, track pages
+        run: |
+          SIM=https://formula-1-prediction-upd-fxzg.vercel.app
+          for path in "/" "/2024" "/1984" "/tracks/monaco"; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$SIM$path")
+            echo "$path -> $STATUS"
+            if [ "$STATUS" != "200" ]; then
+              echo "::warning::simulator $path returned $STATUS"
+              exit 1
+            fi
+          done
+
   deploy-render:
     name: Deploy Backend to Render
     # ml-pipeline gates the deploy too: a push ships the model artifacts, so

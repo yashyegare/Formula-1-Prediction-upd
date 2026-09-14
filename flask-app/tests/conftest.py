@@ -14,6 +14,13 @@ import pytest
 
 # Must be set BEFORE importing app/database so they pick up the temp paths.
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-pytest-only")
+# Production origins must be allowlisted in tests exactly as in the deployed
+# environment — test_cors.py pins that behavior.
+os.environ.setdefault(
+    "CORS_ORIGINS",
+    "https://nextjs-app-yashyegare.vercel.app,"
+    "https://formula-1-prediction-upd-fxzg.vercel.app",
+)
 TMP_DIR = tempfile.mkdtemp(prefix="f1_test_")
 os.environ["F1_DB_PATH"] = os.path.join(TMP_DIR, "test_f1_data.db")
 

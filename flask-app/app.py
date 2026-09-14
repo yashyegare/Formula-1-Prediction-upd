@@ -6,7 +6,7 @@ import urllib.request
 import joblib
 import pandas as pd
 from flask import Flask, jsonify, request
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from database import init_db, is_seeded, get_season_init_data, get_circuits as db_get_circuits, get_circuit_slugs, get_circuit_history
@@ -50,6 +50,9 @@ _INIT_CACHE = {}
 # CORS origins — allow localhost in dev, plus production frontends from env.
 # Single source of truth shared with the CSRF Origin check (security.py).
 # e.g. CORS_ORIGINS=https://your-app.vercel.app,https://simulator.vercel.app
+# No route may opt out of this allowlist with its own @cross_origin(): a bare
+# decorator reflects ANY origin (that shipped on /predictGrid and /roster once
+# and silently bypassed this list).
 CORS_ORIGINS = get_allowed_origins()
 
 CORS(app, resources={r"/*": {
@@ -430,8 +433,14 @@ _DRIVER_LOOKUP = {name.lower(): name for name in DRIVER_IDS}
 
 
 @app.route("/predictGrid", methods=["POST", "OPTIONS"])
-@cross_origin()
 def predict_driver_position():
+    # Browsers preflight the JSON POST (Content-Type is not form-urlencoded).
+    # The global CORS config (above) attaches the allowlist headers to this
+    # response; the old route-level @cross_origin() used to short-circuit
+    # preflights itself — without it, the request must not fall into the
+    # view body, which would 400 on the empty payload.
+    if request.method == "OPTIONS":
+        return "", 204
     data = request.get_json(force=True)
     driver_name_in = data["name"]
     round_name_in = data["round"]
@@ -499,7 +508,6 @@ def predict_driver_position():
 
 
 @app.route("/roster", methods=["GET"])
-@cross_origin()
 def roster():
     """Lets the frontend fetch the current driver list, GP list, and
     driver->team pairings directly, instead of hardcoding them in the
