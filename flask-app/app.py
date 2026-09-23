@@ -12,6 +12,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from database import init_db, is_seeded, get_season_init_data, get_circuits as db_get_circuits, get_circuit_slugs, get_circuit_history
 from auth import auth_bp, login_manager
 from predictions_api import predictions_bp
+from race_intelligence_api import race_intel_bp
 from extensions import limiter, register_limiter_error_handlers
 from security import get_allowed_origins, register_csrf_protection, register_security_headers
 
@@ -39,6 +40,7 @@ login_manager.init_app(app)
 # Register blueprints
 app.register_blueprint(auth_bp)
 app.register_blueprint(predictions_bp)
+app.register_blueprint(race_intel_bp)
 
 # Initialize SQLite database on startup
 init_db()
