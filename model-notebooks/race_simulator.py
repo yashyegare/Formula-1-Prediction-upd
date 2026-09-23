@@ -86,16 +86,62 @@ def fit_swing_params(entries: pd.DataFrame) -> dict:
     }
 
 
+def fit_driver_sd(entries: pd.DataFrame, window: int = 10,
+                  min_races: int = 5, sd_floor: float = 2.0,
+                  sd_cap: float = 8.0) -> dict[str, float]:
+    """
+    v2 pace-noise: per-driver swing VOLATILITY (sd of the grid->finish
+    delta over the driver's last `window` finished races, strictly before
+    the target race). A driver who finishes where they qualify every week
+    gets a small sd (metronome); a streaky one gets a large sd. This is
+    the pace-noise mechanism the reliability curve asked for: the sim v1
+    overrated mid-grid cars because everyone shared one swing sd.
+
+    Returns {driverId: sd} with values clamped to [sd_floor, sd_cap] —
+    floors/caps keep a 3-race sample from producing a near-deterministic
+    or wildly heavy-tailed swing. Drivers with fewer than `min_races`
+    finished races are absent from the dict (they fall back to the pooled
+    sd at simulation time).
+
+    `entries` needs: year, round, driverId, grid, position, is_dnf, and
+    must be pre-filtered to seasons <= Y-1 (the caller's point-in-time
+    contract); the last `window` finished races per driver are used.
+    """
+    d = entries.copy()
+    field = d.groupby(["year", "round"])["driverId"].transform("count")
+    d["grid_clamped"] = d["grid"].clip(lower=1).clip(upper=field)
+    finished = d[(d["is_dnf"] == 0) & (d["position"] >= 1)
+                 & (d["grid"] >= 1)].copy()
+    finished["swing"] = finished["grid_clamped"] - finished["position"]
+    finished = finished.sort_values(["driverId", "year", "round"])
+    last = (finished.groupby("driverId", sort=False)
+            .tail(window)
+            .groupby("driverId")["swing"])
+    n = last.size()
+    sd = last.std(ddof=1)
+    return {drv: float(np.clip(s, sd_floor, sd_cap))
+            for drv, s, k in zip(sd.index, sd.values, n.values)
+            if k >= min_races and np.isfinite(s)}
+
+
 # ── simulation ────────────────────────────────────────────────────────────
 
 def simulate_race(grid: list[tuple[str, int]], n_sims: int,
                   swing_mean: float, swing_sd: float, dnf_rate: float,
-                  rng: np.random.Generator) -> pd.DataFrame:
+                  rng: np.random.Generator,
+                  driver_sd: dict[str, float] | None = None) -> pd.DataFrame:
     """
     Simulate one race `n_sims` times.
 
     `grid`: (driverId, grid_slot) pairs, grid_slot the pre-race slot
     (1-based; 0 = pit-lane start, clamped to the back).
+
+    `driver_sd`: optional per-driver swing-sd overrides (v2 pace-noise).
+    A driver with a volatile recent-race delta history (sd 6) swings more
+    than a metronome (sd 2); drivers absent from the dict fall back to the
+    fitted pooled swing_sd. The pool mean stays shared: this models HOW
+    FAR each driver's race day departs from their grid slot, not where
+    they end up on average — that is the grid's job.
 
     Returns a long frame: one row per (sim, driver) with the simulated
     classification `position` and `is_dnf`. Each sim is a valid
@@ -108,6 +154,12 @@ def simulate_race(grid: list[tuple[str, int]], n_sims: int,
     # real F1 semantics. A naive lower-clip to 1 would put them on pole.
     slots = np.where(slots <= 0, float(n), np.clip(slots, 1.0, float(n)))
 
+    # per-driver swing sd (v2): pooled sd as the fallback
+    if driver_sd:
+        sds = np.array([driver_sd.get(d, swing_sd) for d in drivers])
+    else:
+        sds = np.full(n, swing_sd)
+
     # how many retire per sim
     n_dnf = rng.binomial(n, dnf_rate, size=n_sims)
     # who retires: without replacement, per sim
@@ -116,8 +168,10 @@ def simulate_race(grid: list[tuple[str, int]], n_sims: int,
     for s in range(n_sims):
         dnf_mask[s, order[s, :n_dnf[s]]] = True
 
-    # swing deltas for everyone (DNF rows' deltas are ignored below)
-    delta = rng.normal(swing_mean, swing_sd, size=(n_sims, n))
+    # swing deltas for everyone (DNF rows' deltas are ignored below);
+    # per-driver sd via the scale trick: z ~ N(0,1) scaled per column
+    z = rng.normal(size=(n_sims, n))
+    delta = swing_mean + z * sds[None, :]
     key = slots[None, :] + delta
     # tiny jitter so exact ties (identical slots + deltas) can't collide
     key += rng.random((n_sims, n)) * 1e-9
@@ -216,7 +270,7 @@ def load_entries(db_path: str) -> pd.DataFrame:
 
 
 def backtest(entries: pd.DataFrame, years: range, n_sims: int,
-             seed: int) -> tuple[pd.DataFrame, dict]:
+             seed: int, driver_sd: bool = False) -> tuple[pd.DataFrame, dict]:
     """
     Walk-forward probabilistic backtest: for each season Y, fit the
     mechanisms on seasons <= Y-1, simulate every race of Y, score the
@@ -227,6 +281,11 @@ def backtest(entries: pd.DataFrame, years: range, n_sims: int,
                       (the no-skill probabilistic baseline)
       grid-onehot   — bucket(grid) with the same smoothing floor
                       (the deterministic baseline as a probability)
+
+    driver_sd=True enables the v2 pace-noise mechanism: per-driver swing
+    volatility fitted on the same strictly-prior seasons (identical seeds
+    per race, so the v1/v2 comparison differs ONLY through the mechanism,
+    not through sampling noise — the ablation is paired).
     """
     rows = []
     for y in years:
@@ -235,6 +294,7 @@ def backtest(entries: pd.DataFrame, years: range, n_sims: int,
         if len(train) == 0 or len(test) == 0:
             continue
         params = fit_swing_params(train)
+        dsd = fit_driver_sd(train) if driver_sd else None
         train_buckets = train["position"].map(position_bucket)
         global_rates = [float((train_buckets == 1).mean()),
                         float((train_buckets == 2).mean()),
@@ -245,7 +305,7 @@ def backtest(entries: pd.DataFrame, years: range, n_sims: int,
             grid = list(zip(race["driverId"],
                             race["grid"].fillna(0).astype(int)))
             sim = simulate_race(grid, n_sims, params["mean"], params["sd"],
-                                params["dnf_rate"], rng)
+                                params["dnf_rate"], rng, driver_sd=dsd)
             summ = summarize_simulation(sim)
             summ = summ.merge(
                 race[["driverId", "position", "grid"]].assign(
@@ -299,6 +359,8 @@ def main():
                     help="detailed distribution table for one race")
     ap.add_argument("--backtest", nargs=2, type=int, metavar=("FROM", "TO"),
                     help="walk-forward calibration backtest over seasons")
+    ap.add_argument("--ablation", nargs=2, type=int, metavar=("FROM", "TO"),
+                    help="paired v1 (pooled sd) vs v2 (per-driver sd) backtest")
     args = ap.parse_args()
 
     entries = load_entries(args.db)
@@ -369,7 +431,7 @@ def main():
                 ("grid-onehot baseline", "grid_onehot_log_loss",
                  "grid_onehot_brier")):
             print(f"{label:28s} {metrics[ll_key]:9.4f} {metrics[br_key]:8.4f}")
-        print("\nReliability of P(podium) (predicted vs realized):")
+        print(f"\nReliability of P(podium) (predicted vs realized):")
         curve = reliability_curve(probs, "p_podium")
         for _, r in curve.iterrows():
             print(f"  n={int(r['n']):4d}  predicted {r['predicted']:6.1%}  "
@@ -377,6 +439,30 @@ def main():
         probs.to_csv("sim_probs_backtest.csv", index=False,
                      lineterminator="\n")
         print("\nPer-driver probabilities written to sim_probs_backtest.csv")
+        return
+
+    if args.ablation:
+        lo, hi = args.ablation
+        # PAIRED ablation: identical seeds per race, so any metric delta
+        # comes from the driver-sd mechanism, not sampling noise.
+        probs1, m1 = backtest(entries, range(lo, hi + 1), args.sims,
+                              args.seed, driver_sd=False)
+        probs2, m2 = backtest(entries, range(lo, hi + 1), args.sims,
+                              args.seed, driver_sd=True)
+        print(f"\n=== Paired ablation: swing-sd v1 vs per-driver pace-noise v2 "
+              f"({lo}-{hi}, {len(probs1)} driver-races, {args.sims} sims) ===")
+        print(f"{'method':34s} {'log loss':>9s} {'Brier':>8s}")
+        print(f"{'v1 pooled swing sd':34s} {m1['sim_log_loss']:9.4f} "
+              f"{m1['sim_brier']:8.4f}")
+        print(f"{'v2 per-driver pace-noise sd':34s} {m2['sim_log_loss']:9.4f} "
+              f"{m2['sim_brier']:8.4f}")
+        dll = m2["sim_log_loss"] - m1["sim_log_loss"]
+        dbr = m2["sim_brier"] - m1["sim_brier"]
+        print(f"{'v2 - v1':34s} {dll:+9.4f} {dbr:+8.4f}")
+        print("\nReliability of P(podium), v2:")
+        for _, r in reliability_curve(probs2, "p_podium").iterrows():
+            print(f"  n={int(r['n']):4d}  predicted {r['predicted']:6.1%}  "
+                  f"realized {r['realized']:6.1%}")
         return
 
     ap.print_help()

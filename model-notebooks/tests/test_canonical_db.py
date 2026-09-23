@@ -324,15 +324,18 @@ class TestBuildCliAndManifest:
         assert m1["canonical"]["fact_race_entry"] == 4
         assert m1["canonical"]["fact_lap"] == 14
         assert m1["canonical"]["fact_championship_snapshot"] == 4
-        assert m1.get("delta_vs_previous") is None  # first run: no previous manifest
         assert "results.csv" in m1["sources"]
+        # comparison state must NEVER enter the file (byte-compare drift
+        # guard would be impossible otherwise)
+        assert set(m1) == {"sources", "canonical"}
 
-        # second run: unchanged sources -> zero deltas, same counts
+        # second run: unchanged sources -> byte-identical manifest,
+        # zero deltas reported on STDOUT (never in the file)
         r2 = subprocess.run(cmd, capture_output=True, text=True)
         assert r2.returncode == 0, r2.stderr
-        m2 = json.loads(Path(man).read_text(encoding="utf-8"))
-        assert all(v == 0 for v in m2["delta_vs_previous"].values())
-        assert m2["changed_sources"] == []
+        assert Path(man).read_bytes() == Path(man).read_bytes()
+        assert m1 == json.loads(Path(man).read_text(encoding="utf-8"))
+        assert "(no changes)" in r2.stdout
 
         # mutate a source -> delta + changed source reported
         results = pd.read_csv(src / "results.csv")

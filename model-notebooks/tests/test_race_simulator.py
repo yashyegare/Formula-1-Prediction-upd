@@ -213,6 +213,97 @@ class TestScoring:
 
 # ── bucket boundaries ────────────────────────────────────────────────────
 
+class TestDriverSD:
+    def test_high_volatility_driver_gets_larger_sd(self):
+        # driver V: swings alternate +/-4 (positions stay in 1..9);
+        # driver M: constant 0 swing
+        rows = []
+        for i in range(1, 11):
+            rows.append({"year": 2020, "round": i, "driverId": "V",
+                         "grid": 5, "position": 5 + (4 if i % 2 else -4),
+                         "is_dnf": 0})
+            rows.append({"year": 2020, "round": i, "driverId": "M",
+                         "grid": 5, "position": 5, "is_dnf": 0})
+        d = rs.fit_driver_sd(pd.DataFrame(rows), min_races=5)
+        # sample sd (ddof=1) of ten alternating +/-4 swings
+        assert d["V"] == pytest.approx(4 * np.sqrt(10 / 9))
+        assert d["M"] == pytest.approx(2.0)  # floored
+
+    def test_floors_and_caps_applied(self):
+        # metronome -> floored at 2.0; wild -> capped at 8.0
+        rows = []
+        for i in range(1, 11):
+            rows.append({"year": 2020, "round": i, "driverId": "metronome",
+                         "grid": 4, "position": 4, "is_dnf": 0})
+            rows.append({"year": 2020, "round": i, "driverId": "wild",
+                         "grid": 5,
+                         "position": 20 if i % 2 else 1, "is_dnf": 0})
+        d = rs.fit_driver_sd(pd.DataFrame(rows))
+        assert d["metronome"] == pytest.approx(2.0)   # floor
+        assert d["wild"] == pytest.approx(8.0)        # cap
+
+    def test_min_races_gate_and_prior_seasons_only(self):
+        # driver with only 4 finished races -> absent from the dict
+        rows = [{"year": 2020, "round": i, "driverId": "new",
+                 "grid": 3, "position": 3, "is_dnf": 0}
+                for i in range(1, 5)]
+        rows += [{"year": 2020, "round": i, "driverId": "old",
+                  "grid": 3, "position": 3, "is_dnf": 0}
+                 for i in range(1, 7)]
+        d = rs.fit_driver_sd(pd.DataFrame(rows), min_races=5)
+        assert "new" not in d
+        assert "old" in d
+
+    def test_dnf_rows_never_enter_the_volatility_sample(self):
+        # DNF'd races carry garbage positions; they must be excluded
+        rows = []
+        for i in range(1, 11):
+            rows.append({"year": 2020, "round": i, "driverId": "x",
+                         "grid": 2, "position": 2, "is_dnf": 0})
+        rows.append({"year": 2020, "round": 11, "driverId": "x",
+                     "grid": 1, "position": 20, "is_dnf": 1})
+        d = rs.fit_driver_sd(pd.DataFrame(rows))
+        assert d["x"] == pytest.approx(2.0)  # still the floor: zero swing
+
+    def test_v2_simulation_spreads_volatile_driver(self):
+        # full 10-driver grid so bucket probabilities are informative
+        grid = [(f"d{i}", i) for i in range(1, 11)]
+        dsd = {"d5": 9.0}
+        rng1 = np.random.default_rng(17)
+        s1 = rs.simulate_race(grid, 4000, 0.0, 0.5, 0.0, rng1)
+        rng2 = np.random.default_rng(17)
+        s2 = rs.simulate_race(grid, 4000, 0.0, 0.5, 0.0, rng2,
+                              driver_sd=dsd)
+        # spread = sd of the driver's simulated finishing positions.
+        # Rank-order coupling means widening d5 shifts everyone a little;
+        # the mechanism signature is that d5's spread grows the MOST.
+        sd1 = s1.groupby("driverId")["position"].std()
+        sd2 = s2.groupby("driverId")["position"].std()
+        delta = sd2 - sd1
+        assert delta["d5"] > 1.0
+        assert delta.drop("d5").max() < delta["d5"]
+
+    def test_ablation_path_is_paired_and_scores(self):
+        # two seasons x 3 races x 10 drivers, zero swing (same shape as
+        # TestBacktestSynthetic._entries, built inline)
+        rows = []
+        for y in (2025, 2026):
+            for rnd in (1, 2, 3):
+                for slot in range(1, 11):
+                    rows.append({"year": y, "round": rnd,
+                                 "driverId": f"d{slot}",
+                                 "constructorId": "t", "grid": slot,
+                                 "position": slot, "is_dnf": 0})
+        entries = pd.DataFrame(rows)
+        p1, m1 = rs.backtest(entries, range(2026, 2027), n_sims=40,
+                             seed=5, driver_sd=False)
+        p2, m2 = rs.backtest(entries, range(2026, 2027), n_sims=40,
+                             seed=5, driver_sd=True)
+        assert np.isfinite([m1["sim_log_loss"], m2["sim_log_loss"]]).all()
+        # paired seeds: identical row universe
+        assert len(p1) == len(p2)
+
+
 class TestBuckets:
     def test_boundaries_match_training_contract(self):
         assert rs.position_bucket(1) == 1

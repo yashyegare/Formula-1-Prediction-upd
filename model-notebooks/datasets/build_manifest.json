@@ -16,25 +16,6 @@
     "v_race_sc_exposure": 184,
     "v_running_position_gains": 3602
   },
-  "changed_sources": [],
-  "delta_vs_previous": {
-    "dim_circuit": 0,
-    "dim_constructor": 0,
-    "dim_driver": 0,
-    "dim_status": 0,
-    "fact_championship_snapshot": 0,
-    "fact_lap": 0,
-    "fact_pit_stop": 0,
-    "fact_quali_entry": 0,
-    "fact_race": 0,
-    "fact_race_entry": 0,
-    "v_driver_race_evidence": 0,
-    "v_race_entry_outcome": 0,
-    "v_race_lap_evidence": 0,
-    "v_race_sc_exposure": 0,
-    "v_running_position_gains": 0
-  },
-  "git_sha": "cb5cf93fc1424fbb6b7def4526e7606994ec0c30",
   "sources": {
     "circuits.csv": {
       "rows": 33,

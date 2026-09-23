@@ -332,21 +332,33 @@ def main():
         src[name] = {"sha256": sha256(p),
                      "rows": sum(1 for _ in open(p, encoding="utf-8")) - 1}
 
-    manifest = {"git_sha": git_sha(), "sources": src, "canonical": counts}
+    # The manifest FILE contains only source hashes + row counts — nothing
+    # path-dependent, no timestamps, no git SHAs, and NO comparison state.
+    # (delta_vs_previous/changed_sources were originally written into the
+    # file; that made the byte-compare drift-guard impossible, since a
+    # fresh rebuild with no previous manifest at the output path could
+    # never match a committed copy that carried those keys.) The manifest
+    # must be byte-identical across rebuilds from the same sources, so CI
+    # can byte-compare it against the committed baseline.
+    manifest = {"sources": src, "canonical": counts}
     m_path = Path(args.manifest)
+    # Deltas vs the PREVIOUS manifest are a stdout report for humans, never
+    # persisted into the file.
     if m_path.exists():
         prev = json.loads(m_path.read_text(encoding="utf-8"))
-        deltas = {t: counts[t] - prev["canonical"].get(t, 0) for t in counts}
-        changed = {k for k in src
-                   if prev.get("sources", {}).get(k, {}).get("sha256") != src[k]["sha256"]}
-        manifest["delta_vs_previous"] = deltas
-        manifest["changed_sources"] = sorted(changed)
+        deltas = {t: counts[t] - prev.get("canonical", {}).get(t, 0)
+                  for t in counts}
+        changed = sorted(k for k in src
+                         if prev.get("sources", {}).get(k, {}).get("sha256")
+                         != src[k]["sha256"])
         print("Deltas vs previous manifest:")
         for t, dv in deltas.items():
             if dv:
                 print(f"  {t:32s} {dv:+d}")
-        if not any(deltas.values()):
-            print("  (no row-count changes)")
+        if changed:
+            print(f"  changed sources: {', '.join(changed)}")
+        if not any(deltas.values()) and not changed:
+            print("  (no changes)")
 
     # byte-stable serialization: sorted keys, fixed separators, LF, UTF-8
     m_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n",

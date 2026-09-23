@@ -71,6 +71,36 @@ python race_simulator.py --db datasets/f1_canonical.db --backtest 2019 2026
 writes `sim_probs_backtest.csv` (per driver-race probabilities + actuals)
 for further analysis.
 
+## Pace-noise v2: a recorded null (do not enable by default)
+
+The reliability curve flagged the mid-grid bin as overconfident
+(predicted 19.5% podium → realized 9.5%), so a v2 mechanism was built and
+ablated: per-driver swing-sd from the driver's last-10 finished-race
+delta volatility (`fit_driver_sd`, clamped to [2.0, 8.0], ≥5 races,
+strictly-prior seasons, pooled-sd fallback), enabled via `--ablation` and
+`driver_sd=True`.
+
+**Paired verdict (identical seeds per race — the delta is pure mechanism):**
+
+| method | log loss | Brier |
+|---|---:|---:|
+| v1 pooled swing sd | 0.7456 | 0.4356 |
+| v2 per-driver sd | 0.7581 | 0.4407 |
+| v2 − v1 | **+0.0125** | **+0.0052** |
+
+The mid-grid bin did not move (9.5% → 9.6% realized). Interpretation: a
+driver's past delta-volatility does not predict their future swing
+magnitude, so widening volatile drivers' distributions only flattens
+otherwise-sharp probabilities. The mid-grid overconfidence is a grid-slot
+problem (slot is a noisy car-pace proxy), not a volatility problem — the
+lever that would fix it is a pace-level feature, which the ceiling
+evidence says pre-race data does not provide.
+
+The mechanism and the seed-paired ablation harness stay in the codebase
+and are pinned by tests (the contract is reproducible); the production
+default remains v1. Same discipline as MODEL_NOTES #7–#9: nulls are
+recorded with their evidence, not discarded.
+
 ## What was fixed while building it
 
 The pit-lane clamp test caught a real bug: `np.clip(grid, 1, n)` sent
