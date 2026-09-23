@@ -1,0 +1,80 @@
+{
+  "canonical": {
+    "dim_circuit": 33,
+    "dim_constructor": 18,
+    "dim_driver": 44,
+    "dim_status": 54,
+    "fact_championship_snapshot": 5687,
+    "fact_lap": 201811,
+    "fact_pit_stop": 6376,
+    "fact_quali_entry": 3694,
+    "fact_race": 196,
+    "fact_race_entry": 3700,
+    "v_driver_race_evidence": 3596,
+    "v_race_entry_outcome": 3700,
+    "v_race_lap_evidence": 11040,
+    "v_race_sc_exposure": 184,
+    "v_running_position_gains": 3602
+  },
+  "changed_sources": [],
+  "delta_vs_previous": {
+    "dim_circuit": 0,
+    "dim_constructor": 0,
+    "dim_driver": 0,
+    "dim_status": 0,
+    "fact_championship_snapshot": 0,
+    "fact_lap": 0,
+    "fact_pit_stop": 0,
+    "fact_quali_entry": 0,
+    "fact_race": 0,
+    "fact_race_entry": 0,
+    "v_driver_race_evidence": 0,
+    "v_race_entry_outcome": 0,
+    "v_race_lap_evidence": 0,
+    "v_race_sc_exposure": 0,
+    "v_running_position_gains": 0
+  },
+  "git_sha": "cb5cf93fc1424fbb6b7def4526e7606994ec0c30",
+  "sources": {
+    "circuits.csv": {
+      "rows": 33,
+      "sha256": "69634b8902702a2a9e60e3956e8d9fd3944431e0e8387d82677f64af6e98d26a"
+    },
+    "constructor_standings.csv": {
+      "rows": 1851,
+      "sha256": "9855e5f59753e4b1677a479ded0cd7930029158b27b4ee32f0cdfb9ed833bc13"
+    },
+    "constructors.csv": {
+      "rows": 18,
+      "sha256": "72eb857f19ac8b104a63f260e297c39f3696249fc57418bf13dbd229b25669e4"
+    },
+    "driver_standings.csv": {
+      "rows": 3836,
+      "sha256": "41d693c81fb2c927102db16bf1eb0664a62e8303be9f9a843d33e041fe577b5c"
+    },
+    "drivers.csv": {
+      "rows": 44,
+      "sha256": "7d386b86d9b381f325ad8b0f026adad854741d5ca63f77dae7b7b01c0549d2ac"
+    },
+    "lap_times_jolpica.csv": {
+      "rows": 201811,
+      "sha256": "98c29d1e5bd6ad7f87e1557790d42445deab80479f8574903a38f899bf827ea3"
+    },
+    "pit_stops_jolpica.csv": {
+      "rows": 6376,
+      "sha256": "f9c4b9edb3dce36138ff040d300428494541a4afdb55f3e70e0bf0e79614ef5d"
+    },
+    "qualifying.csv": {
+      "rows": 3694,
+      "sha256": "ebed9776d7c6aefa339534cd1a9b04fe16a45f39a2b1b60087a9832d4b4906a2"
+    },
+    "races.csv": {
+      "rows": 196,
+      "sha256": "81074b8b5bd16f76a7b01f32ee97f9dec6d20549b4bf810b17303158a1672dc7"
+    },
+    "results.csv": {
+      "rows": 3700,
+      "sha256": "10640cbbd8fda72229b3db0258e2ec853862d66faecbba52e0d858b64ef94ee5"
+    }
+  }
+}
