@@ -19,43 +19,43 @@
   "sources": {
     "circuits.csv": {
       "rows": 33,
-      "sha256": "69634b8902702a2a9e60e3956e8d9fd3944431e0e8387d82677f64af6e98d26a"
+      "sha256": "cfbf02faff19b90d70b50105387f50d0bf9e5f19fca545e477dfc7f3995d3091"
     },
     "constructor_standings.csv": {
       "rows": 1851,
-      "sha256": "9855e5f59753e4b1677a479ded0cd7930029158b27b4ee32f0cdfb9ed833bc13"
+      "sha256": "22db224b15c3650795270f4f44998341868d66e8f3ad1d187f74412e232bc762"
     },
     "constructors.csv": {
       "rows": 18,
-      "sha256": "72eb857f19ac8b104a63f260e297c39f3696249fc57418bf13dbd229b25669e4"
+      "sha256": "181eaa106e428f8bfbfd71bcd7fb7875cc5c84d35b27b5535a6c366f32ec46d9"
     },
     "driver_standings.csv": {
       "rows": 3836,
-      "sha256": "41d693c81fb2c927102db16bf1eb0664a62e8303be9f9a843d33e041fe577b5c"
+      "sha256": "6423de0ce9614922ae380313725881279d7dc49cc33e92e70941ea2ca85b39d1"
     },
     "drivers.csv": {
       "rows": 44,
-      "sha256": "7d386b86d9b381f325ad8b0f026adad854741d5ca63f77dae7b7b01c0549d2ac"
+      "sha256": "18ffc23cef001451e5cf69c3a37082c5159cd44a4f9da644321d4b3a2c5b3878"
     },
     "lap_times_jolpica.csv": {
       "rows": 201811,
-      "sha256": "98c29d1e5bd6ad7f87e1557790d42445deab80479f8574903a38f899bf827ea3"
+      "sha256": "9e5f02cb99d488984614229e8ca2f3364dee54fd0a20ef25be742315e1763eb6"
     },
     "pit_stops_jolpica.csv": {
       "rows": 6376,
-      "sha256": "f9c4b9edb3dce36138ff040d300428494541a4afdb55f3e70e0bf0e79614ef5d"
+      "sha256": "de75930ad195b5ea8e8a63ed0e70c3317dfbc08461d1783ec15a50ffe0f1054c"
     },
     "qualifying.csv": {
       "rows": 3694,
-      "sha256": "ebed9776d7c6aefa339534cd1a9b04fe16a45f39a2b1b60087a9832d4b4906a2"
+      "sha256": "4ca00109cddb8406f49a1cd39a311aab76861d7e4fc3e313fa4103dc58f92b41"
     },
     "races.csv": {
       "rows": 196,
-      "sha256": "81074b8b5bd16f76a7b01f32ee97f9dec6d20549b4bf810b17303158a1672dc7"
+      "sha256": "bc52c4029ad3a8bed0b27077efc5cd3451b5f3e099219463840164654c73ca45"
     },
     "results.csv": {
       "rows": 3700,
-      "sha256": "10640cbbd8fda72229b3db0258e2ec853862d66faecbba52e0d858b64ef94ee5"
+      "sha256": "ba78a9e965aaf16660e7fabec716a928b488b2d9945edfaed0f3f0e1b7f9400c"
     }
   }
 }

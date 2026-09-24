@@ -67,10 +67,13 @@ python build_canonical.py          # → datasets/f1_canonical.db + build_manife
 python -m pytest tests/ -q        # 79 tests (24 decomposition, 16 canonical, 39 ML)
 ```
 
-The manifest (sorted keys, fixed separators, no timestamps) is byte-stable
-across rebuilds — a CI job can byte-compare the committed manifest against
-a fresh build and fail on any source drift, the same contract the ML
-pipeline applies to `cleaned_data.csv` and `current_roster.json`.
+The manifest (sorted keys, fixed separators, no timestamps; source hashes
+over repo-canonical bytes — CRLF normalized to LF, so the baseline is
+identical regardless of the checkout's line endings) is byte-stable
+across rebuilds and platforms — a CI job can byte-compare the committed
+manifest against a fresh build and fail on any source drift, the same
+contract the ML pipeline applies to `cleaned_data.csv` and
+`current_roster.json`.
 
 ## Row counts (current build)
 

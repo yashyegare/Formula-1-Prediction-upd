@@ -60,11 +60,19 @@ TABLES = [
 
 
 def sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 16), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    """sha256 of the file's REPO-CANONICAL bytes: CRLF is normalized to
+    LF before hashing.
+
+    Git stores LF and checks out LF on Linux CI, but Windows working
+    copies carry CRLF — hashing raw bytes made the committed manifest a
+    per-checkout value and the drift guard fired spuriously across
+    platforms (the exact CI failure that motivated this). The logical
+    content is identical either way, so the hash now is too. Whole-file
+    read (largest source ≈ 10 MB) avoids a '\r\n' straddling a chunk
+    boundary.
+    """
+    raw = path.read_bytes()
+    return hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest()
 
 
 def git_sha() -> str:
