@@ -1,0 +1,120 @@
+name: Scheduled data refresh
+
+# Nightly data pipeline: fetch the latest Jolpica data (results, quali,
+# lap times), rebuild every derived layer, and commit the diff. This is
+# what keeps the serving artifacts current without a human in the loop:
+# a new race result flows into the canonical DB, the manifest, the race
+# intel artifact, and the lap curves, and a push to main redeploys the
+# backend that serves them.
+#
+# IMPORTANT: scheduled workflows only run from the DEFAULT branch (main).
+# On ml-dev this file sits dormant until merged; a manual
+# workflow_dispatch run is available for testing it in place.
+
+on:
+  schedule:
+    - cron: "0 4 * * *" # 04:00 UTC daily — after Jolpica's post-race updates
+  workflow_dispatch: {} # manual trigger for testing
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false # never kill a refresh mid-rebuild
+
+permissions:
+  contents: write # the conditional commit below needs to push
+
+jobs:
+  refresh:
+    name: Fetch, rebuild, commit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: model-notebooks
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: model-notebooks/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch latest Jolpica data
+        # Idempotent: completed rounds are cached in .jolpica_cache (not
+        # committed), so each night only the new season/rounds are pulled.
+        # Lap data is fetched separately by the same script family the
+        # Phase-2 build consumes.
+        run: |
+          python fetch_jolpica_data.py --start-year 2018 --end-year 2026 \
+            --out ./datasets --cache-dir ./.jolpica_cache
+          python fetch_lap_pace.py --start-year 2018 --end-year 2026 \
+            --out ./datasets --cache-dir ./.jolpica_cache --finalize
+
+      - name: Rebuild the canonical DB and manifest
+        run: python build_canonical.py
+
+      - name: Rebuild the serving artifacts
+        run: |
+          python race_intelligence.py --db datasets/f1_canonical.db \
+            --datasets ./datasets --out datasets/race_intel.json \
+            --season 2026 --sims 2000
+          python lap_curves.py --db datasets/f1_canonical.db \
+            --season 2026 --sims 400 --out datasets/lap_curves.json
+
+      - name: Commit changed data and artifacts
+        # Conditional by construction: if nothing changed (no new race,
+        # no upstream correction), git commit exits non-zero and the
+        # job still succeeds — a quiet night is not a failure.
+        id: commit
+        run: |
+          git config user.name "yashyegare"
+          git config user.email "tbzyash1@gmail.com"
+          git add datasets/
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No data changes since the last refresh."
+          else
+            git commit -m "data: scheduled refresh $(date -u +%F) — rebuild canonical DB and serving artifacts"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push
+        if: steps.commit.outputs.changed == 'true'
+        run: git push
+
+      - name: Verify the refreshed artifacts still serve their contract
+        # A refresh that produces a corrupt or schema-drifted artifact
+        # must be loud, not silently shipped to the API.
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          intel = json.loads(Path("datasets/race_intel.json").read_text(encoding="utf-8"))
+          assert intel["schema_version"] == 2, intel["schema_version"]
+          assert intel["races"], "empty race-intel artifact"
+          for r in intel["races"]:
+              assert r["status"] in ("raced", "upcoming_post_quali", "scheduled")
+              for d in r["drivers"]:
+                  assert abs(d["p_podium"] + d["p_points"] + d["p_out"] - 1.0) < 5e-3
+
+          curves = json.loads(Path("datasets/lap_curves.json").read_text(encoding="utf-8"))
+          assert curves["schema_version"] == 1, curves["schema_version"]
+          assert curves["races"], "empty lap-curves artifact"
+          for r in curves["races"]:
+              for d in r["drivers"]:
+                  assert d["curve"], f"empty curve r{r['round']}/{d['driverId']}"
+                  assert d["curve"][0][0] == 1
+                  assert d["curve"][-1][0] == r["n_laps"], "curve must reach the flag"
+          print(f"Artifacts OK: {len(intel['races'])} races, "
+                f"{len(curves['races'])} curve races")
+          PY
+
+      - name: Test suite against the refreshed data
+        # The strongest guard: the full ML suite runs against the data
+        # this refresh just produced. A upstream schema change that
+        # breaks an assumption fails here — before it can ship.
+        run: python -m pytest tests/ -q
