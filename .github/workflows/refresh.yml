@@ -64,30 +64,10 @@ jobs:
           python lap_curves.py --db datasets/f1_canonical.db \
             --season 2026 --sims 400 --out datasets/lap_curves.json
 
-      - name: Commit changed data and artifacts
-        # Conditional by construction: if nothing changed (no new race,
-        # no upstream correction), git commit exits non-zero and the
-        # job still succeeds — a quiet night is not a failure.
-        id: commit
-        run: |
-          git config user.name "yashyegare"
-          git config user.email "tbzyash1@gmail.com"
-          git add datasets/
-          if git diff --cached --quiet; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No data changes since the last refresh."
-          else
-            git commit -m "data: scheduled refresh $(date -u +%F) — rebuild canonical DB and serving artifacts"
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Push
-        if: steps.commit.outputs.changed == 'true'
-        run: git push
-
       - name: Verify the refreshed artifacts still serve their contract
         # A refresh that produces a corrupt or schema-drifted artifact
-        # must be loud, not silently shipped to the API.
+        # must be loud — these gates run BEFORE the commit, so bad data
+        # is never pushed in the first place.
         run: |
           python - <<'PY'
           import json
@@ -115,6 +95,27 @@ jobs:
 
       - name: Test suite against the refreshed data
         # The strongest guard: the full ML suite runs against the data
-        # this refresh just produced. A upstream schema change that
-        # breaks an assumption fails here — before it can ship.
+        # this refresh just produced. An upstream schema change that
+        # breaks an assumption fails here — before anything ships.
         run: python -m pytest tests/ -q
+
+      - name: Commit changed data and artifacts
+        # Conditional by construction: if nothing changed (no new race,
+        # no upstream correction), git commit exits non-zero and the
+        # job still succeeds — a quiet night is not a failure.
+        id: commit
+        run: |
+          git config user.name "yashyegare"
+          git config user.email "tbzyash1@gmail.com"
+          git add datasets/
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No data changes since the last refresh."
+          else
+            git commit -m "data: scheduled refresh $(date -u +%F) — rebuild canonical DB and serving artifacts"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push
+        if: steps.commit.outputs.changed == 'true'
+        run: git push
