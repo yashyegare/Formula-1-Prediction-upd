@@ -7,3 +7,7 @@ pandas
 scikit-learn
 joblib
 requests
+# flask: the race-intelligence API contract tests (test_race_intelligence.py)
+# import the serving blueprint from flask-app/ and exercise it with a real
+# Flask test client — the artifact/simulator code itself stays flask-free.
+flask

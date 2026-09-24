@@ -37,6 +37,10 @@ def main():
     ap.add_argument("--url", default="https://f1-predictor-api-nddf.onrender.com")
     ap.add_argument("--datasets", default="./datasets")
     ap.add_argument("--sleep", type=float, default=0.3, help="seconds between API calls")
+    ap.add_argument("--out", default=None,
+                    help="save the collected predictions to CSV (year, round, race, "
+                         "driver, qpos, pred, actual, base) — the replayable record "
+                         "error_decomposition.py --pred-csv consumes")
     args = ap.parse_args()
 
     results = pd.read_csv(f"{args.datasets}/results.csv")
@@ -113,6 +117,12 @@ def main():
           f"  |  podium recall {pod_recall:.0%}")
     print("Caveat: endpoint serves the CURRENT roster (post-latest-round standings/form),")
     print("so past rounds see future features — sanity check, not a prospective estimate.")
+
+    if args.out:
+        df.to_csv(args.out, index=False)
+        print(f"Prediction record written to {args.out} "
+              f"({len(df)} rows) — decompose it with "
+              f"error_decomposition.py --pred-csv {args.out}")
 
 
 if __name__ == "__main__":

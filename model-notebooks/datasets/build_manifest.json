@@ -1,0 +1,61 @@
+{
+  "canonical": {
+    "dim_circuit": 33,
+    "dim_constructor": 18,
+    "dim_driver": 44,
+    "dim_status": 54,
+    "fact_championship_snapshot": 5687,
+    "fact_lap": 201811,
+    "fact_pit_stop": 6376,
+    "fact_quali_entry": 3694,
+    "fact_race": 196,
+    "fact_race_entry": 3700,
+    "v_driver_race_evidence": 3596,
+    "v_race_entry_outcome": 3700,
+    "v_race_lap_evidence": 11040,
+    "v_race_sc_exposure": 184,
+    "v_running_position_gains": 3602
+  },
+  "sources": {
+    "circuits.csv": {
+      "rows": 33,
+      "sha256": "cfbf02faff19b90d70b50105387f50d0bf9e5f19fca545e477dfc7f3995d3091"
+    },
+    "constructor_standings.csv": {
+      "rows": 1851,
+      "sha256": "22db224b15c3650795270f4f44998341868d66e8f3ad1d187f74412e232bc762"
+    },
+    "constructors.csv": {
+      "rows": 18,
+      "sha256": "181eaa106e428f8bfbfd71bcd7fb7875cc5c84d35b27b5535a6c366f32ec46d9"
+    },
+    "driver_standings.csv": {
+      "rows": 3836,
+      "sha256": "6423de0ce9614922ae380313725881279d7dc49cc33e92e70941ea2ca85b39d1"
+    },
+    "drivers.csv": {
+      "rows": 44,
+      "sha256": "18ffc23cef001451e5cf69c3a37082c5159cd44a4f9da644321d4b3a2c5b3878"
+    },
+    "lap_times_jolpica.csv": {
+      "rows": 201811,
+      "sha256": "9e5f02cb99d488984614229e8ca2f3364dee54fd0a20ef25be742315e1763eb6"
+    },
+    "pit_stops_jolpica.csv": {
+      "rows": 6376,
+      "sha256": "de75930ad195b5ea8e8a63ed0e70c3317dfbc08461d1783ec15a50ffe0f1054c"
+    },
+    "qualifying.csv": {
+      "rows": 3694,
+      "sha256": "4ca00109cddb8406f49a1cd39a311aab76861d7e4fc3e313fa4103dc58f92b41"
+    },
+    "races.csv": {
+      "rows": 196,
+      "sha256": "bc52c4029ad3a8bed0b27077efc5cd3451b5f3e099219463840164654c73ca45"
+    },
+    "results.csv": {
+      "rows": 3700,
+      "sha256": "ba78a9e965aaf16660e7fabec716a928b488b2d9945edfaed0f3f0e1b7f9400c"
+    }
+  }
+}

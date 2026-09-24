@@ -194,6 +194,27 @@ jobs:
             exit 1
           fi
           echo "Serving roster copy matches the canonical build."
+      - name: Guard the canonical data platform manifest
+        # build_manifest.json is the Phase-2 drift-guard baseline: a fresh
+        # build_canonical.py run from the committed raw datasets must
+        # byte-match it (sha256 of every source + row counts of every table
+        # and view; no timestamps or git SHAs by design, so rebuilds are
+        # byte-identical). A diff means raw data was edited, a new season
+        # was fetched, or the schema changed without regenerating the
+        # manifest — exactly the silent-divergence class the ML guards
+        # above catch for cleaned_data.csv.
+        run: |
+          python build_canonical.py \
+            --datasets ./datasets \
+            --db /tmp/canonical_rebuild.db \
+            --manifest /tmp/build_manifest.json
+          if ! cmp -s datasets/build_manifest.json /tmp/build_manifest.json; then
+            echo "::error::datasets/build_manifest.json is stale - a fresh build_canonical.py run from the committed sources no longer matches it."
+            echo "Regenerate locally: cd model-notebooks && python build_canonical.py"
+            diff datasets/build_manifest.json /tmp/build_manifest.json | head -20 || true
+            exit 1
+          fi
+          echo "Canonical data platform manifest matches a fresh build."
 
   dependency-audit:
     name: Dependency Audit
