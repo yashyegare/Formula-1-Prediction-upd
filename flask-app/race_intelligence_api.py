@@ -1,10 +1,12 @@
 """
-race_intelligence_api.py — serve the race-intelligence artifact.
+race_intelligence_api.py — serve the race-intelligence artifacts.
 
 A blueprint (registered by app.py alongside auth and predictions) that
-serves model-notebooks/datasets/race_intel.json — per-race driver
-outcome distributions from the scenario simulator, the derived
-grid-swing insight, and the season attribution summary:
+serves two precomputed model-notebooks/datasets JSON documents:
+race_intel.json — per-race driver outcome distributions from the
+scenario simulator, the derived grid-swing insight, and the season
+attribution summary — and lap_curves.json — the lap-by-lap probability
+evolution for raced rounds (the replay's P(podium) per lap per driver):
 
   GET /api/race-intel/season/<year>          — the full season document
   GET /api/race-intel/race/<year>/<round>    — one race's driver array
@@ -13,19 +15,25 @@ grid-swing insight, and the season attribution summary:
                                                p_points, p_out) tuples
   GET /api/race-intel/next/<year>            — the next_round race
                                                (pre-race view)
+  GET /api/race-intel/curves/<year>/<round>  — lap-by-lap probability
+                                               evolution (raced rounds)
 
 Future rounds carry `status` "upcoming_post_quali" or "scheduled" and
 serve simulated distributions from the best point-in-time grid (real
 quali when the round has qualified, else current championship order) —
 these are PREdictions. Raced rounds carry status "raced" plus the
 per-driver `observed_swing` / `sim_swing_mean` insight — the POST-race
-"why it landed there" view.
+"why it landed there" view — and are the only rounds with lap curves
+(a replay needs the actual chart). Each curves doc carries its own
+per-race `seed` (artifact builder convention 42 + year*100 + round),
+so a client can reproduce the distributions it renders.
 
-The artifact is generated OFFLINE by model-notebooks/race_intelligence.py
-and loaded read-only at request time (no numpy/sklearn in the serving
-path). Failures are explicit: a missing artifact is a 503 with an error
-body, a season/round outside the artifact is a 404 — never a silently
-empty 200.
+Both artifacts are generated OFFLINE (race_intelligence.py /
+lap_curves.py) and loaded read-only at request time (no numpy/sklearn
+in the serving path), each cached by mtime so a rebuild is served
+without restart. Failures are explicit: a missing artifact is a 503
+with an error body, a season/round outside the artifact is a 404 —
+never a silently empty 200.
 """
 
 import json
@@ -35,6 +43,8 @@ from flask import Blueprint, Response, abort, jsonify
 
 ARTIFACT_PATH = Path(__file__).resolve().parents[1] \
     / "model-notebooks" / "datasets" / "race_intel.json"
+CURVES_PATH = Path(__file__).resolve().parents[1] \
+    / "model-notebooks" / "datasets" / "lap_curves.json"
 
 
 class ArtifactUnavailable(Exception):
@@ -43,6 +53,7 @@ class ArtifactUnavailable(Exception):
 
 race_intel_bp = Blueprint("race_intel", __name__)
 _CACHE: dict = {"mtime": None, "doc": None}
+_CURVES_CACHE: dict = {"mtime": None, "doc": None}
 
 
 def _load_artifact() -> dict:
@@ -71,6 +82,35 @@ def _race_doc(year: int, rnd: int) -> dict:
         if race["round"] == rnd:
             return race
     abort(404, description="round not in the race-intel artifact")
+
+
+def _load_curves() -> dict:
+    """Read lap_curves.json, cached by mtime (same contract as the main
+    artifact: a rebuild is picked up without a process restart)."""
+    try:
+        mtime = CURVES_PATH.stat().st_mtime
+    except OSError:
+        _CURVES_CACHE["mtime"] = _CURVES_CACHE["doc"] = None
+        raise ArtifactUnavailable(
+            f"lap_curves.json not found at {CURVES_PATH}. Generate it "
+            "with model-notebooks/lap_curves.py") from None
+    if _CURVES_CACHE["mtime"] != mtime:
+        with open(CURVES_PATH, encoding="utf-8") as f:
+            doc = json.load(f)
+        _CURVES_CACHE["mtime"] = mtime
+        _CURVES_CACHE["doc"] = doc
+    return _CURVES_CACHE["doc"]
+
+
+def _curves_doc(year: int, rnd: int) -> dict:
+    doc = _load_curves()
+    if doc["season"] != year:
+        abort(404, description="no lap-curve artifact for this season")
+    for race in doc["races"]:
+        if race["round"] == rnd:
+            return race
+    abort(404, description="round not in the lap-curve artifact "
+                           "(future rounds have no replay)")
 
 
 @race_intel_bp.errorhandler(ArtifactUnavailable)
@@ -130,3 +170,9 @@ def next_race(year: int):
     if nxt is None:
         abort(404, description="no future rounds remain in this season")
     return jsonify(_race_doc(year, nxt))
+
+
+@race_intel_bp.route("/api/race-intel/curves/<int:year>/<int:rnd>")
+def curves(year: int, rnd: int):
+    """Lap-by-lap probability evolution for one raced round."""
+    return jsonify(_curves_doc(year, rnd))

@@ -60,3 +60,36 @@ def _install_stub_artifact(path) -> None:
         },
     }
     path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+
+
+def _install_stub_curves(path) -> None:
+    """A minimal lap_curves.json sibling: one raced round with two
+    drivers whose curves end concentrated (the replay's contract)."""
+    doc = {
+        "schema_version": 1,
+        "season": 2026,
+        "n_sims": 500,
+        "buckets": 10,
+        "mechanism": {
+            "rem_swing_by_bucket": {"9": {"mean": 0.0, "sd": 4.5},
+                                    "0": {"mean": 0.0, "sd": 1.3}},
+            "fail_rate_by_bucket": {"9": 0.12, "0": 0.007},
+        },
+        "races": [
+            {"year": 2026, "round": 1, "n_laps": 10,
+             "sample_laps": [1, 5, 10],
+             "drivers": [
+                 {"driverId": "hamilton", "final_position": 1,
+                  "curve": [
+                      [1, 0.54, 0.36, 0.10, 4.8],
+                      [5, 0.71, 0.22, 0.07, 3.1],
+                      [10, 1.0, 0.0, 0.0, 1.0]]},
+                 {"driverId": "tsunoda", "final_position": 9,
+                  "curve": [
+                      [1, 0.02, 0.18, 0.80, 8.4],
+                      [5, 0.03, 0.24, 0.73, 8.1],
+                      [10, 0.0, 1.0, 0.0, 9.0]]},
+             ]},
+        ],
+    }
+    path.write_text(json.dumps(doc, indent=2), encoding="utf-8")

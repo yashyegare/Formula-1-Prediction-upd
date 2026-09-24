@@ -4,6 +4,8 @@ Tests for the race-intelligence layer (artifact builder + serving API).
 Pins the contracts:
   - artifact schema v2 (statuses raced/scheduled/next_round, driver
     field completeness, round ordering)
+  - lap-curves artifact (schema v1: per-driver evolution vectors that
+    end concentrated, sample laps bracketing lap 1 and the final lap)
   - determinism: two builds with the same seed are byte-identical
   - distribution sums ≈ 1 per driver; all probabilities in [0, 1]
   - future rounds: no swing insight fields, deterministic championship
@@ -11,7 +13,9 @@ Pins the contracts:
   - attribution numbers agree with error_decomposition.summarize()
   - blueprint serving: 200 shapes for season/races/race/drivers/next,
     explicit 404s for unknown season/round, 503 when the artifact is
-    absent, and hot reload when the artifact is rebuilt
+    absent, hot reload when the artifact is rebuilt — same contracts
+    for the lap-curves artifact (404 for future rounds, 503 when the
+    curves file is missing while the main artifact still serves)
 """
 
 import json
@@ -167,15 +171,19 @@ def test_future_probs_reproduce_simulator():
 
 @pytest.fixture
 def api(tmp_path, monkeypatch):
-    """The blueprint module with a stub artifact wired in, plus a Flask
+    """The blueprint module with stub artifacts wired in, plus a Flask
     app that registers the blueprint exactly like flask-app/app.py does."""
     from flask import Flask
-    from flask_app_stub import _install_stub_artifact
+    from flask_app_stub import _install_stub_artifact, _install_stub_curves
     art = tmp_path / "race_intel.json"
     _install_stub_artifact(art)
+    curves = tmp_path / "lap_curves.json"
+    _install_stub_curves(curves)
     import race_intelligence_api as api_mod
     monkeypatch.setattr(api_mod, "ARTIFACT_PATH", art)
+    monkeypatch.setattr(api_mod, "CURVES_PATH", curves)
     monkeypatch.setattr(api_mod, "_CACHE", {"mtime": None, "doc": None})
+    monkeypatch.setattr(api_mod, "_CURVES_CACHE", {"mtime": None, "doc": None})
     app = Flask(__name__)
     app.register_blueprint(api_mod.race_intel_bp)
     api_mod._test_client = app.test_client  # noqa: SLF001 - test hook
@@ -276,3 +284,67 @@ def test_api_picks_up_rebuilt_artifact(api, tmp_path):
 
     r = client.get("/api/race-intel/season/2026")
     assert r.get_json()["season_attribution"]["accuracy"] == 0.99
+
+
+# ── lap-curves endpoint ──────────────────────────────────────────────────
+
+def test_api_curves_shape(api):
+    client = api._test_client()
+    r = client.get("/api/race-intel/curves/2026/1")
+    assert r.status_code == 200
+    doc = r.get_json()
+    assert doc["round"] == 1 and doc["n_laps"] == 10
+    assert doc["sample_laps"] == [1, 5, 10]
+    ham = next(d for d in doc["drivers"] if d["driverId"] == "hamilton")
+    # curve rows are [lap, p_podium, p_points, p_out, expected_position]
+    assert ham["curve"][0] == [1, 0.54, 0.36, 0.10, 4.8]
+    # the curve ends concentrated (the replay converges by the flag)
+    assert ham["curve"][-1][1:4] == [1.0, 0.0, 0.0]
+
+
+def test_api_curves_404s(api):
+    client = api._test_client()
+    # season mismatch
+    assert client.get("/api/race-intel/curves/2019/1").status_code == 404
+    # raced season, unknown round
+    assert client.get("/api/race-intel/curves/2026/2").status_code == 404
+
+
+def test_api_curves_503_without_curves_artifact(tmp_path, monkeypatch):
+    """race_intel present but lap_curves missing: the curves route is a
+    503 with an error body (never a silently empty 200), while the main
+    routes keep working."""
+    from flask import Flask
+    from flask_app_stub import _install_stub_artifact
+    import race_intelligence_api as api_mod
+    art = tmp_path / "race_intel.json"
+    _install_stub_artifact(art)
+    monkeypatch.setattr(api_mod, "ARTIFACT_PATH", art)
+    monkeypatch.setattr(api_mod, "CURVES_PATH", tmp_path / "missing.json")
+    monkeypatch.setattr(api_mod, "_CACHE", {"mtime": None, "doc": None})
+    monkeypatch.setattr(api_mod, "_CURVES_CACHE", {"mtime": None, "doc": None})
+    app = Flask(__name__)
+    app.register_blueprint(api_mod.race_intel_bp)
+    client = app.test_client()
+    r = client.get("/api/race-intel/curves/2026/1")
+    assert r.status_code == 503
+    assert "lap_curves.json not found" in r.get_json()["error"]
+    assert client.get("/api/race-intel/season/2026").status_code == 200
+
+
+def test_api_curves_hot_reload(api, tmp_path):
+    """A rebuilt curves artifact (new mtime) is served without restart."""
+    from flask_app_stub import _install_stub_curves
+    curves = tmp_path / "lap_curves.json"
+    _install_stub_curves(curves)
+    api._CURVES_CACHE["mtime"] = None
+    client = api._test_client()
+    assert client.get("/api/race-intel/curves/2026/1").status_code == 200
+
+    doc = json.loads(curves.read_text(encoding="utf-8"))
+    doc["races"][0]["drivers"][0]["curve"][0][1] = 0.99
+    curves.write_text(json.dumps(doc), encoding="utf-8")
+    r = client.get("/api/race-intel/curves/2026/1")
+    ham = next(d for d in r.get_json()["drivers"]
+               if d["driverId"] == "hamilton")
+    assert ham["curve"][0][1] == 0.99
