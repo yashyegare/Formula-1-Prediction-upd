@@ -37,6 +37,7 @@ never a silently empty 200.
 """
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import Blueprint, Response, abort, jsonify
@@ -45,6 +46,8 @@ ARTIFACT_PATH = Path(__file__).resolve().parents[1] \
     / "model-notebooks" / "datasets" / "race_intel.json"
 CURVES_PATH = Path(__file__).resolve().parents[1] \
     / "model-notebooks" / "datasets" / "lap_curves.json"
+LIVE_PATH = Path(__file__).resolve().parents[1] \
+    / "model-notebooks" / "datasets" / "live_state.json"
 
 
 class ArtifactUnavailable(Exception):
@@ -54,6 +57,7 @@ class ArtifactUnavailable(Exception):
 race_intel_bp = Blueprint("race_intel", __name__)
 _CACHE: dict = {"mtime": None, "doc": None}
 _CURVES_CACHE: dict = {"mtime": None, "doc": None}
+_LIVE_CACHE: dict = {"mtime": None, "doc": None}
 
 
 def _load_artifact() -> dict:
@@ -176,3 +180,86 @@ def next_race(year: int):
 def curves(year: int, rnd: int):
     """Lap-by-lap probability evolution for one raced round."""
     return jsonify(_curves_doc(year, rnd))
+
+
+def _load_live() -> dict:
+    """Read live_state.json, cached by mtime (same contract as the other
+    artifacts: the refresh workflow rewrites it, this picks it up)."""
+    try:
+        mtime = LIVE_PATH.stat().st_mtime
+    except OSError:
+        _LIVE_CACHE["mtime"] = _LIVE_CACHE["doc"] = None
+        raise ArtifactUnavailable(
+            f"live_state.json not found at {LIVE_PATH}. Generate it with "
+            "model-notebooks/live_race.py") from None
+    if _LIVE_CACHE["mtime"] != mtime:
+        with open(LIVE_PATH, encoding="utf-8") as f:
+            doc = json.load(f)
+        _LIVE_CACHE["mtime"] = mtime
+        _LIVE_CACHE["doc"] = doc
+    return _LIVE_CACHE["doc"]
+
+
+def _is_stale(doc: dict) -> bool:
+    """A snapshot older than its own declared staleness window is marked
+    `is_stale: true` — never silently served as fresh."""
+    try:
+        fetched = datetime.strptime(
+            doc["fetched_at"], "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=timezone.utc)
+        age_min = (datetime.now(timezone.utc) - fetched).total_seconds() / 60
+        return age_min > doc.get("stale_after_min", 45)
+    except (KeyError, ValueError):
+        return True
+
+
+@race_intel_bp.route("/api/race-intel/live")
+def live():
+    doc = _load_live()
+    out = dict(doc)
+    out["is_stale"] = _is_stale(doc)
+    return jsonify(out)
+
+
+@race_intel_bp.route("/api/race-intel/curves/<int:year>/driver/<driver_id>")
+def driver_curves(year: int, driver_id: str):
+    """Per-driver deep-dive: one driver's lap-by-lap probability
+    evolution across EVERY raced round of the season, plus their final
+    classification per round and display metadata (code/surname from the
+    race-intel artifact, which is the only place they live)."""
+    curves_doc = _load_curves()
+    if curves_doc["season"] != year:
+        abort(404, description="no lap-curve artifact for this season")
+    intel = _load_artifact()
+
+    code = surname = ""
+    races = []
+    for race in curves_doc["races"]:
+        for d in race["drivers"]:
+            if d["driverId"] == driver_id:
+                races.append({
+                    "round": race["round"],
+                    "n_laps": race["n_laps"],
+                    "sample_laps": race["sample_laps"],
+                    "final_position": d["final_position"],
+                    "curve": d["curve"],
+                })
+                break
+    if not races:
+        abort(404, description=
+            f"driver '{driver_id}' has no lap curves this season")
+    for race in intel.get("races", []):
+        for d in race.get("drivers", []):
+            if d["driverId"] == driver_id:
+                code, surname = d.get("driverCode", ""), d.get("surname", "")
+                break
+        if code:
+            break
+
+    return jsonify({
+        "season": year,
+        "driverId": driver_id,
+        "driverCode": code,
+        "surname": surname,
+        "races": races,
+    })

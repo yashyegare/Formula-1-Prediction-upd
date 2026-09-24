@@ -348,3 +348,32 @@ def test_api_curves_hot_reload(api, tmp_path):
     ham = next(d for d in r.get_json()["drivers"]
                if d["driverId"] == "hamilton")
     assert ham["curve"][0][1] == 0.99
+
+
+def test_api_driver_curves(api):
+    """Per-driver deep-dive: every raced round's curve for one driver,
+    with display metadata resolved from the race-intel artifact."""
+    client = api._test_client()
+    r = client.get("/api/race-intel/curves/2026/driver/hamilton")
+    assert r.status_code == 200
+    doc = r.get_json()
+    assert doc["season"] == 2026 and doc["driverId"] == "hamilton"
+    assert doc["driverCode"] == "HAM" and doc["surname"] == "Hamilton"
+    assert len(doc["races"]) == 1  # the stub has one raced round
+    race = doc["races"][0]
+    assert race["round"] == 1 and race["n_laps"] == 10
+    assert race["final_position"] == 1
+    assert race["curve"][-1][1:4] == [1.0, 0.0, 0.0]
+
+
+def test_api_driver_curves_404s(api):
+    client = api._test_client()
+    # driver exists in race-intel but never raced (scheduled round only)
+    assert client.get(
+        "/api/race-intel/curves/2026/driver/verstappen").status_code == 404
+    # unknown driver
+    assert client.get(
+        "/api/race-intel/curves/2026/driver/nobody").status_code == 404
+    # unknown season
+    assert client.get(
+        "/api/race-intel/curves/2019/driver/hamilton").status_code == 404

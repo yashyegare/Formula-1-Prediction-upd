@@ -69,3 +69,7 @@ flask-app/seed_log*.txt
 # lap-pace fetch: fragments are rebuilt by fetch_lap_pace.py --finalize; only the final CSVs get committed
 model-notebooks/datasets/*_fragments/
 model-notebooks/.lap_pace_fetch.log*
+
+# live race-day snapshot: runtime state, regenerated on a cadence by
+# live_race.py on whatever host refreshes it — never committed
+model-notebooks/datasets/live_state.json
