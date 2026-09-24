@@ -176,3 +176,47 @@ def next_race(year: int):
 def curves(year: int, rnd: int):
     """Lap-by-lap probability evolution for one raced round."""
     return jsonify(_curves_doc(year, rnd))
+
+
+@race_intel_bp.route("/api/race-intel/curves/<int:year>/driver/<driver_id>")
+def driver_curves(year: int, driver_id: str):
+    """Per-driver deep-dive: one driver's lap-by-lap probability
+    evolution across EVERY raced round of the season, plus their final
+    classification per round and display metadata (code/surname from the
+    race-intel artifact, which is the only place they live)."""
+    curves_doc = _load_curves()
+    if curves_doc["season"] != year:
+        abort(404, description="no lap-curve artifact for this season")
+    intel = _load_artifact()
+
+    code = surname = ""
+    races = []
+    for race in curves_doc["races"]:
+        for d in race["drivers"]:
+            if d["driverId"] == driver_id:
+                races.append({
+                    "round": race["round"],
+                    "n_laps": race["n_laps"],
+                    "sample_laps": race["sample_laps"],
+                    "final_position": d["final_position"],
+                    "curve": d["curve"],
+                })
+                break
+    if not races:
+        abort(404, description=
+            f"driver '{driver_id}' has no lap curves this season")
+    for race in intel.get("races", []):
+        for d in race.get("drivers", []):
+            if d["driverId"] == driver_id:
+                code, surname = d.get("driverCode", ""), d.get("surname", "")
+                break
+        if code:
+            break
+
+    return jsonify({
+        "season": year,
+        "driverId": driver_id,
+        "driverCode": code,
+        "surname": surname,
+        "races": races,
+    })

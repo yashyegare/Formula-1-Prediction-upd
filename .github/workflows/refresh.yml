@@ -119,3 +119,38 @@ jobs:
       - name: Push
         if: steps.commit.outputs.changed == 'true'
         run: git push
+
+      - name: Notify on committed refresh
+        # A scheduled push SHIPS new artifacts. Silence would hide a bad
+        # night until someone looks; the webhook makes it a notification.
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          WEBHOOK_URL: ${{ secrets.DEPLOY_NOTIFICATION_WEBHOOK }}
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "::warning::DEPLOY_NOTIFICATION_WEBHOOK not set - refresh notification skipped."
+            exit 0
+          fi
+          MSG=$(printf ':arrows_counterclockwise: Data refresh committed for %s\nRepo: %s\nRun: %s' \
+            "$(date -u +%F)" "${{ github.repository }}" \
+            "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}")
+          MSG="$MSG" python3 -c 'import json, os; print(json.dumps({"text": os.environ["MSG"]}))' > /tmp/payload.json
+          curl -s -X POST -H 'Content-Type: application/json' -d @/tmp/payload.json "$WEBHOOK_URL" > /dev/null || \
+            echo "::warning::Notification webhook POST failed (refresh commit already shipped)"
+
+      - name: Notify on failure
+        # The body skips gracefully when the webhook secret is unset.
+        if: failure()
+        env:
+          WEBHOOK_URL: ${{ secrets.DEPLOY_NOTIFICATION_WEBHOOK }}
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "::warning::DEPLOY_NOTIFICATION_WEBHOOK not set - failure notification skipped."
+            exit 0
+          fi
+          MSG=$(printf ':x: Scheduled data refresh FAILED for %s\nRun: %s\nThe serving artifacts keep the last known-good state.' \
+            "${{ github.repository }}" \
+            "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}")
+          MSG="$MSG" python3 -c 'import json, os; print(json.dumps({"text": os.environ["MSG"]}))' > /tmp/payload.json
+          curl -s -X POST -H 'Content-Type: application/json' -d @/tmp/payload.json "$WEBHOOK_URL" > /dev/null || \
+            echo "::warning::Notification webhook POST failed (failure already logged)"

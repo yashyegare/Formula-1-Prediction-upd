@@ -100,6 +100,20 @@ function swingColor(s: number | null | undefined): string {
 
 type CurveMetric = "podium" | "points" | "out";
 
+interface DriverCurvesDoc {
+  season: number;
+  driverId: string;
+  driverCode: string;
+  surname: string;
+  races: Array<{
+    round: number;
+    n_laps: number;
+    sample_laps: number[];
+    final_position: number | null;
+    curve: CurvePoint[];
+  }>;
+}
+
 const CURVE_METRIC: Record<
   CurveMetric,
   { idx: 1 | 2 | 3; label: string }
@@ -204,6 +218,8 @@ const RaceIntelPage: NextPage = () => {
   const [curves, setCurves] = useState<LapCurvesDoc["races"][number] | null>(null);
   const [curvesMetric, setCurvesMetric] = useState<CurveMetric>("podium");
   const [highlight, setHighlight] = useState<string | null>(null);
+  const [profile, setProfile] = useState<string | null>(null);
+  const [profileCurves, setProfileCurves] = useState<DriverCurvesDoc | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -271,6 +287,32 @@ const RaceIntelPage: NextPage = () => {
       cancelled = true;
     };
   }, [race]);
+
+  // driver deep-dive: season-wide curve traces for the selected profile
+  useEffect(() => {
+    if (!profile || !season) {
+      setProfileCurves(null);
+      return;
+    }
+    let cancelled = false;
+    setProfileCurves(null);
+    fetch(
+      `${NEXT_PUBLIC_API_URL}/api/race-intel/curves/${season.season}/driver/${profile}`,
+    )
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return (await res.json()) as DriverCurvesDoc;
+      })
+      .then((doc) => {
+        if (!cancelled) setProfileCurves(doc);
+      })
+      .catch(() => {
+        if (!cancelled) setProfileCurves(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile, season]);
 
   return (
     <>
@@ -411,7 +453,13 @@ const RaceIntelPage: NextPage = () => {
                           key={d.driverId}
                           onMouseEnter={() => setHighlight(d.driverId)}
                           onMouseLeave={() => setHighlight(null)}
-                          className="border-b border-zinc-900 last:border-0 hover:bg-zinc-900/40 cursor-default"
+                          onClick={() =>
+                            setProfile(profile === d.driverId ? null : d.driverId)
+                          }
+                          className={[
+                            "border-b border-zinc-900 last:border-0 hover:bg-zinc-900/40 cursor-pointer",
+                            profile === d.driverId ? "bg-red-950/20" : "",
+                          ].join(" ")}
                         >
                           <td className="px-4 py-2.5 font-mono text-zinc-400">
                             P{d.grid}
@@ -533,6 +581,63 @@ const RaceIntelPage: NextPage = () => {
                       Lap curves unavailable for this round.
                     </p>
                   )}
+                </section>
+              )}
+
+              {/* driver deep-dive panel */}
+              {profile && (
+                <section className="mt-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-zinc-200">
+                      {profileCurves?.driverCode ?? ""} {profileCurves?.surname ?? profile}
+                      {" "}
+                      — season replay
+                    </h3>
+                    <button
+                      onClick={() => setProfile(null)}
+                      className="text-xs text-zinc-500 hover:text-zinc-300"
+                    >
+                      close
+                    </button>
+                  </div>
+                  {profileCurves ? (
+                    <div className="flex flex-wrap gap-3">
+                      {profileCurves.races.map((r) => {
+                        const pts = r.curve
+                          .map((pt) => `${(pt[0] / r.n_laps) * 100},${(1 - pt[1]) * 100}`)
+                          .join(" ");
+                        return (
+                          <div key={r.round} className="w-28">
+                            <svg viewBox="0 0 100 100" className="w-full" role="img"
+                              aria-label={`Round ${r.round} P(podium) trace`}>
+                              <line x1="0" y1="100" x2="100" y2="100" stroke="#27272a" strokeWidth="1" />
+                              <polyline points={pts} fill="none" stroke="#f59e0b" strokeWidth="3" />
+                            </svg>
+                            <p className="mt-1 text-center text-[10px] text-zinc-500">
+                              R{r.round}
+                              {r.final_position ? (
+                                <span className={
+                                  r.final_position <= 3
+                                    ? " text-emerald-400"
+                                    : r.final_position <= 10
+                                      ? " text-zinc-300"
+                                      : " text-rose-400"
+                                }>
+                                  {" "}P{r.final_position}
+                                </span>
+                              ) : (
+                                <span className="text-rose-400"> DNF</span>
+                              )}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="py-6 text-center text-xs text-zinc-500">
+                      Loading season traces…
+                    </p>
+                    )}
                 </section>
               )}
 
