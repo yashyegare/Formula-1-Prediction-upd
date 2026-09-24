@@ -49,6 +49,30 @@ interface RaceIntelSeason {
   };
 }
 
+/* ── lap-curve replay doc — mirror flask-app/lap_curves.json schema v1 ── */
+
+type CurvePoint = [lap: number, pPodium: number, pPoints: number, pOut: number, expectedPos: number];
+
+interface LapCurveDriver {
+  driverId: string;
+  driverCode?: string;
+  surname?: string;
+  final_position: number | null;
+  curve: CurvePoint[];
+}
+
+interface LapCurvesDoc {
+  season: number;
+  n_sims: number;
+  races: Array<{
+    year: number;
+    round: number;
+    n_laps: number;
+    sample_laps: number[];
+    drivers: LapCurveDriver[];
+  }>;
+}
+
 const STATUS_LABEL: Record<RaceIntelRace["status"], string> = {
   raced: "Raced",
   upcoming_post_quali: "Post-quali",
@@ -74,6 +98,100 @@ function swingColor(s: number | null | undefined): string {
   return s > 0 ? "text-emerald-400" : s < 0 ? "text-rose-400" : "text-zinc-400";
 }
 
+type CurveMetric = "podium" | "points" | "out";
+
+const CURVE_METRIC: Record<
+  CurveMetric,
+  { idx: 1 | 2 | 3; label: string }
+> = {
+  podium: { idx: 1, label: "P(podium)" },
+  points: { idx: 2, label: "P(points)" },
+  out: { idx: 3, label: "P(out)" },
+};
+
+const CURVE_COLORS = [
+  "#f59e0b", "#34d399", "#60a5fa", "#f472b6", "#a78bfa",
+  "#f87171", "#22d3ee", "#facc15",
+];
+
+const W = 600;
+const H = 220;
+const PAD = 10;
+
+function ReplayChart({
+  doc,
+  metric,
+  highlight,
+}: {
+  doc: NonNullable<LapCurvesDoc["races"][number]>;
+  metric: CurveMetric;
+  highlight: string | null;
+}) {
+  const mi = CURVE_METRIC[metric].idx;
+  const shown = doc.drivers.slice(0, 8);
+  const x = (lap: number) => PAD + (lap / doc.n_laps) * (W - 2 * PAD);
+  const y = (p: number) => PAD + (1 - p) * (H - 2 * PAD);
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H + 22}`}
+      className="w-full"
+      role="img"
+      aria-label={`${CURVE_METRIC[metric].label} by lap`}
+    >
+      {/* horizontal gridlines: 0, 25, 50, 75, 100% */}
+      {[0, 0.25, 0.5, 0.75, 1].map((p) => (
+        <g key={p}>
+          <line
+            x1={PAD}
+            x2={W - PAD}
+            y1={y(p)}
+            y2={y(p)}
+            stroke="#27272a"
+            strokeWidth={p === 0 || p === 1 ? 1 : 0.5}
+          />
+          <text x={2} y={y(p) + 3} fill="#71717a" fontSize={9}>
+            {p * 100}%
+          </text>
+        </g>
+      ))}
+      {/* lap ticks */}
+      {doc.sample_laps.map((lap) => (
+        <text
+          key={lap}
+          x={x(lap)}
+          y={H + 14}
+          fill="#71717a"
+          fontSize={9}
+          textAnchor="middle"
+        >
+          L{lap}
+        </text>
+      ))}
+      {/* one polyline per driver; the highlighted driver renders last
+          (on top) and thicker */}
+      {shown
+        .slice()
+        .sort((a) => (a.driverId === highlight ? 1 : -1))
+        .map((d, i) => {
+          const pts = d.curve
+            .map((pt) => `${x(pt[0])},${y(pt[mi])}`)
+            .join(" ");
+          const isHi = d.driverId === highlight;
+          return (
+            <polyline
+              key={d.driverId}
+              points={pts}
+              fill="none"
+              stroke={CURVE_COLORS[i % CURVE_COLORS.length]}
+              strokeWidth={isHi ? 3 : 1.5}
+              opacity={highlight && !isHi ? 0.35 : 1}
+            />
+          );
+        })}
+    </svg>
+  );
+}
+
 /* ═══════════════════════════════════════════════
    PAGE
    ═══════════════════════════════════════════════ */
@@ -83,6 +201,9 @@ const RaceIntelPage: NextPage = () => {
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [curves, setCurves] = useState<LapCurvesDoc["races"][number] | null>(null);
+  const [curvesMetric, setCurvesMetric] = useState<CurveMetric>("podium");
+  const [highlight, setHighlight] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,6 +245,31 @@ const RaceIntelPage: NextPage = () => {
     return [...race.drivers].sort(
       (a, b) => a.expected_position - b.expected_position,
     );
+  }, [race]);
+
+  // raced rounds get their replay curves (the /curves artifact)
+  useEffect(() => {
+    if (!race || race.status !== "raced") {
+      setCurves(null);
+      return;
+    }
+    let cancelled = false;
+    setCurves(null);
+    setHighlight(null);
+    fetch(`${NEXT_PUBLIC_API_URL}/api/race-intel/curves/${race.year}/${race.round}`)
+      .then(async (res) => {
+        if (!res.ok) return null; // future round or artifact absent: no chart
+        return (await res.json()) as LapCurvesDoc["races"][number];
+      })
+      .then((doc) => {
+        if (!cancelled) setCurves(doc);
+      })
+      .catch(() => {
+        if (!cancelled) setCurves(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [race]);
 
   return (
@@ -263,7 +409,9 @@ const RaceIntelPage: NextPage = () => {
                       {drivers.map((d) => (
                         <tr
                           key={d.driverId}
-                          className="border-b border-zinc-900 last:border-0 hover:bg-zinc-900/40"
+                          onMouseEnter={() => setHighlight(d.driverId)}
+                          onMouseLeave={() => setHighlight(null)}
+                          className="border-b border-zinc-900 last:border-0 hover:bg-zinc-900/40 cursor-default"
                         >
                           <td className="px-4 py-2.5 font-mono text-zinc-400">
                             P{d.grid}
@@ -341,6 +489,51 @@ const RaceIntelPage: NextPage = () => {
                     </tbody>
                   </table>
                 </div>
+              )}
+
+              {/* lap-by-lap replay (raced rounds only) */}
+              {race?.status === "raced" && (
+                <section className="mt-8 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-200">
+                        Race replay — how the probabilities moved
+                      </h3>
+                      <p className="mt-0.5 text-xs text-zinc-500 max-w-xl">
+                        The scenario simulator rerun at every sampled lap of the
+                        actual race, conditioned on the running order as it
+                        stood. Hover a driver row to trace their line.
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      {(Object.keys(CURVE_METRIC) as CurveMetric[]).map((m) => (
+                        <button
+                          key={m}
+                          onClick={() => setCurvesMetric(m)}
+                          className={[
+                            "rounded-md px-2.5 py-1 text-xs font-medium border transition-colors",
+                            curvesMetric === m
+                              ? "border-red-500 bg-red-600/20 text-red-300"
+                              : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600",
+                          ].join(" ")}
+                        >
+                          {CURVE_METRIC[m].label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {curves ? (
+                    <ReplayChart
+                      doc={curves}
+                      metric={curvesMetric}
+                      highlight={highlight}
+                    />
+                  ) : (
+                    <p className="py-6 text-center text-xs text-zinc-500">
+                      Lap curves unavailable for this round.
+                    </p>
+                  )}
+                </section>
               )}
 
               {/* season attribution footer */}
