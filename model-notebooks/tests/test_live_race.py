@@ -71,9 +71,85 @@ class TestRunningOrder:
 
 # ── snapshot builder (mocked OpenF1, real DB fits) ───────────────────────
 
+def _build_canonical_db(tmp_path) -> str:
+    """A minimal but schema-true canonical DB so the snapshot builder's
+    full path (code map, roster, fits, laps estimate) runs hermetically.
+    CI has no built f1_canonical.db — it is a gitignored build artifact —
+    so DB-backed tests either gate on its presence (REAL, below) or use
+    this. Three drivers, two seasons of laps so the fits have data."""
+    import sqlite3
+
+    schema = Path(__file__).resolve().parents[1] / "canonical_schema.sql"
+    db = str(tmp_path / "mini_canonical.db")
+    con = sqlite3.connect(db)
+    con.executescript(schema.read_text(encoding="utf-8"))
+    pd.DataFrame([
+        ("russell", "russell", "RUS", "George", "Russell", None, None),
+        ("verappen", "max_verstappen", "VER", "Max", "Verstappen",
+         None, None),
+        ("norris", "norris", "NOR", "Lando", "Norris", None, None),
+    ], columns=["driverId", "driverRef", "code", "forename", "surname",
+                "dob", "nationality"]).to_sql(
+        "dim_driver", con, if_exists="append", index=False)
+    pd.DataFrame([("bak", "Baku City Circuit", "Baku", "Azerbaijan",
+                   None, None)],
+                 columns=["circuitId", "name", "location", "country",
+                          "lat", "lng"]).to_sql(
+        "dim_circuit", con, if_exists="append", index=False)
+    pd.DataFrame([(1, "Finished", 0, None), (2, "Engine", 1, "mech")],
+                 columns=["statusId", "status", "is_dnf",
+                          "dnf_cause"]).to_sql(
+        "dim_status", con, if_exists="append", index=False)
+    pd.DataFrame([("merc", "Mercedes", "German"),
+                  ("rbr", "Red Bull", "Austrian"),
+                  ("mcl", "McLaren", "British")],
+                 columns=["constructorId", "name",
+                          "nationality"]).to_sql(
+        "dim_constructor", con, if_exists="append", index=False)
+    pd.DataFrame([
+        (2025, 1, "bak", "Azerbaijan Grand Prix", None, None),
+        (2026, 1, "bak", "Azerbaijan Grand Prix", None, None),
+    ], columns=["year", "round", "circuitId", "name", "date",
+                "time"]).to_sql("fact_race", con, if_exists="append",
+                                index=False)
+    # roster rows for the current season: retirements are detected by
+    # subtracting the live runners from THIS set
+    pd.DataFrame([
+        (2025, 1, "russell", "merc", 1, 1, 1, 25.0, 30, 1, 0, None),
+        (2025, 1, "verappen", "rbr", 2, 2, 2, 18.0, 30, 1, 0, None),
+        (2025, 1, "norris", "mcl", 3, None, None, 0.0, 3, 2, 1, "mech"),
+        (2026, 1, "russell", "merc", 1, 1, 1, 25.0, 30, 1, 0, None),
+        (2026, 1, "verappen", "rbr", 2, 2, 2, 18.0, 30, 1, 0, None),
+        (2026, 1, "norris", "mcl", 3, None, None, 0.0, 3, 2, 1, "mech"),
+    ], columns=["year", "round", "driverId", "constructorId", "grid",
+                "position", "positionOrder", "points", "laps",
+                "statusId", "is_dnf", "dnf_cause"]).to_sql(
+        "fact_race_entry", con, if_exists="append", index=False)
+    # lap charts: everyone runs lap 1; norris retires after lap 3. All
+    # laps identical -> no slow-lap flags, and the remaining-swing fit
+    # sees zero variance (degenerate but valid; tiny buckets fall back
+    # to the global parameters by design).
+    lap_rows = []
+    for year in (2025, 2026):
+        for lap in range(1, 31):
+            for did, pos in (("russell", 1.0), ("verappen", 2.0),
+                             ("norris", 3.0)):
+                if did == "norris" and lap > 3:
+                    continue
+                lap_rows.append((year, 1, lap, did, pos, None, 90000.0))
+    pd.DataFrame(lap_rows, columns=["year", "round", "lap", "driverId",
+                                    "position", "time_str",
+                                    "milliseconds"]).to_sql(
+        "fact_lap", con, if_exists="append", index=False)
+    con.commit()
+    con.close()
+    return db
+
+
 @pytest.fixture
-def real_db():
-    return str(DB)
+def real_db(tmp_path):
+    """Hermetic canonical DB — never the developer-local build artifact."""
+    return _build_canonical_db(tmp_path)
 
 
 def _mock_live(session_type="Race", positions=None, location="Baku"):
