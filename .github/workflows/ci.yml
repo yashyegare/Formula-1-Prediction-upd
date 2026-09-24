@@ -292,11 +292,14 @@ jobs:
             echo "::warning::API reflects foreign origins on /roster - allowlist bypassed"
             exit 1
           fi
-          # 2) Both deployed frontends MUST stay allowlisted - a missing origin
+          # 2) All deployed frontends MUST stay allowlisted - a missing origin
           #    silently breaks that app's browser requests (roster/predictions).
+          #    The race-intel dashboard is deployed at the bare domain AND the
+          #    -fxzg deployment alias; both must stay allowlisted.
           for origin in \
             https://nextjs-app-yashyegare.vercel.app \
-            https://formula-1-prediction-upd-fxzg.vercel.app; do
+            https://formula-1-prediction-upd-fxzg.vercel.app \
+            https://formula-1-prediction-upd.vercel.app; do
             if ! curl -s -D - -o /dev/null --max-time 30 -H "Origin: $origin" "$API/roster" \
                  | grep -qi "access-control-allow-origin: $origin"; then
               echo "::warning::$origin missing from live CORS allowlist"
