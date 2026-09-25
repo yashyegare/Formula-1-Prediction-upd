@@ -138,6 +138,64 @@ explicitly on every run for that reason.
      DNF-cause split (#7), circuit type (#8), lap-pace + pit stops
      (#9). 13 features is the final contract.
 
+### 10. Phase-5 accuracy program: momentum, per-circuit history, calibration, blend (2026-09-25)
+
+Re-opened the feature program one more time for the four named levers of
+the Phase-5 plan, with the same pre-registered discipline:
+
+- **`driver_form_momentum`** — the slope (mean first-difference) of the
+  driver's grid→finish delta over the strictly prior ≤5 races. The level
+  feature says how well the driver is racing; the slope says which way
+  the trend is moving (upgrade trajectories, confidence swings).
+- **`driver_track_form_delta`** — the driver's mean CLASSIFIED finish at
+  this GP over prior visits minus their mean classified finish overall:
+  strictly the circuit-specific residual (Monaco-2026 evidence: quali
+  P10 → won). DNFs skipped symmetrically in both means; neutral prior
+  below `MIN_TRACK_VISITS=2` prior classified visits at the GP — the RF
+  splits on the threshold, so a fabricated neutral for real visits would
+  blur exactly the signal the feature exists to carry.
+- **Tyre age / compound** — a recorded non-starter: the pit-stops feed
+  carries no compound or stint data and Jolpica does not serve tyre
+  fields, so the feature cannot be built from this data at any price.
+- **Probability calibration** — Platt scaling and per-class isotonic on
+  5-fold out-of-fold training probabilities, fit per walk-forward fold,
+  test year never touched.
+
+**Feature ablation (seed-swept walk-forward, identical splits, 4 seeds):**
+prod13 66.3%±0.3 (LL 0.755) → +momentum 66.4%±0.1 (0.753) → +trackdelta
+66.2%±0.2 (0.755) → +both 66.4%±0.2 (0.753). All within ±0.3pt noise: a
+**null**, matching the pattern of #7-#9. Both features stay computed in
+`build_training_data.py` and pinned by tests; the serving `FEATURES`
+contract stays at 13. Not redundant — corr(momentum, form level) is only
+0.25 — just no marginal signal beyond what `quali_pos` already encodes.
+Mechanism re-confirmed: with the expanded set, `quali_pos` carries **0.53**
+of total importance (it was 44-50% pre-#4); the model remains a
+qualifying-position reader at heart.
+
+**Calibration verdict: rejected, actively harmful.** Raw RF 0.753 LL →
+Platt 0.766, isotonic 0.813 (Brier likewise worse). The RF's native
+probabilities (400-tree vote averaging) are already better calibrated
+than any calibrator this data volume can fit — the layer only added
+estimation error.
+
+**The one live lead — RF/simulator complementarity (unadopted).** On the
+2026 raced rounds (n=217 joined to the race-intel artifact): RF LL
+0.720, simulator 0.707, and the two models' argmax picks agree only
+**90.3%** of the time — they are differently wrong, not differently
+calibrated versions of the same opinion. A 0.3-weight simulator blend
+measures LL 0.698. This is one season (217 rows), the blend weight is
+unregularized, and the serving path (the API already ships the
+simulator's distributions) would need designing — so it is recorded as
+candidate experiment #11, NOT adopted. If pursued, the honest protocol
+is the same: pre-registered weight grid, seed-swept walk-forward over
+all seasons, decision on mean±std.
+
+**Feature program closed, second and final time.** Eight independent
+angles now measure the same ceiling (#3, #4, #5, #7, #8, #9, and #10's
+two). The remaining upside in this platform is not another column in
+cleaned_data.csv — it is the complementarity between the two models the
+platform already serves.
+
 ## Why the ceiling sits where it sits
 
 Three independent lines of evidence:

@@ -252,6 +252,10 @@ class TestLeakageFix:
             "driver_champ_pos", "driver_champ_points_ratio",
             "constructor_champ_pos", "constructor_champ_points_ratio",
             "driver_recent_form", "constructor_recent_form",
+            # Phase-5 experiment features: computed and exported (they are
+            # part of the training-frame contract) but excluded from the
+            # serving FEATURES list after their null verdict (MODEL_NOTES #10).
+            "driver_form_momentum", "driver_track_form_delta",
             "lap_pace_delta_s", "constructor_pit_time_s",
             "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
             "is_street_circuit",
@@ -638,3 +642,126 @@ class TestTrainModelEndToEnd:
         }])
         preds = model.predict(row)
         assert preds[0] in (1, 2, 3)  # the three buckets the frontend renders
+
+
+# ── Phase-5 features: momentum + per-circuit history ─────────────────────
+
+class TestPhase5Features:
+    """The two Phase-5 feature builders, pinned at exact values. Both are
+    strictly-prior (a race's own result never enters its own feature) and
+    both fall back to a neutral prior below their minimum-history
+    thresholds — the RF splits on those thresholds, so a fabricated
+    neutral for real history would blur the signal."""
+
+    @staticmethod
+    def _results(rows):
+        return pd.DataFrame(rows, columns=[
+            "year", "round", "driverName", "position"])
+
+    @staticmethod
+    def _races(circuits):
+        return pd.DataFrame(circuits, columns=[
+            "year", "round", "circuitId"])
+
+    def test_momentum_is_prior_slope_of_delta_series(self, tmp_path, monkeypatch):
+        """Momentum = mean first-difference of the grid->finish delta over
+        the strictly prior series. Alice's per-race deltas: +2, +3, +8 ->
+        diffs +1, +5. Round 3 (deltas +2,+3 available) momentum = +1.0
+        (own +8 excluded); round 4 = +3.0 (mean of +1,+5). Rounds 1-2 get
+        the prior: 1 race has no slope, and round 2 must not see its own
+        +3."""
+        monkeypatch.chdir(tmp_path)
+        res = self._results([
+            (2026, 1, "Alice", 1), (2026, 2, "Alice", 1),
+            (2026, 3, "Alice", 1), (2026, 4, "Alice", 1),
+        ])
+        res["quali_pos"] = [3, 4, 9, 12]  # deltas +2, +3, +8, (P11 finish)
+        res["position"] = [1, 1, 1, 1]
+        mom = build_training_data._driver_form_momentum(res)
+        assert mom.iloc[0] == pytest.approx(build_training_data.MOMENTUM_PRIOR)
+        assert mom.iloc[1] == pytest.approx(build_training_data.MOMENTUM_PRIOR)
+        assert mom.iloc[2] == pytest.approx(1.0)   # diff(+2, +3) = +1
+        assert mom.iloc[3] == pytest.approx(3.0)   # mean(+1, +5)
+
+    def test_momentum_spike_cancels_over_window(self, tmp_path, monkeypatch):
+        """The slope is the mean of the strictly-prior diff series — an
+        up-spike and its reversal cancel as the mean accumulates."""
+        monkeypatch.chdir(tmp_path)
+        res = self._results([
+            (2026, r, "Alice", 1) for r in range(1, 7)])
+        res["quali_pos"] = [3, 3, 11, 3, 3, 3]  # deltas 0, 0, +8, 0, 0, 0
+        res["position"] = [1] * 6
+        mom = build_training_data._driver_form_momentum(res)
+        # prev-delta series rows r2..: 0, 0, +8, 0, 0; diffs: r3 0, r4 +8, r5 -8, r6 0
+        assert mom.iloc[2] == pytest.approx(0.0)     # first diff exists: 0
+        assert mom.iloc[3] == pytest.approx(4.0)     # mean(0, +8)
+        assert mom.iloc[4] == pytest.approx(0.0)     # mean(0, +8, -8)
+        assert mom.iloc[5] == pytest.approx(0.0)     # mean(0, +8, -8, 0)
+
+    def test_track_delta_is_circuit_residual_over_prior_visits(
+            self, tmp_path, monkeypatch):
+        """Track delta = mean classified finish at THIS GP over prior
+        visits minus mean classified finish over all prior races, DNFs
+        excluded symmetrically. Alice: silverstone wins, monaco P11s,
+        spa P2. A second visit still sits below MIN_TRACK_VISITS=2 (prior
+        applies); the THIRD silverstone visit (2027 R3) clears the
+        threshold: track mean exactly 1.0 over 2 visits, overall
+        classified mean 37/6, residual 1.0 - 37/6 = -5.166... — negative
+        = track suits her beyond her general form."""
+        monkeypatch.chdir(tmp_path)
+        res = self._results([
+            (2026, 1, "Alice", 1),    # silverstone
+            (2026, 2, "Alice", 11),   # monaco
+            (2026, 3, "Alice", 2),    # spa
+            (2026, 4, "Alice", 11),   # monaco
+            (2027, 1, "Alice", 1),    # silverstone
+            (2027, 2, "Alice", 11),   # monaco
+            (2027, 3, "Alice", 1),    # silverstone <- under test
+        ])
+        races = self._races([
+            (2026, 1, "silverstone"), (2026, 2, "monaco"),
+            (2026, 3, "spa"), (2026, 4, "monaco"),
+            (2027, 1, "silverstone"), (2027, 2, "monaco"),
+            (2027, 3, "silverstone"),
+        ])
+        d = build_training_data._driver_track_form_delta(res, races)
+        assert d.iloc[0] == pytest.approx(build_training_data.TRACK_FORM_PRIOR)  # first visit
+        assert d.iloc[1] == pytest.approx(build_training_data.TRACK_FORM_PRIOR)  # first monaco
+        assert d.iloc[3] == pytest.approx(build_training_data.TRACK_FORM_PRIOR)  # 2nd monaco: 1 visit < 2
+        assert d.iloc[4] == pytest.approx(build_training_data.TRACK_FORM_PRIOR)  # 2nd silverstone: 1 visit < 2
+        assert d.iloc[6] == pytest.approx(1.0 - 37.0 / 6.0)  # 3rd silverstone: 1.0 vs 6.166...
+
+    def test_track_delta_counts_only_classified_finishes(
+            self, tmp_path, monkeypatch):
+        """DNFs are NaN in the training frame; they must be skipped in
+        BOTH means symmetrically — a DNF is not a P20."""
+        monkeypatch.chdir(tmp_path)
+        res = self._results([
+            (2026, 1, "Alice", 1),       # silverstone: win
+            (2026, 2, "Alice", float("nan")),  # monaco: DNF
+            (2026, 3, "Alice", 3),       # silverstone: P3
+            (2027, 1, "Alice", 2),       # silverstone: under test
+        ])
+        races = self._races([
+            (2026, 1, "silverstone"), (2026, 2, "monaco"),
+            (2026, 3, "silverstone"), (2027, 1, "silverstone"),
+        ])
+        d = build_training_data._driver_track_form_delta(res, races)
+        # silverstone track mean = (1+3)/2 = 2.0 (1 classified visit + the
+        # DNF visit contributes nothing); overall classified mean = 2.0.
+        # Residual 0.0 proves the DNF entered neither mean.
+        assert d.iloc[3] == pytest.approx(0.0)
+
+    def test_build_emits_phase5_columns_with_threshold_semantics(
+            self, tmp_path, monkeypatch):
+        """End-to-end: cleaned_data.csv carries both Phase-5 columns,
+        momentum is nonzero once 3+ races exist, and track delta stays on
+        its neutral prior below MIN_TRACK_VISITS classified visits at the
+        GP — the thresholds are part of the contract."""
+        cleaned = _run_build(tmp_path / "datasets", tmp_path / "out", monkeypatch)
+        assert "driver_form_momentum" in cleaned.columns
+        assert "driver_track_form_delta" in cleaned.columns
+        alice = cleaned[cleaned["driver"] == "Alice"].sort_values("round")
+        assert alice["driver_form_momentum"].iloc[0] == pytest.approx(0.0)
+        assert alice["driver_form_momentum"].iloc[1] == pytest.approx(0.0)  # 1 prior race, no slope
+        assert alice["driver_track_form_delta"].abs().max() == pytest.approx(0.0)  # both rounds: first visit
