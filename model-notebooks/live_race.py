@@ -32,7 +32,9 @@ Usage:
 """
 import argparse
 import json
+import os
 import sqlite3
+import time
 from datetime import datetime, timezone
 
 import numpy as np
@@ -49,11 +51,44 @@ STALE_AFTER_MIN = 45
 # current season's round at that circuit (the calendar rarely changes).
 DEFAULT_LAPS = 60
 
+# OpenF1 locks GLOBAL access (even past sessions) behind authentication
+# while a live F1 session is running — precisely when this module runs.
+# With OPENF1_USERNAME/OPENF1_PASSWORD set, a Bearer token is obtained
+# from the OAuth2 token endpoint (valid 3600s) and attached to every
+# call; without them the anonymous feed is used (fine off-session).
+_TOKEN: dict | None = None
+
+
+def _openf1_token() -> str | None:
+    """Bearer token for the paid live tier; None when unconfigured."""
+    global _TOKEN
+    user = os.environ.get("OPENF1_USERNAME", "").strip()
+    pwd = os.environ.get("OPENF1_PASSWORD", "").strip()
+    if not user or not pwd:
+        return None
+    if _TOKEN is not None and _TOKEN["expires"] > time.time() + 60:
+        return _TOKEN["token"]
+    try:
+        r = requests.post("https://api.openf1.org/token",
+                          data={"username": user, "password": pwd},
+                          timeout=30)
+        r.raise_for_status()
+        tok = r.json()["access_token"]
+    except Exception:
+        return None
+    _TOKEN = {"token": tok, "expires": time.time() + 3600}
+    return tok
+
 
 # ── OpenF1 fetch ─────────────────────────────────────────────────────────
 
 def _get(path: str, **params) -> list:
-    r = requests.get(f"{OPENF1}/{path}", params=params, timeout=30)
+    headers = {}
+    tok = _openf1_token()
+    if tok:
+        headers["Authorization"] = f"Bearer {tok}"
+    r = requests.get(f"{OPENF1}/{path}", params=params, timeout=30,
+                     headers=headers)
     r.raise_for_status()
     return r.json()
 
