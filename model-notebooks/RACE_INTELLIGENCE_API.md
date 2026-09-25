@@ -176,7 +176,9 @@ on rebuild.
 lap curves (14): bucket backfill direction (an empty bucket inherits the
 TIGHTest neighbour, never widens), the official-classification truth
 contract for both fits (chart-terminal truth is degenerate), replay
-convergence, retired drivers stop appearing, SC freezes live attrition,
+convergence, retired drivers stop appearing, SC freezes live attrition, and
+OpenF1 credentials (`OPENF1_USERNAME`/`OPENF1_PASSWORD`) attach a Bearer
+token for the live tier (required while a session is on track).
 artifact schema/coverage/determinism, final-lap concentration bounds,
 leader-curve sharpening, the lap-1 row exactly reproducing a direct
 `simulate_race` call at the same seed, and the CLI backtest end-to-end.

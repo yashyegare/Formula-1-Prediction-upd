@@ -13,6 +13,7 @@ from database import init_db, is_seeded, get_season_init_data, get_circuits as d
 from auth import auth_bp, login_manager
 from predictions_api import predictions_bp
 from race_intelligence_api import race_intel_bp
+import live_refresh
 from extensions import limiter, register_limiter_error_handlers
 from security import get_allowed_origins, register_csrf_protection, register_security_headers
 
@@ -56,6 +57,12 @@ _INIT_CACHE = {}
 # decorator reflects ANY origin (that shipped on /predictGrid and /roster once
 # and silently bypassed this list).
 CORS_ORIGINS = get_allowed_origins()
+
+# Race-day live producer: an opt-in background thread that refreshes
+# live_state.json (the /api/race-intel/live source) on a cadence.
+# Off by default — only processes that set RACE_INTEL_LIVE_ENABLED=1
+# spawn the thread (gunicorn multi-worker safety is in live_refresh).
+live_refresh.start_background(app.logger)
 
 CORS(app, resources={r"/*": {
     "origins": CORS_ORIGINS,

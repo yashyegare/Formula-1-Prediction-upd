@@ -69,6 +69,100 @@ class TestRunningOrder:
         assert [o["driver_number"] for o in order] == [1]
 
 
+# ── OpenF1 live-tier auth ─────────────────────────────────────────────────
+
+class TestOpenF1Auth:
+    """OpenF1 locks global access behind authentication while a live F1
+    session is running — exactly when the snapshot matters. Without
+    credentials we stay anonymous; with them every call carries a
+    Bearer token from the OAuth2 endpoint, cached for its 3600s life."""
+
+    def setup_method(self):
+        lr._TOKEN = None  # never leak the cache between tests
+
+    @staticmethod
+    class _Resp:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return []
+
+    def test_anonymous_when_no_credentials(self, monkeypatch):
+        monkeypatch.delenv("OPENF1_USERNAME", raising=False)
+        monkeypatch.delenv("OPENF1_PASSWORD", raising=False)
+        seen = {}
+
+        def fake_get(url, params=None, timeout=None, headers=None):
+            seen["headers"] = headers
+            return self._Resp()
+
+        monkeypatch.setattr(lr.requests, "get", fake_get)
+        assert lr._get("sessions") == []
+        assert seen["headers"] == {}  # no Authorization on the open tier
+
+    def test_bearer_attached_and_cached(self, monkeypatch):
+        monkeypatch.setenv("OPENF1_USERNAME", "me@example.com")
+        monkeypatch.setenv("OPENF1_PASSWORD", "pw")
+        seen = {}
+
+        class _TokResp:
+            status_code = 200
+
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"access_token": "tok123"}
+
+        def fake_post(url, data=None, timeout=None):
+            seen["token_url"] = url
+            seen["data"] = data
+            return _TokResp()
+
+        def fake_get(url, params=None, timeout=None, headers=None):
+            seen["headers"] = headers
+            return self._Resp()
+
+        monkeypatch.setattr(lr.requests, "post", fake_post)
+        monkeypatch.setattr(lr.requests, "get", fake_get)
+        lr._get("sessions", session_key="latest")
+        assert seen["token_url"] == "https://api.openf1.org/token"
+        assert seen["data"]["username"] == "me@example.com"
+        assert seen["headers"]["Authorization"].startswith("Bearer ")
+        # second call reuses the cached token — no new POST
+        posted_again = []
+
+        def fail_post(*a, **k):
+            posted_again.append(1)
+            return self._Resp()
+
+        monkeypatch.setattr(lr.requests, "post", fail_post)
+        lr._get("drivers")
+        assert posted_again == []
+
+    def test_unreachable_token_endpoint_degrades_to_anonymous(self,
+                                                              monkeypatch):
+        monkeypatch.setenv("OPENF1_USERNAME", "me@example.com")
+        monkeypatch.setenv("OPENF1_PASSWORD", "pw")
+
+        def bad_post(url, data=None, timeout=None):
+            raise lr.requests.ConnectionError("token endpoint down")
+
+        seen = {}
+
+        def fake_get(url, params=None, timeout=None, headers=None):
+            seen["headers"] = headers
+            return self._Resp()
+
+        monkeypatch.setattr(lr.requests, "post", bad_post)
+        monkeypatch.setattr(lr.requests, "get", fake_get)
+        lr._get("sessions")  # must not raise
+        assert seen["headers"] == {}
+
+
 # ── snapshot builder (mocked OpenF1, real DB fits) ───────────────────────
 
 def _build_canonical_db(tmp_path) -> str:
