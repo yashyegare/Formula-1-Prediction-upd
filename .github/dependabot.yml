@@ -43,6 +43,8 @@ updates:
         versions: [">=0.5"]        # 0.5+ requires Prettier 3; repo is on Prettier 2
       - dependency-name: "prettier"
         versions: [">=3"]          # Prettier 3 reflows formatting; migrate deliberately with the plugin
+      - dependency-name: "@t3-oss/env-nextjs"
+        versions: [">=0.4"]        # 0.4+ needs moduleResolution: bundler/node16; this app uses legacy resolution (PR #32 type error)
       - dependency-name: "next"
         versions: [">=16"]         # Next 16 major needs a migration pass
       - dependency-name: "typescript"
@@ -88,6 +90,8 @@ updates:
         versions: [">=9"]          # ESLint 9 flat-config era
       - dependency-name: "astro"
         versions: [">=6"]          # Astro 6/7 needs the Tailwind v4 migration
+      - dependency-name: "typescript"
+        versions: [">=6"]          # @astrojs/check peers on TS ^5||^6; TS 7 needs a migration pass (PR #33)
       - dependency-name: "@types/react"
         versions: [">=19"]
       - dependency-name: "eslint-plugin-react-hooks"
