@@ -35,6 +35,32 @@ updates:
         versions: [">=5"]          # v5 requires code changes across query call sites
       - dependency-name: "tailwindcss"
         versions: [">=4"]          # Tailwind 4 belongs to the planned styling migration
+      # Peer-host conflicts: these plugins' new majors/minors require host
+      # upgrades (Prettier 3 / ESLint 9) that need deliberate migrations.
+      # Bumping the plugin alone hard-fails `npm ci` (ERESOLVE) — the
+      # grouped-bump failure mode seen in PRs #17/#19.
+      - dependency-name: "prettier-plugin-tailwindcss"
+        versions: [">=0.5"]        # 0.5+ requires Prettier 3; repo is on Prettier 2
+      - dependency-name: "prettier"
+        versions: [">=3"]          # Prettier 3 reflows formatting; migrate deliberately with the plugin
+      - dependency-name: "next"
+        versions: [">=16"]         # Next 16 major needs a migration pass
+      - dependency-name: "typescript"
+        versions: [">=6"]          # TS 6/7 (native port) needs a migration pass
+      - dependency-name: "eslint"
+        versions: [">=9"]          # ESLint 9 flat-config era; @typescript-eslint 5 is legacy .eslintrc
+      - dependency-name: "@typescript-eslint/*"
+        versions: [">=6"]          # v6+ targets the ESLint 9 / flat-config era
+      - dependency-name: "react"
+        versions: [">=19"]         # React 19 needs a compatibility pass
+      - dependency-name: "react-dom"
+        versions: [">=19"]
+      - dependency-name: "@types/react"
+        versions: [">=19"]
+      - dependency-name: "@types/react-dom"
+        versions: [">=19"]
+      - dependency-name: "jsdom"
+        versions: [">=27"]         # jsdom 27+ broke the Vitest suite on Node 20
 
   # Season Simulator (Astro)
   - package-ecosystem: "npm"
@@ -49,7 +75,21 @@ updates:
     ignore:
       # Majors below need deliberate migration work, not a drive-by PR.
       - dependency-name: "@vitest/coverage-v8"
-        versions: [">=5"]          # requires vitest 5; we run vitest 3.2.x
+        versions: [">=4"]          # requires vitest 4+; we run vitest 3.2.x
+      - dependency-name: "vitest"
+        versions: [">=4"]          # Vitest 4/5 major needs a migration pass
+      - dependency-name: "jsdom"
+        versions: [">=27"]         # jsdom 27+ broke the Vitest suite on Node 20
+      # Peer-host conflict: 0.5+ requires ESLint 9; repo is on ESLint 8
+      # (PR #17 broke `npm ci` with exactly this).
+      - dependency-name: "eslint-plugin-react-refresh"
+        versions: [">=0.5"]
+      - dependency-name: "eslint"
+        versions: [">=9"]          # ESLint 9 flat-config era
+      - dependency-name: "astro"
+        versions: [">=6"]          # Astro 6/7 needs the Tailwind v4 migration
+      - dependency-name: "@types/react"
+        versions: [">=19"]
       - dependency-name: "eslint-plugin-react-hooks"
         versions: [">=5"]
       - dependency-name: "@typescript-eslint/*"

@@ -97,6 +97,23 @@ RECENT_FORM_PRIOR = 0.0
 # How many prior races the recent-form features average.
 RECENT_FORM_WINDOW = 5
 
+# Form-MOMENTUM window: the slope of the driver's grid->finish delta over
+# the last MOMENTUM_WINDOW races. The level feature (driver_recent_form)
+# answers "how well is this driver racing"; the slope answers "is that
+# trend improving or decaying" — an upgrade trajectory or a confidence
+# swing shows up in the direction before the level moves. Needs >=2
+# prior races to define a slope; earlier rows get MOMENTUM_PRIOR (0.0).
+MOMENTUM_WINDOW = 5
+MOMENTUM_PRIOR = 0.0
+
+# Per-circuit history: the driver's mean finish AT THIS GP over prior
+# visits minus their mean finish overall, so the feature carries only
+# the circuit-specific residual (overall pace is already in quali_pos
+# and form). Needs MIN_TRACK_VISITS prior visits to mean anything;
+# below that the neutral prior applies — "no track-specific signal".
+MIN_TRACK_VISITS = 2
+TRACK_FORM_PRIOR = 0.0
+
 
 # Priors for the pace/pit features when no history exists yet (first-ever
 # race, or the laps/pitstops data is absent). Fixed neutral constants -
@@ -351,6 +368,99 @@ def _rolling_constructor_form(results: pd.DataFrame, window: int = RECENT_FORM_W
     return pd.Series(out["form"].to_numpy(), index=results.index)
 
 
+def _driver_form_momentum(results: pd.DataFrame,
+                          window: int = MOMENTUM_WINDOW) -> pd.Series:
+    """
+    Form MOMENTUM per row: the slope (mean of first differences) of the
+    driver's grid->finish delta over their previous <=window races,
+    strictly prior. Positive = their race-day place-gaining is trending
+    UP. Built from the same per-race delta series as
+    _rolling_driver_form (level) — the two are deliberately complementary:
+    level says how good the recent races were, momentum says which way
+    it is moving. Needs >=2 prior races to define a slope; earlier rows
+    get MOMENTUM_PRIOR.
+    """
+    frame = results[["year", "round", "driverName", "quali_pos", "position"]].copy()
+    frame["_delta"] = frame["quali_pos"] - frame["position"]
+    frame["_order"] = frame["year"] * 1000 + frame["round"]
+
+    per_race = (
+        frame.groupby(["driverName", "_order"], as_index=False)["_delta"]
+        .mean()
+        .sort_values(["driverName", "_order"])
+    )
+    g = per_race.groupby("driverName", sort=False)
+    prev = g["_delta"].shift(1)                      # strictly prior races
+    slope = prev.diff()                              # first difference of the delta series
+    per_race["mom"] = (
+        slope.groupby(per_race["driverName"], sort=False)
+        .transform(lambda s: s.rolling(window, min_periods=1).mean())
+        .fillna(MOMENTUM_PRIOR)
+    )
+
+    out = frame[["driverName", "_order"]].merge(
+        per_race[["driverName", "_order", "mom"]],
+        on=["driverName", "_order"], how="left",
+    )
+    return pd.Series(out["mom"].to_numpy(), index=results.index)
+
+
+def _driver_track_form_delta(results: pd.DataFrame, races: pd.DataFrame,
+                             min_visits: int = MIN_TRACK_VISITS) -> pd.Series:
+    """
+    Per-circuit history per row: the driver's mean CLASSIFIED finish AT
+    THIS GP over prior visits minus their mean classified finish over all
+    prior races — strictly the circuit-specific residual. Negative = this
+    track suits them beyond their general form (P1's boundary evidence:
+    2026 Monaco, quali P10 -> won). DNFs (NaN finish) are skipped in both
+    means, symmetrically; the visit threshold counts classified finishes
+    at the GP. Below min_visits (or first appearance at the GP) the
+    neutral prior applies — the RF splits on the threshold, so a
+    fabricated neutral for real visits would blur exactly the signal this
+    feature exists to carry.
+
+    The GP identity is circuitId (stable across race renames), merged in
+    from the races table; rows are processed in each driver's
+    chronological order, which groupby cumsum/shift preserve within
+    groups.
+    """
+    frame = results[["year", "round", "driverName", "position"]].copy()
+    frame["_order"] = frame["year"] * 1000 + frame["round"]
+    circuit_of = races.set_index(["year", "round"])["circuitId"]
+    frame["gp"] = [circuit_of.loc[(y, r)] for y, r in zip(frame["year"], frame["round"])]
+    frame = frame.sort_values(["driverName", "_order"]).reset_index(drop=True)
+
+    frame["_pos"] = pd.to_numeric(frame["position"], errors="coerce")
+    frame["_pos_filled"] = frame["_pos"].fillna(0.0)
+
+    # Same-GP running totals over prior VISITS (groupby preserves the
+    # chronological order established by the global sort):
+    vg = frame.groupby(["driverName", "gp"], sort=False)
+    frame["_track_cum"] = vg["_pos_filled"].cumsum()          # skipna via fillna(0)
+    frame["_track_cnt"] = vg["_pos"].transform(lambda s: s.notna().cumsum())
+    prev = vg[["_track_cum", "_track_cnt"]].shift(1)
+    frame["_prev_track_sum"] = prev["_track_cum"]
+    frame["_prev_track_cnt"] = prev["_track_cnt"]
+
+    # All-GP running totals over the driver's prior races (expanding):
+    dg = frame.groupby("driverName", sort=False)
+    frame["_any_cum"] = dg["_pos_filled"].cumsum()
+    frame["_any_cnt"] = dg["_pos"].transform(lambda s: s.notna().cumsum())
+    dprev = dg[["_any_cum", "_any_cnt"]].shift(1)
+    frame["_prev_any_sum"] = dprev["_any_cum"]
+    frame["_prev_any_cnt"] = dprev["_any_cnt"]
+
+    def _residual(row):
+        if (pd.isna(row["_prev_track_cnt"]) or row["_prev_track_cnt"] < min_visits
+                or pd.isna(row["_prev_any_cnt"]) or row["_prev_any_cnt"] == 0):
+            return TRACK_FORM_PRIOR
+        return float(row["_prev_track_sum"] / row["_prev_track_cnt"]
+                     - row["_prev_any_sum"] / row["_prev_any_cnt"])
+
+    frame["resid"] = frame.apply(_residual, axis=1)
+    return pd.Series(frame["resid"].to_numpy(), index=results.index)
+
+
 def _rolling_lap_pace(results: pd.DataFrame, laps: pd.DataFrame | None,
                       window: int = RECENT_FORM_WINDOW) -> pd.Series:
     """
@@ -581,6 +691,14 @@ def main():
     merged["driver_recent_form"] = _rolling_driver_form(merged)
     merged["constructor_recent_form"] = _rolling_constructor_form(merged)
 
+    # --- form momentum + per-circuit history (Phase-5 experiments) ---
+    # momentum: slope of the driver's grid->finish delta (direction of the
+    # form trend); track delta: circuit-specific finish residual over prior
+    # visits at the same GP. Both strictly prior, both null-prior below
+    # their minimum-history thresholds.
+    merged["driver_form_momentum"] = _driver_form_momentum(merged)
+    merged["driver_track_form_delta"] = _driver_track_form_delta(merged, races)
+
     # --- pace & execution: rolling lap-pace delta (driver) and pit-stop
     # time (constructor), strictly prior races. Both tolerate absent data
     # (neutral prior) until the fetch_lap_pace run completes.
@@ -740,6 +858,7 @@ def main():
         "driver_champ_pos", "driver_champ_points_ratio",
         "constructor_champ_pos", "constructor_champ_points_ratio",
         "driver_recent_form", "constructor_recent_form",
+        "driver_form_momentum", "driver_track_form_delta",
         "lap_pace_delta_s", "constructor_pit_time_s",
         "constructor_mech_dnf_rate", "driver_acc_dnf_rate",
         "is_street_circuit",
