@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { NEXT_PUBLIC_API_URL } from "src/lib/constants";
+import PostmortemPanel from "src/components/PostmortemPanel";
 
 /* ═══════════════════════════════════════════════
    TYPES — mirror flask-app/race_intelligence_api.py
@@ -640,6 +641,9 @@ const RaceIntelPage: NextPage = () => {
                     )}
                 </section>
               )}
+
+              {/* personal postmortem — why the user's picks missed */}
+              {season && <PostmortemPanel season={season.season} />}
 
               {/* season attribution footer */}
               {season && (

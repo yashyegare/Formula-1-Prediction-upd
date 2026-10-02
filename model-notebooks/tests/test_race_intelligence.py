@@ -2,8 +2,8 @@
 Tests for the race-intelligence layer (artifact builder + serving API).
 
 Pins the contracts:
-  - artifact schema v2 (statuses raced/scheduled/next_round, driver
-    field completeness, round ordering)
+  - artifact schema v4 (statuses raced/scheduled/next_round, driver
+    field completeness, round ordering, per-race circuit registry entry)
   - lap-curves artifact (schema v1: per-driver evolution vectors that
     end concentrated, sample laps bracketing lap 1 and the final lap)
   - determinism: two builds with the same seed are byte-identical
@@ -43,11 +43,11 @@ REAL = pytest.mark.skipif(
 # ── artifact builder (real data — cheap: 23 races x 200 sims) ─────────────
 
 @REAL
-def test_artifact_schema_v2():
+def test_artifact_schema_v4():
     doc = ri.build_race_intel(str(DB), str(DATASETS), 2026, 200, 42)
     assert set(doc) >= {"schema_version", "season", "n_sims", "next_round",
                         "mechanism", "races", "season_attribution"}
-    assert doc["schema_version"] == 2
+    assert doc["schema_version"] == 4
     rounds = [r["round"] for r in doc["races"]]
     assert rounds == sorted(rounds) and len(rounds) == len(set(rounds))
     statuses = {r["status"] for r in doc["races"]}
@@ -57,7 +57,12 @@ def test_artifact_schema_v2():
     assert doc["next_round"] == (min(future) if future else None)
     for r in doc["races"]:
         assert set(r) >= {"year", "round", "name", "date", "status",
-                          "n_drivers", "params", "drivers"}
+                          "n_drivers", "params", "drivers", "circuit"}
+        # v4: shared circuit registry entry on every race (raced AND
+        # future — the Track Explorer join key must exist pre-race too)
+        assert set(r["circuit"]) == {"circuitId", "name", "location",
+                                     "country", "lat", "lng"}
+        assert r["circuit"]["circuitId"]
         for d in r["drivers"]:
             assert set(d) >= {"driverId", "driverCode", "surname",
                               "constructorId", "grid", "p_podium",
@@ -72,9 +77,33 @@ def test_artifact_schema_v2():
         if r["status"] == "raced":
             assert all("observed_swing" in d and "sim_swing_mean" in d
                        for d in r["drivers"])
+            # v3: the actual outcome, needed by the postmortem join
+            assert all({"actual_position", "status", "is_dnf",
+                        "dnf_cause"} <= set(d) for d in r["drivers"])
         else:
             assert all("observed_swing" not in d and "sim_swing_mean" not in d
                        for d in r["drivers"])
+            assert all("actual_position" not in d for d in r["drivers"])
+
+
+@REAL
+def test_race_meta_is_year_scoped():
+    """The fact_race name/circuit lookup must filter on year as well as
+    round — matching on round alone shipped the oldest season's names
+    (the v3 artifact labelled 2026 round 5 "Spanish GP"; it is Canada)."""
+    import sqlite3
+    con = sqlite3.connect(str(DB))
+    try:
+        expect = {row[0]: (row[1], row[2]) for row in con.execute(
+            "SELECT round, name, circuitId FROM fact_race WHERE year = 2026")}
+    finally:
+        con.close()
+    doc = ri.build_race_intel(str(DB), str(DATASETS), 2026, 200, 42)
+    for r in doc["races"]:
+        if r["round"] in expect:
+            name, cid = expect[r["round"]]
+            assert r["name"] == name
+            assert r["circuit"]["circuitId"] == cid
 
 
 @REAL

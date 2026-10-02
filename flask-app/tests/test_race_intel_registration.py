@@ -17,6 +17,8 @@ EXPECTED_ROUTES = {
     "/api/race-intel/race/<int:year>/<int:rnd>",
     "/api/race-intel/drivers/<int:year>/<int:rnd>",
     "/api/race-intel/next/<int:year>",
+    "/api/race-intel/next-round",
+    "/api/race-intel/circuits",
     "/api/race-intel/curves/<int:year>/<int:rnd>",
     "/api/race-intel/curves/<int:year>/driver/<driver_id>",
     "/api/race-intel/live",

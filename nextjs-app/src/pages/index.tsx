@@ -2,6 +2,7 @@ import { type NextPage } from "next";
 import Head from "next/head";
 
 import Docs from "src/components/docs";
+import NextRoundCard from "src/components/NextRoundCard";
 import Predictor from "../components/predictor";
 
 const Home: NextPage = () => {
@@ -18,6 +19,7 @@ const Home: NextPage = () => {
           <Predictor />
         </section>
         <section className="p-8 md:py-10 md:px-16 xl:px-28 md:w-1/2 xl:w-2/3 md:overflow-y-auto md:fixed md:right-0 md:h-full">
+          <NextRoundCard />
           <article id="871047b8-2997-4a68-9c0f-53ade839e37d" className="page sans">
           <Docs />
           </article>

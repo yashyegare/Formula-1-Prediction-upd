@@ -15,6 +15,18 @@ evolution for raced rounds (the replay's P(podium) per lap per driver):
                                                p_points, p_out) tuples
   GET /api/race-intel/next/<year>            — the next_round race
                                                (pre-race view)
+  GET /api/race-intel/next-round             — year-free current-round
+                                               contract: the artifact's
+                                               season + a driver-stripped
+                                               summary of the round every
+                                               front-end should point at
+  GET /api/race-intel/circuits               — the season's circuit
+                                               registry (one entry per
+                                               round: Jolpica circuitId +
+                                               location + coords + race
+                                               status) — the join key
+                                               Track Explorer deep links
+                                               use
   GET /api/race-intel/curves/<year>/<round>  — lap-by-lap probability
                                                evolution (raced rounds)
 
@@ -174,6 +186,60 @@ def next_race(year: int):
     if nxt is None:
         abort(404, description="no future rounds remain in this season")
     return jsonify(_race_doc(year, nxt))
+
+
+@race_intel_bp.route("/api/race-intel/next-round")
+def next_round():
+    """Year-free current-round contract for every front-end (landing
+    card, Season Simulator, Track Explorer deep links): one call answers
+    "what round are we on and what is its status?" without hardcoding a
+    season. The per-driver arrays are stripped — the summary is the
+    anchor; /race/<year>/<round> carries the detail. A completed season
+    is NOT a 404: it returns season_complete with the last raced round,
+    so the post-race view is still addressable."""
+    doc = _load_artifact()
+    nxt = doc.get("next_round")
+    races = doc["races"]
+    target = None
+    for race in races:
+        if race["round"] == (nxt if nxt is not None else races[-1]["round"]):
+            target = race
+            break
+    if target is None:
+        abort(404, description="race-intel artifact has no rounds")
+    summary = {k: v for k, v in target.items() if k != "drivers"}
+    return jsonify({"season": doc["season"],
+                    "season_complete": nxt is None,
+                    "race": summary})
+
+
+@race_intel_bp.route("/api/race-intel/circuits")
+def circuits():
+    """The season's circuit registry, derived from the artifact's
+    per-race `circuit` objects (schema v4+): one entry per circuit with
+    its Jolpica circuitId, location, coords and the round it hosts. This
+    is the stable join key Track Explorer deep links resolve against —
+    it never touches the canonical DB (which is not deployed). A v3
+    artifact has no circuits; that is a 503, not a silently empty 200."""
+    doc = _load_artifact()
+    if doc.get("schema_version", 0) < 4:
+        return jsonify({"error": "race-intel artifact predates the circuit "
+                                 "registry (schema v4); rebuild it with "
+                                 "model-notebooks/race_intelligence.py"}), 503
+    seen: dict[str, dict] = {}
+    for race in doc["races"]:
+        c = race.get("circuit") or {}
+        cid = c.get("circuitId")
+        if not cid:
+            continue
+        entry = seen.setdefault(
+            cid, {**c, "season": doc["season"], "rounds": []})
+        entry["rounds"].append({
+            "round": race["round"], "name": race["name"],
+            "date": race["date"], "status": race["status"]})
+    return jsonify({"season": doc["season"],
+                    "circuits": sorted(seen.values(),
+                                       key=lambda e: e["rounds"][0]["round"])})
 
 
 @race_intel_bp.route("/api/race-intel/curves/<int:year>/<int:rnd>")

@@ -324,6 +324,122 @@ def api_unlock_prediction():
 
 # ── Authenticated prediction routes ─────────────────────────────────────
 
+# Verdict taxonomy for the postmortem, aligned with model-notebooks/
+# error_decomposition.py row labels (dnf_mech / dnf_driver / dnf_other /
+# over_predict / under_predict) so the user's misses and the model's
+# misses speak one vocabulary. "near" = off by 1-2 places: the position
+# analogue of the model's P10/P11 boundary lives.
+
+def _verdict(pred_pos: int, actual: dict) -> str:
+    a = actual.get("actual_position")
+    # a DNF classified exactly where predicted IS a hit (the analogue of
+    # error_decomposition's correct_dnf: the result delivered the pick)
+    if a is not None and a == pred_pos:
+        return "exact"
+    if actual.get("is_dnf"):
+        return "dnf_" + (actual.get("dnf_cause") or "other")
+    if a is None:
+        return "unknown"
+    diff = a - pred_pos
+    if diff == 0:
+        return "exact"
+    if abs(diff) <= 2:
+        return "near"
+    return "over_predict" if diff > 0 else "under_predict"
+
+
+@predictions_bp.route("/api/me/prediction/postmortem", methods=["GET"])
+@login_required
+def my_prediction_postmortem():
+    """Explain WHY the current user's locked predictions missed, per
+    raced round — the personal counterpart of the season_attribution
+    the race-intel page shows for the model. Reads the user's grids
+    from the predictions DB and joins them against the race-intel
+    artifact (schema v3 actual fields); no scoring math is recomputed
+    here, this is evidence, not leaderboard score."""
+    season = request.args.get("season", 2026, type=int)
+    pred = get_user_prediction(current_user.id, season)
+    if not pred:
+        return jsonify({"error": "No prediction found for this season"}), 404
+
+    try:
+        from race_intelligence_api import _load_artifact, ArtifactUnavailable
+        doc = _load_artifact()
+    except ArtifactUnavailable as e:
+        return jsonify({"error": str(e)}), 503
+    if doc["season"] != season:
+        return jsonify({"error": "no race-intel artifact for this season"}), 404
+    if doc.get("schema_version", 0) < 3:
+        return jsonify({
+            "error": "race_intel.json predates schema v3 (no actual "
+                     "results); rebuild it with race_intelligence.py"}), 503
+
+    grids = json.loads(pred["grids_json"]) if pred.get("grids_json") else {}
+
+    races_out = []
+    totals: dict[str, int] = {}
+    scored = 0
+    for race in doc["races"]:
+        if race["status"] != "raced":
+            continue
+        race_id = f"{season}_r{race['round']}"
+        grid = grids.get(race_id)
+        if not isinstance(grid, list):
+            continue
+        actual_by_driver = {d["driverId"]: d for d in race["drivers"]}
+        counts: dict[str, int] = {}
+        misses = []
+        abs_errs = []
+        for pos_idx, driver_id in enumerate(grid):
+            if not driver_id:
+                continue
+            actual = actual_by_driver.get(driver_id)
+            if actual is None:
+                continue  # roster lookahead — driver not in this race
+            pred_pos = pos_idx + 1
+            verdict = _verdict(pred_pos, actual)
+            counts[verdict] = counts.get(verdict, 0) + 1
+            totals[verdict] = totals.get(verdict, 0) + 1
+            scored += 1
+            a = actual.get("actual_position")
+            if verdict not in ("exact", "near"):
+                if a is not None:
+                    abs_errs.append(abs(a - pred_pos))
+                misses.append({
+                    "driverId": driver_id,
+                    "surname": actual.get("surname", ""),
+                    "predicted_position": pred_pos,
+                    "actual_position": a,
+                    "verdict": verdict,
+                    "status": actual.get("status", ""),
+                    "grid_start": actual.get("grid"),
+                    "sim_expected_position": actual.get("expected_position"),
+                })
+        misses.sort(key=lambda m: abs((m["actual_position"] or 99)
+                                      - m["predicted_position"]),
+                    reverse=True)
+        races_out.append({
+            "round": race["round"],
+            "name": race["name"],
+            "date": race["date"],
+            "predictions_scored": sum(counts.values()),
+            "mean_abs_error": round(sum(abs_errs) / len(abs_errs), 2)
+                             if abs_errs else None,
+            "verdict_counts": counts,
+            "misses": misses[:5],  # the race's biggest surprises
+        })
+
+    correct = totals.get("exact", 0) + totals.get("near", 0)
+    return jsonify({
+        "season": season,
+        "races_scored": len(races_out),
+        "predictions_scored": scored,
+        "hit_rate": round(correct / scored, 4) if scored else None,
+        "verdict_share": {k: round(v / scored, 4) for k, v in totals.items()}
+                         if scored else {},
+        "races": sorted(races_out, key=lambda r: r["round"]),
+    })
+
 @predictions_bp.route("/api/me/prediction", methods=["GET"])
 @login_required
 def get_my_prediction():

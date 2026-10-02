@@ -5,7 +5,7 @@ import json
 
 def _install_stub_artifact(path) -> None:
     doc = {
-        "schema_version": 2,
+        "schema_version": 4,
         "season": 2026,
         "n_sims": 500,
         "next_round": 2,
@@ -13,6 +13,10 @@ def _install_stub_artifact(path) -> None:
         "races": [
             {"year": 2026, "round": 1, "name": "Stub GP", "date": "2026-03-01",
              "status": "raced", "n_drivers": 2,
+             "circuit": {"circuitId": "albert_park",
+                         "name": "Albert Park Grand Prix Circuit",
+                         "location": "Melbourne", "country": "Australia",
+                         "lat": -37.8497, "lng": 144.968},
              "params": {"swing_mean": 1.0, "swing_sd": 4.0,
                         "dnf_rate": 0.15},
              "drivers": [
@@ -21,16 +25,24 @@ def _install_stub_artifact(path) -> None:
                   "grid": 1,
                   "p_podium": 0.60, "p_points": 0.30, "p_out": 0.10,
                   "expected_position": 2.1, "sim_dnf_rate": 0.15,
-                  "observed_swing": -2, "sim_swing_mean": 0.9},
+                  "observed_swing": -2, "sim_swing_mean": 0.9,
+                  "actual_position": 3, "status": "Finished",
+                  "is_dnf": False, "dnf_cause": None},
                  {"driverId": "tsunoda", "driverCode": "TSU",
                   "surname": "Tsunoda", "constructorId": "rb",
                   "grid": 10,
                   "p_podium": 0.02, "p_points": 0.18, "p_out": 0.80,
                   "expected_position": 8.4, "sim_dnf_rate": 0.15,
-                  "observed_swing": 4, "sim_swing_mean": -1.5},
+                  "observed_swing": 4, "sim_swing_mean": -1.5,
+                  "actual_position": 6, "status": "Engine",
+                  "is_dnf": True, "dnf_cause": "mech"},
              ]},
             {"year": 2026, "round": 2, "name": "Future GP",
              "date": "2026-03-08", "status": "scheduled", "n_drivers": 2,
+             "circuit": {"circuitId": "shanghai",
+                         "name": "Shanghai International Circuit",
+                         "location": "Shanghai", "country": "China",
+                         "lat": 31.3389, "lng": 121.22},
              "params": {"swing_mean": 1.0, "swing_sd": 4.0,
                         "dnf_rate": 0.15},
              "drivers": [

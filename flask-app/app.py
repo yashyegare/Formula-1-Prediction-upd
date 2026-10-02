@@ -1,6 +1,7 @@
 import json
 import os
 import secrets
+import hmac
 import urllib.request
 
 import joblib
@@ -533,6 +534,39 @@ def roster():
 def health():
     """Health check endpoint for Railway."""
     return jsonify({"status": "ok", "seeded": is_seeded()})
+
+
+@app.route("/api/admin/sync-season", methods=["POST"])
+def admin_sync_season():
+    """Ingest finished rounds into the LIVE database (results, completed
+    flags, standings) and re-score the leaderboard — the production half
+    of the nightly refresh: pushing the committed SQLite file only helps
+    SQLite deploys; a DATABASE_URL install needs this call.
+
+    Gated by the SYNC_ADMIN_TOKEN env var: unset, the route is a 404 like
+    any unknown path (feature off must not advertise itself); wrong
+    token, a 403. No session cookie is involved, so the CSRF Origin check
+    does not apply — the header token is the whole credential, compared
+    in constant time. The nightly workflow is the only intended caller."""
+    expected = os.environ.get("SYNC_ADMIN_TOKEN", "")
+    if not expected:
+        return jsonify({"error": "not found"}), 404
+    supplied = request.headers.get("X-Sync-Token", "")
+    if not hmac.compare_digest(supplied, expected):
+        return jsonify({"error": "invalid token"}), 403
+    payload = request.get_json(force=False, silent=True) or {}
+    try:
+        year = int(payload.get("year", 2026))
+    except (TypeError, ValueError):
+        return jsonify({"error": "year must be an integer"}), 400
+    from sync_season_db import sync_year
+    try:
+        return jsonify(sync_year(year)), 200
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:  # noqa: BLE001 — the caller is cron, not a human
+        app.logger.exception("season sync failed")
+        return jsonify({"error": str(exc)}), 500
 
 
 if __name__ == "__main__":

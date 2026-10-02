@@ -23,6 +23,19 @@ Phase 1–3 outputs, joined into one JSON document per season:
 Every race carries `status`: "raced", "upcoming_post_quali", or
 "scheduled"; the top-level `next_round` names the first non-raced round.
 
+Schema v3 adds the ACTUAL outcome of raced rounds to each driver —
+`actual_position`, `status`, `is_dnf`, `dnf_cause` (from fact_race_entry
+joined to dim_status) — so the serving layer can explain user-prediction
+misses (the postmortem) from this artifact alone: the Flask DB's results
+table only stores classified positions, and the canonical DB is not
+committed to the deploy.
+
+Schema v4 adds a `circuit` object to every race (circuitId, name,
+location, country, lat/lng from dim_circuit, the Jolpica circuitId as
+the join key) — the shared circuit registry the Track Explorer
+deep-links and any future per-circuit insight need, without the serving
+layer ever touching the canonical DB.
+
 Everything is computed OFFLINE by this script and written to
 race_intel.json; the API just serves the file. That keeps the Flask
 service free of numpy/sklearn imports and makes the artifact itself
@@ -50,9 +63,28 @@ def _load_race_meta(db_path: str) -> pd.DataFrame:
     con = sqlite3.connect(db_path)
     try:
         return pd.read_sql(
-            "SELECT year, round, name, date FROM fact_race", con)
+            "SELECT year, round, name, date, circuitId FROM fact_race", con)
     finally:
         con.close()
+
+
+def _load_circuits(db_path: str) -> dict[str, dict]:
+    """circuitId -> registry entry, straight from dim_circuit."""
+    con = sqlite3.connect(db_path)
+    try:
+        df = pd.read_sql(
+            "SELECT circuitId, name, location, country, lat, lng "
+            "FROM dim_circuit", con)
+    finally:
+        con.close()
+    return {r.circuitId: {
+        "circuitId": r.circuitId,
+        "name": "" if pd.isna(r.name) else str(r.name),
+        "location": "" if pd.isna(r.location) else str(r.location),
+        "country": "" if pd.isna(r.country) else str(r.country),
+        "lat": None if pd.isna(r.lat) else round(float(r.lat), 4),
+        "lng": None if pd.isna(r.lng) else round(float(r.lng), 4),
+    } for r in df.itertuples()}
 
 
 def _driver_standings(entries: pd.DataFrame, through_round: int,
@@ -127,7 +159,8 @@ def _grid_order_for_future(season_entries: pd.DataFrame,
 def _race_doc(yr: int, rnd: int, name: str, date: str, status: str,
               grid: list[tuple[str, int]], n_drivers: int, params: dict,
               n_sims: int, seed: int, actual: pd.DataFrame | None,
-              driver_meta: pd.DataFrame) -> dict:
+              driver_meta: pd.DataFrame,
+              circuit: dict) -> dict:
     """Simulate one race and render its artifact entry. `actual` carries
     the real positions for raced rounds (None for future rounds)."""
     rng = np.random.default_rng(seed + yr * 100 + rnd)
@@ -138,8 +171,10 @@ def _race_doc(yr: int, rnd: int, name: str, date: str, status: str,
     meta = driver_meta.set_index("driverId")
     grid_map = dict(grid)
     if actual is not None:
-        summ = summ.merge(actual[["driverId", "position", "grid"]],
-                          on="driverId", how="left")
+        summ = summ.merge(
+            actual[["driverId", "position", "grid",
+                    "status", "is_dnf", "dnf_cause"]],
+            on="driverId", how="left")
         # derived insight: the driver's realized grid->finish shift vs
         # their simulated expected shift (the "why" a race landed where
         # it did, in one number per driver)
@@ -165,11 +200,19 @@ def _race_doc(yr: int, rnd: int, name: str, date: str, status: str,
             d["observed_swing"] = (None if pd.isna(r.position)
                                    else int(r.observed_swing))
             d["sim_swing_mean"] = round(float(r.sim_swing_mean), 2)
+            # schema v3: the actual outcome, for the postmortem join
+            d["actual_position"] = (None if pd.isna(r.position)
+                                    else int(r.position))
+            d["status"] = "" if pd.isna(r.status) else str(r.status)
+            d["is_dnf"] = bool(r.is_dnf == 1)
+            d["dnf_cause"] = (None if pd.isna(r.dnf_cause)
+                              else str(r.dnf_cause))
         drivers.append(d)
 
     doc = {
         "year": int(yr), "round": int(rnd), "name": name, "date": date,
         "status": status, "n_drivers": n_drivers,
+        "circuit": circuit,
         "params": {"swing_mean": round(params["mean"], 3),
                    "swing_sd": round(params["sd"], 3),
                    "dnf_rate": round(params["dnf_rate"], 4)},
@@ -196,6 +239,12 @@ def build_race_intel(db_path: str, datasets_dir: str, season: int,
             "        WHERE e.driverId = d.driverId AND e.year = ? "
             "        ORDER BY e.round DESC LIMIT 1) AS constructorId "
             "FROM dim_driver d", con, params=(season,))
+        # v3 actual-outcome fields, per driver per round of this season
+        entry_status = pd.read_sql(
+            "SELECT e.year, e.round, e.driverId, s.status, "
+            "       e.is_dnf, e.dnf_cause "
+            "FROM fact_race_entry e JOIN dim_status s ON s.statusId = e.statusId "
+            "WHERE e.year = ?", con, params=(season,))
     finally:
         con.close()
 
@@ -205,35 +254,51 @@ def build_race_intel(db_path: str, datasets_dir: str, season: int,
 
     last_raced = int(test["round"].max())
     meta_db = _load_race_meta(db_path)
+    circuits = _load_circuits(db_path)
 
     races = []
     for _, rr in season_races.iterrows():
         rnd = int(rr["round"])
         name = str(rr["name"])
         date = str(rr["date"])
-        db_meta = meta_db[meta_db["round"] == rnd]
+        cid = str(rr["circuitId"])
+        # year-scoped: matching on round alone pulled names/circuits from
+        # the oldest season in fact_race (v3 artifact shipped round 5 as
+        # "Spanish GP" when 2026 round 5 is Canada)
+        db_meta = meta_db[(meta_db["round"] == rnd)
+                          & (meta_db["year"] == season)]
         if not db_meta.empty and str(db_meta["name"].iloc[0]) not in ("nan", ""):
             name = str(db_meta["name"].iloc[0])
+            if str(db_meta["circuitId"].iloc[0]) not in ("nan", ""):
+                cid = str(db_meta["circuitId"].iloc[0])
+        # registry entry: dim_circuit when known, else the bare id so the
+        # join key still ships even if the dimension lagged a new venue
+        circuit = circuits.get(cid, {"circuitId": cid, "name": "",
+                                     "location": "", "country": "",
+                                     "lat": None, "lng": None})
 
         if rnd <= last_raced:
             race = test[test["round"] == rnd]
-            actual = race[["driverId", "position", "grid"]]
+            actual = race[["driverId", "position", "grid"]].merge(
+                entry_status[entry_status["round"] == rnd]
+                [["driverId", "status", "is_dnf", "dnf_cause"]],
+                on="driverId", how="left")
             grid = list(zip(race["driverId"],
                             race["grid"].fillna(0).astype(int)))
             doc = _race_doc(season, rnd, name, date, "raced", grid,
                             len(race), params, n_sims, seed, actual,
-                            driver_meta)
+                            driver_meta, circuit)
         elif len(quali[(quali["year"] == season)
                        & (quali["round"] == rnd)]):
             grid = _grid_order_for_future(test, quali, rnd, db_path)
             doc = _race_doc(season, rnd, name, date, "upcoming_post_quali",
                             grid, len(grid), params, n_sims, seed, None,
-                            driver_meta)
+                            driver_meta, circuit)
         else:
             grid = _grid_order_for_future(test, quali, rnd, db_path)
             doc = _race_doc(season, rnd, name, date, "scheduled", grid,
                             len(grid), params, n_sims, seed, None,
-                            driver_meta)
+                            driver_meta, circuit)
         races.append(doc)
 
     future = [r for r in races if r["status"] != "raced"]
@@ -257,7 +322,7 @@ def build_race_intel(db_path: str, datasets_dir: str, season: int,
     }
 
     return {
-        "schema_version": 2,
+        "schema_version": 4,
         "season": season,
         "n_sims": n_sims,
         "next_round": next_round,

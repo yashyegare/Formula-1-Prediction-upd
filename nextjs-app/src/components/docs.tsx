@@ -25,7 +25,7 @@ const CANVA_EDIT_URL = "https://www.canva.com/design/DAFsVnyeZfw/HAKqZREsBBSWqrW
 const CanvaEmbed = () => {
     return (
         <>
-            <div style={{position: 'relative', width: '100%', paddingTop: '45%', paddingBottom: 0, boxShadow: '0 2px 8px 0 rgba(63,69,81,0.16)', marginTop: '0.5em', marginBottom: '0.5em', overflow: 'hidden', borderRadius: '8px', willChange: 'transform'}}>
+            <div style={{position: 'relative', width: '100%', paddingTop: '62%', paddingBottom: 0, boxShadow: '0 2px 8px 0 rgba(63,69,81,0.16)', marginTop: '0.5em', marginBottom: '0.5em', overflow: 'hidden', borderRadius: '8px', willChange: 'transform'}}>
                 <iframe
                     loading="lazy"
                     style={{position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, border: 'none', padding: 0, margin: 0}}
@@ -34,8 +34,8 @@ const CanvaEmbed = () => {
                     allow="fullscreen"
                 />
             </div>
-            <a href={CANVA_EDIT_URL} target="_blank" rel="noopener">
-                Predicting Formula 1 Race Results
+            <a href={CANVA_EDIT_URL} target="_blank" rel="noopener" className="text-xs text-gray-500 hover:text-gray-700">
+                Predicting Formula 1 Race Results (open presentation)
             </a>
         </>
     );
@@ -50,7 +50,7 @@ const FeatureCard = ({ href, isExternal, icon, title, accentColor, delay }: {
     return (
         <Wrapper
             {...wrapperProps}
-            className="group relative flex-1 flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 no-underline transition-all duration-300 hover:-translate-y-0.5"
+            className="group relative flex min-w-[190px] flex-1 items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 no-underline transition-all duration-300 hover:-translate-y-0.5"
             style={{
                 animation: `fadeInUp 0.6s ease-out ${delay} both`,
                 boxShadow: `0 1px 3px rgba(0,0,0,0.06)`,
@@ -172,8 +172,8 @@ const Docs = () => {
                 <p className="text-sm opacity-60 m-0 mb-2">A Machine Learning approach to predict race results</p>
             </header>
 
-            {/* Feature cards — Track Explorer (flagship), Season Simulator & Draw Line Racing */}
-            <div className="mb-4 flex flex-row gap-3">
+            {/* Feature cards — Track Explorer (flagship), Season Simulator, Draw Line Racing & Race Intelligence */}
+            <div className="mb-6 flex flex-wrap gap-3">
                     <FeatureCard
                         href="https://f1-track-metrics-lab.vercel.app"
                         isExternal
@@ -191,11 +191,18 @@ const Docs = () => {
                         delay="0.2s"
                     />
                     <FeatureCard
+                        href="/race-intel"
+                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>}
+                        title="Race Intelligence"
+                        accentColor="#8b5cf6"
+                        delay="0.3s"
+                    />
+                    <FeatureCard
                         href="/racing"
                         icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17h2a2 2 0 002-2v0a2 2 0 00-2-2H5v4zM15 17h2a2 2 0 002-2v0a2 2 0 00-2-2h-2v4z"/><path d="M12 3v14"/><path d="M8 7l4-4 4 4"/><path d="M3 11h18v2a4 4 0 01-4 4H7a4 4 0 01-4-4v-2z"/></svg>}
                         title="Draw Line Racing"
                         accentColor="#22c55e"
-                        delay="0.3s"
+                        delay="0.4s"
                     />
             </div>
             <Container>
