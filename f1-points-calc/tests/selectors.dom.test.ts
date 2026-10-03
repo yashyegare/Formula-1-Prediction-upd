@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { selectDriverStandings, selectTeamStandings, selectPointsHistory, selectTeamPointsHistory } from '../src/store/selectors/standingsSelectors';
+import { selectDriverStandings, selectTeamStandings, selectPointsHistory, selectTeamPointsHistory, selectSimulatedDriverPoints } from '../src/store/selectors/standingsSelectors';
 import { selectDriverPointsForCharts, selectTeamPointsForCharts, selectTopDrivers } from '../src/store/selectors/resultsSelectors';
 import {
   selectOverallAccuracy,
@@ -116,6 +116,22 @@ describe('standingsSelectors', () => {
     // finishCounts still computed from the total board: A has 2 wins → [2,0].
     expect(standings[0].finishCounts[0]).toBe(2);
     expect(standings[2].finishCounts[2]).toBe(1); // C: one P3
+  });
+
+  it('selectSimulatedDriverPoints reports the what-if board, not the official one', () => {
+    const state = makeState({
+      positions: BASE_POSITIONS,
+      officialDrivers: [
+        { driverId: 'A', points: 0, position: 1 },
+        { driverId: 'B', points: 0, position: 2 },
+        { driverId: 'C', points: 0, position: 3 },
+        { driverId: 'D', points: 0, position: 4 },
+      ],
+    });
+    // The standings UI shows is the API's board, so the points the autosave
+    // ships for reconciliation must come from this selector instead.
+    expect(selectDriverStandings(state).map(s => s.points)).toEqual([0, 0, 0, 0]);
+    expect(selectSimulatedDriverPoints(state)).toEqual({ A: 50, B: 36, C: 27, D: 27 });
   });
 
   it('predictionPointsGained = what-if total − official total', () => {

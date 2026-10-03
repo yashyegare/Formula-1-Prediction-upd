@@ -181,12 +181,38 @@ def _now_sql() -> str:
 # ── Schema ─────────────────────────────────────────────────────────────
 
 def init_db():
-    """Create all tables if they don't exist."""
+    """Create all tables if they don't exist, then apply additive migrations."""
     with get_connection() as conn:
         if _is_pg():
             _init_pg(conn)
         else:
             _init_sqlite(conn)
+        _migrate(conn)
+
+
+# Additive columns for databases created before the column existed. Both DDLs
+# below declare them for fresh installs; this covers the running ones, which
+# CREATE TABLE IF NOT EXISTS deliberately leaves alone.
+_ADDITIVE_COLUMNS = {
+    # Simulated championship points shipped by the Season Simulator
+    # ({"driverId": points}); the server cannot recompute them, see
+    # predictions_api.api_predictions_save.
+    "predictions": [("standings_json", "TEXT")],
+}
+
+
+def _migrate(conn):
+    # Identifiers are interpolated, not parameterised: they come from
+    # _ADDITIVE_COLUMNS above, never from a request.
+    for table, columns in _ADDITIVE_COLUMNS.items():
+        if _is_pg():
+            for name, decl in columns:
+                _execute(conn, f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {name} {decl}")
+            continue
+        have = {row["name"] for row in _fetchall(conn, f"PRAGMA table_info({table})")}
+        for name, decl in columns:
+            if name not in have:
+                _execute(conn, f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
 
 
 def _init_sqlite(conn):
@@ -267,6 +293,7 @@ def _init_sqlite(conn):
             user_id INTEGER NOT NULL,
             season INTEGER NOT NULL,
             grids_json TEXT NOT NULL DEFAULT '{}',
+            standings_json TEXT,
             points_system TEXT NOT NULL DEFAULT 'current',
             locked INTEGER NOT NULL DEFAULT 0,
             locked_at TEXT,
@@ -374,6 +401,7 @@ def _init_pg(conn):
             user_id INTEGER NOT NULL REFERENCES users(id),
             season INTEGER NOT NULL,
             grids_json TEXT NOT NULL DEFAULT '{}',
+            standings_json TEXT,
             points_system TEXT NOT NULL DEFAULT 'current',
             locked INTEGER NOT NULL DEFAULT 0,
             locked_at TIMESTAMPTZ,
@@ -918,7 +946,11 @@ def update_last_login(user_id: int):
 # ── Prediction queries ─────────────────────────────────────────────────
 
 def save_prediction(user_id: int, season: int, grids_json: str,
-                    points_system: str = "current") -> dict:
+                    points_system: str = "current",
+                    standings_json: Optional[str] = None) -> dict:
+    """Persist a prediction. `standings_json` is only overwritten when supplied:
+    COALESCE keeps the last known simulated totals for clients that don't send
+    them, instead of wiping them on the next save."""
     with get_connection() as conn:
         if _is_pg():
             existing = _fetchone(conn,
@@ -927,14 +959,15 @@ def save_prediction(user_id: int, season: int, grids_json: str,
             if existing:
                 _execute(conn,
                     "UPDATE predictions SET grids_json = %s, points_system = %s, "
+                    "standings_json = COALESCE(%s, standings_json), "
                     "updated_at = NOW() WHERE id = %s",
-                    (grids_json, points_system, existing["id"]))
+                    (grids_json, points_system, standings_json, existing["id"]))
                 return {"id": existing["id"], "action": "updated"}
             else:
                 cur = _execute(conn,
-                    "INSERT INTO predictions (user_id, season, grids_json, points_system) "
-                    "VALUES (%s, %s, %s, %s) RETURNING id",
-                    (user_id, season, grids_json, points_system))
+                    "INSERT INTO predictions (user_id, season, grids_json, points_system, standings_json) "
+                    "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                    (user_id, season, grids_json, points_system, standings_json))
                 return {"id": cur.fetchone()[0], "action": "created"}
         else:
             existing = _fetchone(conn,
@@ -943,14 +976,15 @@ def save_prediction(user_id: int, season: int, grids_json: str,
             if existing:
                 _execute(conn,
                     "UPDATE predictions SET grids_json = ?, points_system = ?, "
+                    "standings_json = COALESCE(?, standings_json), "
                     "updated_at = datetime('now') WHERE id = ?",
-                    (grids_json, points_system, existing["id"]))
+                    (grids_json, points_system, standings_json, existing["id"]))
                 return {"id": existing["id"], "action": "updated"}
             else:
                 cur = _execute(conn,
-                    "INSERT INTO predictions (user_id, season, grids_json, points_system) "
-                    "VALUES (?, ?, ?, ?)",
-                    (user_id, season, grids_json, points_system))
+                    "INSERT INTO predictions (user_id, season, grids_json, points_system, standings_json) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (user_id, season, grids_json, points_system, standings_json))
                 return {"id": cur.lastrowid, "action": "created"}
 
 

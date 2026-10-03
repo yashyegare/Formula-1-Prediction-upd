@@ -32,9 +32,26 @@ committed to the deploy.
 
 Schema v4 adds a `circuit` object to every race (circuitId, name,
 location, country, lat/lng from dim_circuit, the Jolpica circuitId as
-the join key) — the shared circuit registry the Track Explorer
-deep-links and any future per-circuit insight need, without the serving
-layer ever touching the canonical DB.
+the join key, plus `explorerSlug`) — the shared circuit registry the
+Track Explorer deep-links and any future per-circuit insight need,
+without the serving layer ever touching the canonical DB.
+
+Schema v5 adds `expected_points` to every driver: the mean championship
+points of the simulated finishing positions, on the current-era 25-18-15
+scale. `expected_position` cannot be converted to points downstream
+because the scale is non-linear (P1→P2 is 7 points, P9→P10 is 1), so the
+season reconciliation the Season Simulator feeds has to be built from
+the distribution here, where the simulations live.
+
+Schema v6 adds the Track Explorer's circuit-shape facts (`circuit.traits`
+on every race: corner count, spin direction, longest straight, length,
+altitude, DRS zones) and a top-level `track_error` block that correlates
+those traits against the model's per-round position error. The traits come
+from datasets/track_traits.json, a snapshot exported from the explorer's own
+geometry code (model-notebooks/tools/export_track_traits.mjs) and committed
+here so CI never needs that repo; they are a stylised read of the track
+outline, which is why the correlation is published as a bounded, descriptive
+summary rather than a causal claim.
 
 Everything is computed OFFLINE by this script and written to
 race_intel.json; the API just serves the file. That keeps the Flask
@@ -57,6 +74,156 @@ import pandas as pd
 
 import race_simulator as rs
 from error_decomposition import build_decompositions, summarize
+
+
+# Jolpica circuitId -> the Track Explorer's own circuit id (its `?circuit=`
+# param). The explorer identifies tracks by bacinger/f1-circuits ids
+# ("<cc>-<year opened>"), which share no namespace with Jolpica's, so a
+# deep-link built from a circuitId alone silently opens the wrong track.
+# Derived by nearest-coordinate match against the explorer's circuits.json
+# (all 33 canonical dim_circuit rows within 0.013 deg, i.e. ~1 km); an
+# unknown circuit gets no slug and the UI omits the link.
+EXPLORER_SLUGS = {
+    "albert_park": "au-1953",
+    "americas": "us-2012",
+    "bahrain": "bh-2002",
+    "baku": "az-2016",
+    "catalunya": "es-1991",
+    "hockenheimring": "de-1932",
+    "hungaroring": "hu-1986",
+    "imola": "it-1953",
+    "interlagos": "br-1940",
+    "istanbul": "tr-2005",
+    "jeddah": "sa-2021",
+    "losail": "qa-2004",
+    "madring": "es-2026",
+    "marina_bay": "sg-2008",
+    "miami": "us-2022",
+    "monaco": "mc-1929",
+    "monza": "it-1922",
+    "mugello": "it-1914",
+    "nurburgring": "de-1927",
+    "portimao": "pt-2008",
+    "red_bull_ring": "at-1969",
+    "ricard": "fr-1969",
+    "rodriguez": "mx-1962",
+    "sepang": "my-1999",
+    "shanghai": "cn-2004",
+    "silverstone": "gb-1948",
+    "sochi": "ru-2014",
+    "spa": "be-1925",
+    "suzuka": "jp-1962",
+    "vegas": "us-2023",
+    "villeneuve": "ca-1978",
+    "yas_marina": "ae-2009",
+    "zandvoort": "nl-1948",
+}
+
+
+# Current-era Grand Prix points, P1..P10 (P11+ scores none). Sprint points
+# are deliberately absent: the artifact models one race per round, which is
+# what the serving layer and the reconciliation endpoint both compare on.
+RACE_POINTS = (25, 18, 15, 12, 10, 8, 6, 4, 2, 1)
+
+
+def _points_for_position(pos: int) -> int:
+    return RACE_POINTS[pos - 1] if 1 <= pos <= len(RACE_POINTS) else 0
+
+
+# Circuit-shape facts correlated against model error. `clockwise` is the
+# explorer's direction string reduced to 0/1 so it can enter a correlation.
+TRACK_TRAIT_METRICS = ("cornerCount", "longestStraightMeters", "lengthMeters",
+                       "altitudeMeters", "drsZones", "firstGp", "clockwise")
+
+# The explorer derives these from the track outline polyline, not from
+# surveyed or engineering data (its own header says so). Carried into the
+# artifact so no surface can present them as ground truth.
+TRACK_TRAIT_CAVEAT = (
+    "Corner count, spin direction and longest straight are read off the "
+    "circuit outline, not surveyed data — a stylised shape, correct enough to "
+    "sort tracks by character and wrong enough to misstate a track's real "
+    "corner count. n is the number of raced rounds, so these are descriptive, "
+    "not significant.")
+
+
+def _load_track_traits(datasets_dir: str) -> dict:
+    """{explorerSlug: shape facts} from the committed explorer snapshot."""
+    try:
+        with open(f"{datasets_dir}/track_traits.json", encoding="utf-8") as fh:
+            return json.load(fh).get("traits", {})
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _pearson(xs, ys):
+    x = np.asarray(xs, dtype=float)
+    y = np.asarray(ys, dtype=float)
+    if len(x) < 3 or x.std() == 0 or y.std() == 0:
+        return None
+    return float(np.corrcoef(x, y)[0, 1])
+
+
+def _spearman(xs, ys):
+    if len(xs) < 3:
+        return None
+    return _pearson(pd.Series(xs).rank().tolist(), pd.Series(ys).rank().tolist())
+
+
+def _track_error_insight(races: list[dict]) -> dict:
+    """Where the model's field-position estimates go wrongest, by track shape.
+
+    Per raced round the error metric is mean |actual − expected| position over
+    every driver with a classified finish (DNFs included: they are classified
+    wherever they were lane-up), so it is replayable from the artifact's own
+    published driver rows. The traits come from circuit.traits.
+    """
+    rows = []
+    for race in sorted(races, key=lambda r: r["round"]):
+        circuit = race.get("circuit") or {}
+        traits = circuit.get("traits")
+        if race.get("status") != "raced" or not traits:
+            continue
+        errors = [abs(d["actual_position"] - d["expected_position"])
+                  for d in race["drivers"]
+                  if d.get("actual_position") is not None
+                  and d.get("expected_position") is not None]
+        if not errors:
+            continue
+        rows.append({
+            "round": race["round"],
+            "name": race["name"],
+            "explorerSlug": circuit.get("explorerSlug"),
+            "mean_abs_position_error": round(float(np.mean(errors)), 2),
+            "dnf_rate": round(float(np.mean([1.0 if d.get("is_dnf") else 0.0
+                                             for d in race["drivers"]])), 4),
+            "n_scored": len(errors),
+            **{k: traits.get(k) for k in ("cornerCount", "longestStraightMeters",
+                                          "lengthMeters", "altitudeMeters",
+                                          "drsZones", "direction", "continent",
+                                          "firstGp")},
+        })
+
+    errors = [r["mean_abs_position_error"] for r in rows]
+    correlation = {}
+    for metric in TRACK_TRAIT_METRICS:
+        if metric == "clockwise":
+            values = [1 if r["direction"] == "Clockwise" else 0 for r in rows]
+        else:
+            values = [r.get(metric) for r in rows]
+        pairs = [(v, e) for v, e in zip(values, errors) if v is not None]
+        if len(pairs) < 3:
+            continue
+        xs, ys = [p[0] for p in pairs], [p[1] for p in pairs]
+        pear, spear = _pearson(xs, ys), _spearman(xs, ys)
+        correlation[metric] = {
+            "n": len(pairs),
+            "pearson": None if pear is None else round(pear, 3),
+            "spearman": None if spear is None else round(spear, 3),
+        }
+
+    return {"n_rounds": len(rows), "rounds": rows,
+            "correlation": correlation, "caveat": TRACK_TRAIT_CAVEAT}
+
 
 
 def _load_race_meta(db_path: str) -> pd.DataFrame:
@@ -84,6 +251,7 @@ def _load_circuits(db_path: str) -> dict[str, dict]:
         "country": "" if pd.isna(r.country) else str(r.country),
         "lat": None if pd.isna(r.lat) else round(float(r.lat), 4),
         "lng": None if pd.isna(r.lng) else round(float(r.lng), 4),
+        "explorerSlug": EXPLORER_SLUGS.get(r.circuitId),
     } for r in df.itertuples()}
 
 
@@ -167,6 +335,12 @@ def _race_doc(yr: int, rnd: int, name: str, date: str, status: str,
     sim = rs.simulate_race(grid, n_sims, params["mean"], params["sd"],
                            params["dnf_rate"], rng)
     summ = rs.summarize_simulation(sim)
+    # schema v5: expected championship points from the same simulated
+    # positions the buckets above come from — the season-level currency the
+    # reconciliation endpoint needs (expected_position alone cannot be
+    # turned into points, since the points scale is non-linear).
+    expected_points = (sim.assign(pts=sim["position"].map(_points_for_position))
+                       .groupby("driverId")["pts"].mean())
 
     meta = driver_meta.set_index("driverId")
     grid_map = dict(grid)
@@ -194,6 +368,7 @@ def _race_doc(yr: int, rnd: int, name: str, date: str, status: str,
             "p_points": round(float(r.p_points), 4),
             "p_out": round(float(r.p_out), 4),
             "expected_position": round(float(r.expected_position), 2),
+            "expected_points": round(float(expected_points[r.driverId]), 2),
             "sim_dnf_rate": round(float(r.dnf_rate_sim), 4),
         }
         if actual is not None:
@@ -255,6 +430,7 @@ def build_race_intel(db_path: str, datasets_dir: str, season: int,
     last_raced = int(test["round"].max())
     meta_db = _load_race_meta(db_path)
     circuits = _load_circuits(db_path)
+    track_traits = _load_track_traits(datasets_dir)
 
     races = []
     for _, rr in season_races.iterrows():
@@ -275,7 +451,15 @@ def build_race_intel(db_path: str, datasets_dir: str, season: int,
         # join key still ships even if the dimension lagged a new venue
         circuit = circuits.get(cid, {"circuitId": cid, "name": "",
                                      "location": "", "country": "",
-                                     "lat": None, "lng": None})
+                                     "lat": None, "lng": None,
+                                     "explorerSlug": EXPLORER_SLUGS.get(cid)})
+        # v6: the explorer's shape facts for this venue, joined on the
+        # explorer's own id. Absent for a circuit the snapshot doesn't cover,
+        # which drops it out of the correlation rather than inventing a value.
+        traits = track_traits.get(circuit.get("explorerSlug") or "")
+        if traits:
+            circuit = {**circuit, "traits": {
+                k: v for k, v in traits.items() if k != "name"}}
 
         if rnd <= last_raced:
             race = test[test["round"] == rnd]
@@ -322,7 +506,7 @@ def build_race_intel(db_path: str, datasets_dir: str, season: int,
     }
 
     return {
-        "schema_version": 4,
+        "schema_version": 6,
         "season": season,
         "n_sims": n_sims,
         "next_round": next_round,
@@ -331,6 +515,7 @@ def build_race_intel(db_path: str, datasets_dir: str, season: int,
                       "dnf_rate": round(params["dnf_rate"], 4)},
         "races": sorted(races, key=lambda r: r["round"]),
         "season_attribution": season_summary,
+        "track_error": _track_error_insight(races),
     }
 
 

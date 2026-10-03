@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { NEXT_PUBLIC_API_URL } from "src/lib/constants";
+import { explorerTrackUrl, type ExplorerCircuitRef } from "src/lib/trackExplorer";
 import PostmortemPanel from "src/components/PostmortemPanel";
+import ReconcilePanel from "src/components/ReconcilePanel";
+import TrackErrorSection, { type TrackError } from "src/components/TrackErrorSection";
 
 /* ═══════════════════════════════════════════════
    TYPES — mirror flask-app/race_intelligence_api.py
@@ -34,6 +37,8 @@ interface RaceIntelRace {
   status: "raced" | "upcoming_post_quali" | "scheduled";
   n_drivers: number;
   drivers: RaceIntelDriver[];
+  /** schema v4 circuit registry entry */
+  circuit?: ExplorerCircuitRef & { name: string; location: string; country: string };
 }
 
 interface RaceIntelSeason {
@@ -48,6 +53,7 @@ interface RaceIntelSeason {
     cause_share: Record<string, number>;
     evidence: Record<string, number>;
   };
+  track_error?: TrackError;
 }
 
 /* ── lap-curve replay doc — mirror flask-app/lap_curves.json schema v1 ── */
@@ -422,6 +428,22 @@ const RaceIntelPage: NextPage = () => {
                         </span>
                       )}
                     </p>
+                    {race.circuit?.location && (
+                      <p className="text-xs text-zinc-500">
+                        {race.circuit.location}
+                        {race.circuit.country ? `, ${race.circuit.country}` : ""}
+                        {explorerTrackUrl(race.circuit) && (
+                          <a
+                            href={explorerTrackUrl(race.circuit)!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-2 text-zinc-400 underline underline-offset-2 hover:text-zinc-200"
+                          >
+                            Explore this track in 3D
+                          </a>
+                        )}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -644,6 +666,14 @@ const RaceIntelPage: NextPage = () => {
 
               {/* personal postmortem — why the user's picks missed */}
               {season && <PostmortemPanel season={season.season} />}
+
+              {/* reconciliation — simulator grid vs model vs actual points */}
+              {season && <ReconcilePanel season={season.season} />}
+
+              {/* track shape vs model error — the explorer's circuit facts */}
+              {season?.track_error && (
+                <TrackErrorSection trackError={season.track_error} />
+              )}
 
               {/* season attribution footer */}
               {season && (

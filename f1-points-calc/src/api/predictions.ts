@@ -32,7 +32,8 @@ export async function savePrediction(
   identifier: UserIdentifier,
   grid: GridPosition[],
   pointsSystem: string,
-  season: number
+  season: number,
+  standings?: Record<string, number>
 ): Promise<SaveResponse> {
   const response = await fetch(`${API_BASE_URL}/api/predictions/save`, {
     method: 'POST',
@@ -45,6 +46,12 @@ export async function savePrediction(
       grid,
       pointsSystem,
       season,
+      // Simulated championship totals, computed client-side from the user's
+      // grid. Additive: the server ignores it when absent. It ships because
+      // the scoring rules (19 points systems, sprint/fastest-lap/half/double
+      // and dropped-score exceptions) only exist in this app, so the server
+      // cannot recompute them from the grid alone.
+      ...(standings ? { standings } : {}),
     }),
   });
 

@@ -2,8 +2,10 @@
 Tests for the race-intelligence layer (artifact builder + serving API).
 
 Pins the contracts:
-  - artifact schema v4 (statuses raced/scheduled/next_round, driver
-    field completeness, round ordering, per-race circuit registry entry)
+  - artifact schema v6 (statuses raced/scheduled/next_round, driver
+    field completeness, round ordering, per-race circuit registry entry,
+    expected_points as the simulated positions valued on the points scale,
+    circuit.traits + the track_error correlation block)
   - lap-curves artifact (schema v1: per-driver evolution vectors that
     end concentrated, sample laps bracketing lap 1 and the final lap)
   - determinism: two builds with the same seed are byte-identical
@@ -43,11 +45,12 @@ REAL = pytest.mark.skipif(
 # ── artifact builder (real data — cheap: 23 races x 200 sims) ─────────────
 
 @REAL
-def test_artifact_schema_v4():
+def test_artifact_schema_v6():
     doc = ri.build_race_intel(str(DB), str(DATASETS), 2026, 200, 42)
     assert set(doc) >= {"schema_version", "season", "n_sims", "next_round",
-                        "mechanism", "races", "season_attribution"}
-    assert doc["schema_version"] == 4
+                        "mechanism", "races", "season_attribution",
+                        "track_error"}
+    assert doc["schema_version"] == 6
     rounds = [r["round"] for r in doc["races"]]
     assert rounds == sorted(rounds) and len(rounds) == len(set(rounds))
     statuses = {r["status"] for r in doc["races"]}
@@ -60,16 +63,29 @@ def test_artifact_schema_v4():
                           "n_drivers", "params", "drivers", "circuit"}
         # v4: shared circuit registry entry on every race (raced AND
         # future — the Track Explorer join key must exist pre-race too)
-        assert set(r["circuit"]) == {"circuitId", "name", "location",
-                                     "country", "lat", "lng"}
+        assert set(r["circuit"]) >= {"circuitId", "name", "location",
+                                     "country", "lat", "lng",
+                                     "explorerSlug"}
         assert r["circuit"]["circuitId"]
+        # v6: shape facts ride along where the explorer covers the venue
+        traits = r["circuit"].get("traits")
+        if traits is not None:
+            assert set(traits) == {"cornerCount", "direction",
+                                   "longestStraightMeters", "lengthMeters",
+                                   "altitudeMeters", "drsZones", "continent",
+                                   "firstGp"}
+            assert traits["cornerCount"] > 0
+            assert traits["direction"] in ("Clockwise", "Counter-clockwise")
         for d in r["drivers"]:
             assert set(d) >= {"driverId", "driverCode", "surname",
                               "constructorId", "grid", "p_podium",
                               "p_points", "p_out", "expected_position",
-                              "sim_dnf_rate"}
+                              "expected_points", "sim_dnf_rate"}
             for k in ("p_podium", "p_points", "p_out", "sim_dnf_rate"):
                 assert 0.0 <= d[k] <= 1.0
+            # v5: expected points is a mean over sims of the current-era
+            # scale, so it is bounded by a race win and never negative
+            assert 0.0 <= d["expected_points"] <= 25.0
             assert d["p_podium"] + d["p_points"] + d["p_out"] \
                 == pytest.approx(1.0, abs=1e-6)
             # pit-lane starts are clamped to the back, never the front
@@ -104,6 +120,117 @@ def test_race_meta_is_year_scoped():
             name, cid = expect[r["round"]]
             assert r["name"] == name
             assert r["circuit"]["circuitId"] == cid
+
+
+@REAL
+def test_season_circuits_all_resolve_explorer_slugs():
+    """Every 2026 venue must carry the Track Explorer id its deep-link
+    needs. A blank slug means dim_circuit gained a venue the slug map
+    never heard of — the link would silently disappear from the UI."""
+    doc = ri.build_race_intel(str(DB), str(DATASETS), 2026, 200, 42)
+    missing = [r["circuit"]["circuitId"] for r in doc["races"]
+               if not r["circuit"]["explorerSlug"]]
+    assert not missing, f"no explorer slug for {missing}"
+
+
+def test_explorer_slug_map_shape():
+    """The map is hand-curated from a coordinate match against the
+    explorer's circuit dataset, so pin its shape: ids are the explorer's
+    own "<cc>-<year opened>" form, keys are Jolpica circuitIds, and an
+    unmapped circuit must degrade to no link rather than a wrong one."""
+    import re
+    assert ri.EXPLORER_SLUGS, "slug map must not be empty"
+    for cid, slug in ri.EXPLORER_SLUGS.items():
+        assert cid and cid == cid.strip()
+        assert re.fullmatch(r"[a-z]{2}-\d{4}", slug), (cid, slug)
+    assert len(set(ri.EXPLORER_SLUGS.values())) == len(ri.EXPLORER_SLUGS), \
+        "two Jolpica circuits sharing one explorer id would mis-link"
+
+
+@REAL
+def test_track_traits_snapshot_covers_season_venues():
+    """v6's correlation is only as wide as the explorer snapshot. A venue the
+    snapshot misses silently drops out of the sample, so pin coverage of the
+    season's own slugs and of the fields the correlation reads."""
+    traits = json.loads((DATASETS / "track_traits.json").read_text(encoding="utf-8"))
+    doc = ri.build_race_intel(str(DB), str(DATASETS), 2026, 200, 42)
+    for slug in {r["circuit"]["explorerSlug"] for r in doc["races"]}:
+        entry = traits["traits"].get(slug)
+        assert entry, f"track_traits.json has no {slug} — that venue is " \
+                     "invisible to the error correlation"
+        for key in ("cornerCount", "longestStraightMeters", "lengthMeters",
+                    "altitudeMeters", "drsZones"):
+            assert isinstance(entry[key], (int, float)), (slug, key)
+        assert entry["cornerCount"] > 0
+
+
+@REAL
+def test_track_error_rows_replay_from_published_drivers():
+    """The per-round error must be recomputable from the artifact's own
+    driver rows — otherwise the page is showing a number nobody can audit."""
+    doc = ri.build_race_intel(str(DB), str(DATASETS), 2026, 200, 42)
+    by_round = {r["round"]: r for r in doc["races"]}
+    rows = doc["track_error"]["rounds"]
+    assert rows, "no raced round carried traits — the join is broken"
+    assert [r["round"] for r in rows] == sorted(r["round"] for r in rows)
+    for row in rows:
+        race = by_round[row["round"]]
+        errors = [abs(d["actual_position"] - d["expected_position"])
+                  for d in race["drivers"]
+                  if d.get("actual_position") is not None]
+        assert row["n_scored"] == len(errors)
+        assert row["mean_abs_position_error"] == pytest.approx(
+            sum(errors) / len(errors), abs=0.011)
+        assert 0.0 <= row["dnf_rate"] <= 1.0
+
+
+@REAL
+def test_track_error_correlation_is_bounded_and_caveated():
+    doc = ri.build_race_intel(str(DB), str(DATASETS), 2026, 200, 42)
+    block = doc["track_error"]
+    assert set(block) == {"n_rounds", "rounds", "correlation", "caveat"}
+    assert block["n_rounds"] == len(block["rounds"])
+    assert block["caveat"], "shape facts must never ship without their caveat"
+    assert set(block["correlation"]) <= set(ri.TRACK_TRAIT_METRICS)
+    for metric, entry in block["correlation"].items():
+        assert entry["n"] <= block["n_rounds"]
+        for key in ("pearson", "spearman"):
+            value = entry[key]
+            assert value is None or -1.0 <= value <= 1.0, (metric, key, value)
+    # a constant trait has no correlation to report: None, never a NaN
+    # reaching the JSON the frontend parses
+    for entry in block["correlation"].values():
+        for key in ("pearson", "spearman"):
+            value = entry[key]
+            assert not (isinstance(value, float) and value != value)
+
+
+@REAL
+def test_expected_points_is_bounded_by_its_own_distribution():
+    """v5 must be the points scale applied to the same simulation the
+    published buckets come from, so it has to sit inside the range that
+    distribution allows: every podium chance worth at most a win, every
+    points chance at most P4, and at minimum the back of each band.
+    (A replay from the artifact's own fields is not possible — the RNG
+    assigns draws per grid column, and the column order is not
+    published — which is exactly why the value ships precomputed.)"""
+    doc = ri.build_race_intel(str(DB), str(DATASETS), 2026, 200, 42)
+    # 0.011 slack: expected_points is published rounded to 2dp, so a bound
+    # that holds exactly before rounding can miss by up to half a cent
+    for r in doc["races"]:
+        for d in r["drivers"]:
+            hi = 25 * d["p_podium"] + 18 * d["p_points"]
+            lo = 15 * d["p_podium"] + 1 * d["p_points"]
+            assert lo - 0.011 <= d["expected_points"] <= hi + 0.011, \
+                (r["round"], d["driverId"], d["expected_points"], lo, hi)
+
+
+def test_points_scale_is_current_era():
+    assert ri.RACE_POINTS == (25, 18, 15, 12, 10, 8, 6, 4, 2, 1)
+    assert ri._points_for_position(1) == 25
+    assert ri._points_for_position(10) == 1
+    for pos in (11, 22, 0, -1):
+        assert ri._points_for_position(pos) == 0
 
 
 @REAL

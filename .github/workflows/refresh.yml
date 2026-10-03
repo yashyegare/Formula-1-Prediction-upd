@@ -42,6 +42,17 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Restore the Jolpica response cache
+        # Completed rounds never change, so a warm cache turns the nightly
+        # run from ~3000 live requests into just the handful of new/changed
+        # ones. Without it every night refetched the whole 2018-2026 window
+        # uncached — the long, failure-prone path.
+        uses: actions/cache@v4
+        with:
+          path: model-notebooks/.jolpica_cache
+          key: jolpica-${{ github.run_id }}
+          restore-keys: jolpica-
+
       - name: Fetch latest Jolpica data
         # Idempotent: completed rounds are cached in .jolpica_cache (not
         # committed), so each night only the new season/rounds are pulled.
@@ -74,12 +85,17 @@ jobs:
           from pathlib import Path
 
           intel = json.loads(Path("datasets/race_intel.json").read_text(encoding="utf-8"))
-          assert intel["schema_version"] == 2, intel["schema_version"]
+          assert intel["schema_version"] == 6, intel["schema_version"]
           assert intel["races"], "empty race-intel artifact"
           for r in intel["races"]:
               assert r["status"] in ("raced", "upcoming_post_quali", "scheduled")
+              circuit = r.get("circuit") or {}
+              assert circuit.get("circuitId"), f"round {r['round']} missing circuit registry entry"
+              assert circuit.get("explorerSlug"), f"round {r['round']} has no Track Explorer deep-link slug"
+              assert circuit.get("traits"), f"round {r['round']} has no track_traits.json entry — regenerate the snapshot with model-notebooks/tools/export_track_traits.mjs"
               for d in r["drivers"]:
                   assert abs(d["p_podium"] + d["p_points"] + d["p_out"] - 1.0) < 5e-3
+          assert intel["track_error"]["rounds"], "track_error correlated zero rounds"
 
           curves = json.loads(Path("datasets/lap_curves.json").read_text(encoding="utf-8"))
           assert curves["schema_version"] == 1, curves["schema_version"]
@@ -99,6 +115,24 @@ jobs:
         # breaks an assumption fails here — before anything ships.
         run: python -m pytest tests/ -q
 
+      - name: Sync the shipped Flask season DB (SQLite)
+        # Post-race ingest for the committed f1_data.db: fetches only the
+        # rounds still marked incomplete, writes results/standings and
+        # re-scores stored predictions, so /api/init serves the latest GP
+        # without anyone re-seeding the season by hand.
+        working-directory: flask-app
+        run: |
+          python - <<'PY'
+          from datetime import datetime, timezone
+          from database import is_seeded
+          from sync_season_db import sync_year
+          year = datetime.now(timezone.utc).year
+          if not is_seeded(year):
+              print(f"season {year} not seeded in f1_data.db - SQLite sync skipped")
+          else:
+              print("SQLite sync:", sync_year(year))
+          PY
+
       - name: Commit changed data and artifacts
         # Conditional by construction: if nothing changed (no new race,
         # no upstream correction), git commit exits non-zero and the
@@ -107,7 +141,7 @@ jobs:
         run: |
           git config user.name "yashyegare"
           git config user.email "tbzyash1@gmail.com"
-          git add datasets/
+          git add datasets/ ../flask-app/f1_data.db
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No data changes since the last refresh."
@@ -119,6 +153,31 @@ jobs:
       - name: Push
         if: steps.commit.outputs.changed == 'true'
         run: git push
+
+      - name: Sync production Postgres via the admin endpoint
+        # The committed SQLite DB only ships the file — production reads
+        # Postgres (DATABASE_URL) instead. This drives the same ingest
+        # through the token-gated endpoint. 404 (endpoint not deployed
+        # yet) and 400 (season not seeded in prod) are tolerated; a 403
+        # or 5xx is a loud failure.
+        env:
+          SYNC_ADMIN_TOKEN: ${{ secrets.SYNC_ADMIN_TOKEN }}
+        run: |
+          if [ -z "$SYNC_ADMIN_TOKEN" ]; then
+            echo "::warning::SYNC_ADMIN_TOKEN secret not set - production sync skipped."
+            exit 0
+          fi
+          YEAR=$(date -u +%Y)
+          HTTP=$(curl -s -o /tmp/sync.json -w "%{http_code}" --max-time 120 \
+            -X POST https://f1-predictor-api-nddf.onrender.com/api/admin/sync-season \
+            -H "Content-Type: application/json" -H "X-Sync-Token: $SYNC_ADMIN_TOKEN" \
+            -d "{\"year\": $YEAR}")
+          cat /tmp/sync.json; echo
+          case "$HTTP" in
+            200) echo "Production Postgres synced" ;;
+            400|404) echo "Production sync not applicable yet (HTTP $HTTP) - continuing" ;;
+            *) echo "::error::Production sync failed (HTTP $HTTP)"; exit 1 ;;
+          esac
 
       - name: Notify on committed refresh
         # A scheduled push SHIPS new artifacts. Silence would hide a bad

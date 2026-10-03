@@ -51,7 +51,16 @@ def get(session, cache_dir, path, params=None):
 
     url = f"{BASE}/{path}"
     for attempt in range(6):
-        resp = session.get(url, params=params, timeout=15)
+        try:
+            resp = session.get(url, params=params, timeout=15)
+        except requests.RequestException as exc:
+            # A single dropped connection or 15s stall must not kill a
+            # multi-thousand-request run (this is why the nightly CI
+            # refresh, which fetches uncached, failed 8/8 nights).
+            wait = 5 * (attempt + 1)
+            print(f"  network error ({exc.__class__.__name__}), waiting {wait}s...")
+            time.sleep(wait)
+            continue
         if resp.status_code == 429:
             wait = 5 * (attempt + 1)
             print(f"  rate limited, waiting {wait}s...")
