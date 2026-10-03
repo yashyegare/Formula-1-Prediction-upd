@@ -294,12 +294,13 @@ jobs:
           fi
           # 2) All deployed frontends MUST stay allowlisted - a missing origin
           #    silently breaks that app's browser requests (roster/predictions).
-          #    The race-intel dashboard is deployed at the bare domain AND the
-          #    -fxzg deployment alias; both must stay allowlisted.
+          #    Two projects, two origins: the Next.js predictor (which owns
+          #    /race-intel) and the Astro Season Simulator. The predictor's
+          #    duplicate deployment lost its formula-1-prediction-upd domain on
+          #    2026-10-03, so that origin is no longer checked here.
           for origin in \
             https://nextjs-app-yashyegare.vercel.app \
-            https://formula-1-prediction-upd-fxzg.vercel.app \
-            https://formula-1-prediction-upd.vercel.app; do
+            https://formula-1-prediction-upd-fxzg.vercel.app; do
             if ! curl -s -D - -o /dev/null --max-time 30 -H "Origin: $origin" "$API/roster" \
                  | grep -qi "access-control-allow-origin: $origin"; then
               echo "::warning::$origin missing from live CORS allowlist"
