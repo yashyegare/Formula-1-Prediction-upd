@@ -143,7 +143,7 @@ def _ingest_round(conn, year: int, rnd: int, results: list[dict]) -> None:
                           colors.get("secondaryColor")))
     _execute(conn,
              f"UPDATE races SET completed = 1 WHERE year = {_ph()} "
-             "AND round_num = ?", (year, rnd))
+             f"AND round_num = {_ph()}", (year, rnd))
 
 
 def _standings_entries(year: int, kind: str,

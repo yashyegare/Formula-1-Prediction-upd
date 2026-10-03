@@ -2,9 +2,10 @@
 Tests for the post-race ingest (sync_season_db.sync_year) and the
 token-gated POST /api/admin/sync-season that drives it on production.
 
-Everything runs against an isolated fake season (year 2099) in the
-throwaway SQLite DB from conftest, with api_get monkeypatched — no
-network, and no collision with the real seeded seasons.
+Everything runs against an isolated fake season (year 2099), with
+api_get monkeypatched — no network, and no collision with the real
+seeded seasons. CI executes this file under both SQLite and PostgreSQL,
+so queries use the same placeholder shim the module under test uses.
 """
 
 import pytest
@@ -13,6 +14,7 @@ import sync_season_db
 from database import _execute, _fetchall, get_connection, init_db
 
 YEAR = 2099
+PH = sync_season_db._ph()
 
 
 # ── fixtures / helpers ───────────────────────────────────────────────────
@@ -22,9 +24,9 @@ def _wipe():
     with get_connection() as conn:
         for table in ("races", "drivers", "constructors", "results",
                       "standings", "seasons"):
-            _execute(conn, f"DELETE FROM {table} WHERE year = ?", (YEAR,))
-        _execute(conn, "DELETE FROM predictions WHERE season = ?", (YEAR,))
-        _execute(conn, "DELETE FROM leaderboard WHERE season = ?", (YEAR,))
+            _execute(conn, f"DELETE FROM {table} WHERE year = {PH}", (YEAR,))
+        _execute(conn, f"DELETE FROM predictions WHERE season = {PH}", (YEAR,))
+        _execute(conn, f"DELETE FROM leaderboard WHERE season = {PH}", (YEAR,))
         _execute(conn, "DELETE FROM users WHERE username = 'syncuser'")
 
 
@@ -32,34 +34,35 @@ def _seed_season():
     """3-round season: round 1 raced, rounds 2-3 open, 2-driver roster,
     one pre-existing standings row to prove replace-vs-wipe semantics."""
     with get_connection() as conn:
-        _execute(conn, "INSERT INTO seasons (year, race_count) VALUES (?, ?)",
-                 (YEAR, 3))
+        _execute(conn, f"INSERT INTO seasons (year, race_count) "
+                       f"VALUES ({PH}, {PH})", (YEAR, 3))
         for rnd in (1, 2, 3):
             _execute(conn,
                      "INSERT INTO races (id, year, round_num, name, "
                      "circuit_id, country, completed) "
-                     "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                     f"VALUES ({PH}, {PH}, {PH}, {PH}, {PH}, {PH}, {PH})",
                      (f"{YEAR}_r{rnd}", YEAR, rnd, f"Round {rnd} GP",
                       "fake_circuit", "Zedland", 1 if rnd == 1 else 0))
         for did, tid in (("alice", "redbull"), ("bob", "ferrari")):
             _execute(conn,
                      "INSERT INTO drivers (id, year, code, given_name, "
                      "family_name, nationality, team_id) "
-                     "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                     f"VALUES ({PH}, {PH}, {PH}, {PH}, {PH}, {PH}, {PH})",
                      (did, YEAR, did[:3].upper(), "Given", did.title(),
                       "Zedish", tid))
         for tid in ("redbull", "ferrari"):
             _execute(conn,
                      "INSERT INTO constructors (id, year, name, nationality, "
-                     "color) VALUES (?, ?, ?, ?, ?)",
+                     f"color) VALUES ({PH}, {PH}, {PH}, {PH}, {PH})",
                      (tid, YEAR, tid.title(), "Zedish", "#ffffff"))
         _execute(conn,
                  "INSERT INTO results (year, round_num, driver_id, team_id, "
-                 "position, fastest_lap) VALUES (?, ?, ?, ?, ?, ?)",
+                 f"position, fastest_lap) VALUES ({PH}, {PH}, {PH}, {PH}, "
+                 f"{PH}, {PH})",
                  (YEAR, 1, "alice", "redbull", 1, 0))
         _execute(conn,
                  "INSERT INTO standings (year, entity_id, entity_type, "
-                 "position, points) VALUES (?, ?, ?, ?, ?)",
+                 f"position, points) VALUES ({PH}, {PH}, {PH}, {PH}, {PH})",
                  (YEAR, "alice", "driver", 1, 25.0))
 
 
@@ -108,7 +111,8 @@ def _standings(entity_type):
             for r in _fetchall(
                 conn,
                 "SELECT entity_id, position, points FROM standings "
-                "WHERE year = ? AND entity_type = ?", (YEAR, entity_type))
+                f"WHERE year = {PH} AND entity_type = {PH}",
+                (YEAR, entity_type))
         }
 
 
@@ -141,7 +145,8 @@ def test_ingests_raced_round_and_stops_at_first_unraced(monkeypatch):
     with get_connection() as conn:
         completed = {
             r["round_num"]: r["completed"] for r in _fetchall(
-                conn, "SELECT round_num, completed FROM races WHERE year = ?",
+                conn, f"SELECT round_num, completed FROM races "
+                      f"WHERE year = {PH}",
                 (YEAR,))
         }
     assert completed == {1: 1, 2: 0, 3: 0}
@@ -163,19 +168,20 @@ def test_ingest_writes_results_and_upserts_new_roster(monkeypatch):
             r["driver_id"]: r["position"] for r in _fetchall(
                 conn,
                 "SELECT driver_id, position FROM results "
-                "WHERE year = ? AND round_num = 2", (YEAR,))
+                f"WHERE year = {PH} AND round_num = 2", (YEAR,))
         }
         assert rows == {"alice": 1, "bob": 2, "dave": 3}
         assert _fetchall(
-            conn, "SELECT id FROM drivers WHERE year = ? AND id = 'dave'",
+            conn, f"SELECT id FROM drivers WHERE year = {PH} AND id = 'dave'",
             (YEAR,))
         assert _fetchall(
             conn,
-            "SELECT id FROM constructors WHERE year = ? AND id = 'mercedes'",
+            "SELECT id FROM constructors "
+            f"WHERE year = {PH} AND id = 'mercedes'",
             (YEAR,))
         assert _fetchall(
             conn,
-            "SELECT id FROM races WHERE year = ? AND round_num = 2 "
+            f"SELECT id FROM races WHERE year = {PH} AND round_num = 2 "
             "AND completed = 1", (YEAR,))
 
 
@@ -245,7 +251,7 @@ def test_rescore_writes_leaderboard_for_stored_predictions(monkeypatch):
             "SELECT id FROM users WHERE username = 'syncuser'")[0]["id"]
         _execute(conn,
                  "INSERT INTO predictions (user_id, season, grids_json, "
-                 "accuracy_score) VALUES (?, ?, ?, 0)",
+                 f"accuracy_score) VALUES ({PH}, {PH}, {PH}, 0)",
                  (uid, YEAR, '{"2099_r1": ["alice", "bob"]}'))
     _patch_api(monkeypatch,
                results_by_round={2: [_res("alice", "redbull", 1)]})
@@ -256,7 +262,7 @@ def test_rescore_writes_leaderboard_for_stored_predictions(monkeypatch):
         lb = _fetchall(
             conn,
             "SELECT accuracy_score, races_scored FROM leaderboard "
-            "WHERE user_id = ? AND season = ?", (uid, YEAR))
+            f"WHERE user_id = {PH} AND season = {PH}", (uid, YEAR))
     assert len(lb) == 1
     assert lb[0]["races_scored"] >= 1
 
