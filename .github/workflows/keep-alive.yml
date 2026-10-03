@@ -15,12 +15,23 @@ jobs:
     steps:
       - name: Ping backend health endpoint
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://f1-predictor-api-nddf.onrender.com/health)
-          echo "Health check returned: $STATUS"
-          if [ "$STATUS" -ne 200 ]; then
-            echo "Warning: health check did not return 200"
-            exit 1
-          fi
+          # A Render free-tier cold start routinely takes 60-90s, and this
+          # ping is often the request that wakes the service. The old
+          # --max-time 30 could never outlast the boot it triggered, so
+          # every cold-night run "failed" while the service came up right
+          # after — which is what filled the mailbox. Three attempts with
+          # a generous budget only alert on genuine downtime.
+          for i in 1 2 3; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 120 https://f1-predictor-api-nddf.onrender.com/health || echo "000")
+            echo "attempt $i: health returned $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Service awake/healthy"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::F1 API health check failed after 3 attempts"
+          exit 1
       - name: Notify when the API is down
         if: failure()
         env:

@@ -102,7 +102,15 @@ export const seasonDataSlice = createSlice({
           return {
             id: item.id,
             name: item.name,
-            isSprint: item.isSprint,
+            // Every schedule row the backend sends is a Grand Prix: it keeps
+            // one race per round and its results are the feature race. The
+            // API's isSprint marks the WEEKEND (it also had a sprint), not
+            // this row — the engine's sprint path expects a second row with
+            // its own id, which never arrives. Reading the flag as a race
+            // type scored those four GPs on the sprint table (a win worth 8
+            // instead of 25), dropped their fastest-lap point and finish
+            // counts, and unlinked their track pages.
+            isSprint: false,
             country: item.country.toLowerCase(),
             countryCode: COUNTRY_CODE_MAP[item.country.toLowerCase()] || '',
             order: item.order,
@@ -110,14 +118,10 @@ export const seasonDataSlice = createSlice({
             date: item.date,
             round: item.round.toString(),
             circuitId: item.circuitId,
-            // Authoritative track-page slug for this circuit. Undefined when the
-            // payload lacks circuitId or the circuit isn't in /api/circuits yet →
-            // header renders plain text instead of a link.
-            // Sprints are intentionally NOT linked: they share a circuit with the
-            // GP, but the track page shows Grand Prix history only, so linking a
-            // sprint column would land users on a page with no sprint data.
-            trackSlug:
-              item.circuitId && !item.isSprint ? circuitSlugs[item.circuitId] : undefined,
+            // Authoritative track-page slug for this circuit. Undefined when
+            // the payload lacks circuitId or the circuit isn't in
+            // /api/circuits yet → header renders plain text instead of a link.
+            trackSlug: item.circuitId ? circuitSlugs[item.circuitId] : undefined,
           };
         });
 

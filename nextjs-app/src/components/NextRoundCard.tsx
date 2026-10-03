@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { NEXT_PUBLIC_API_URL } from "src/lib/constants";
+import { explorerTrackUrl } from "src/lib/trackExplorer";
 
 interface CircuitInfo {
   circuitId: string;
@@ -10,6 +11,7 @@ interface CircuitInfo {
   country: string;
   lat: number | null;
   lng: number | null;
+  explorerSlug?: string | null;
 }
 
 interface RoundSummary {
@@ -84,12 +86,24 @@ const NextRoundCard = () => {
       <p className="mt-0.5 text-sm text-[rgba(55,53,47,0.7)]">
         {dateText} · {doc.race.n_drivers} drivers · {SUBTITLE[doc.race.status]}
       </p>
-      <Link
-        href="/race-intel"
-        className="mt-3 inline-block rounded-md border border-[rgba(212,76,71,0.4)] bg-[rgba(253,235,236,1)] px-4 py-1.5 text-sm font-medium text-[rgba(212,76,71,1)] no-underline hover:bg-[rgba(212,76,71,0.12)]"
-      >
-        Open Race Intelligence
-      </Link>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Link
+          href="/race-intel"
+          className="inline-block rounded-md border border-[rgba(212,76,71,0.4)] bg-[rgba(253,235,236,1)] px-4 py-1.5 text-sm font-medium text-[rgba(212,76,71,1)] no-underline hover:bg-[rgba(212,76,71,0.12)]"
+        >
+          Open Race Intelligence
+        </Link>
+        {explorerTrackUrl(doc.race.circuit) && (
+          <a
+            href={explorerTrackUrl(doc.race.circuit)!}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block px-1 text-sm text-[rgba(55,53,47,0.7)] underline-offset-2 hover:underline"
+          >
+            Explore this track in 3D
+          </a>
+        )}
+      </div>
     </section>
   );
 };

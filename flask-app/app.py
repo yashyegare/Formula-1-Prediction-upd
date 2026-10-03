@@ -101,48 +101,6 @@ DRIVER_ID_MAP = {
     "arvid_lindblad": "lindblad",
 }
 
-# Official 2026 standings (includes sprint + fastest lap points)
-# Source: formula1.com after Dutch GP (R12)
-OFFICIAL_DRIVER_STANDINGS = [
-    {"position": 1, "driverId": "antonelli", "points": 242},
-    {"position": 2, "driverId": "russell", "points": 183},
-    {"position": 3, "driverId": "hamilton", "points": 183},
-    {"position": 4, "driverId": "norris", "points": 159},
-    {"position": 5, "driverId": "leclerc", "points": 155},
-    {"position": 6, "driverId": "verstappen", "points": 112},
-    {"position": 7, "driverId": "piastri", "points": 104},
-    {"position": 8, "driverId": "hadjar", "points": 68},
-    {"position": 9, "driverId": "lawson", "points": 49},
-    {"position": 10, "driverId": "gasly", "points": 44},
-    {"position": 11, "driverId": "lindblad", "points": 23},
-    {"position": 12, "driverId": "colapinto", "points": 19},
-    {"position": 13, "driverId": "bearman", "points": 18},
-    {"position": 14, "driverId": "bortoleto", "points": 10},
-    {"position": 15, "driverId": "hulkenberg", "points": 6},
-    {"position": 16, "driverId": "sainz", "points": 6},
-    {"position": 17, "driverId": "albon", "points": 5},
-    {"position": 18, "driverId": "ocon", "points": 3},
-    {"position": 19, "driverId": "alonso", "points": 3},
-    {"position": 20, "driverId": "tsunoda", "points": 0},
-    {"position": 21, "driverId": "stroll", "points": 0},
-    {"position": 22, "driverId": "bottas", "points": 0},
-    {"position": 23, "driverId": "perez", "points": 0},
-]
-
-OFFICIAL_CONSTRUCTOR_STANDINGS = [
-    {"position": 1, "teamId": "mercedes", "points": 425},
-    {"position": 2, "teamId": "ferrari", "points": 338},
-    {"position": 3, "teamId": "mclaren", "points": 263},
-    {"position": 4, "teamId": "red_bull", "points": 186},
-    {"position": 5, "teamId": "rb", "points": 66},
-    {"position": 6, "teamId": "alpine", "points": 63},
-    {"position": 7, "teamId": "haas", "points": 21},
-    {"position": 8, "teamId": "audi", "points": 16},
-    {"position": 9, "teamId": "williams", "points": 11},
-    {"position": 10, "teamId": "aston_martin", "points": 3},
-    {"position": 11, "teamId": "cadillac", "points": 0},
-]
-
 # Country code map for circuits
 COUNTRY_CODES = {
     "australia": "au", "china": "cn", "japan": "jp", "bahrain": "bh",
@@ -162,6 +120,45 @@ def _fetch_jolpica(url):
             return json.loads(resp.read())
     except Exception:
         return None
+
+
+def _live_standings(year):
+    """Driver + constructor standings for the un-seeded-year fallback, read
+    from Jolpica's own standings endpoint so the numbers are the season's
+    real classification. (The old path returned a hardcoded 2026-R12
+    snapshot for EVERY fallback year — wrong-season data on any un-seeded
+    request.) Returns ([], []) if Jolpica has no standings yet."""
+    def _parse(data, list_key, sub_key, id_key, out_key):
+        entries = []
+        lists = (data or {}).get("MRData", {}).get(
+            "StandingsTable", {}).get("StandingsLists", [])
+        for s in (lists[0].get(list_key, []) if lists else []):
+            raw_id = s.get(sub_key, {}).get(id_key, "")
+            try:
+                pos = int(s.get("position"))
+            except (TypeError, ValueError):
+                continue
+            if not raw_id or pos <= 0:
+                continue
+            try:
+                pts = float(s.get("points", 0))
+            except (TypeError, ValueError):
+                pts = 0.0
+            pts = int(pts) if pts == int(pts) else pts
+            entries.append({
+                "position": pos,
+                out_key: DRIVER_ID_MAP.get(raw_id, raw_id),
+                "points": pts,
+            })
+        return entries
+
+    drivers = _parse(
+        _fetch_jolpica(f"https://api.jolpi.ca/ergast/f1/{year}/driverStandings.json?limit=100"),
+        "DriverStandings", "Driver", "driverId", "driverId")
+    constructors = _parse(
+        _fetch_jolpica(f"https://api.jolpi.ca/ergast/f1/{year}/constructorStandings.json?limit=100"),
+        "ConstructorStandings", "Constructor", "constructorId", "teamId")
+    return drivers, constructors
 
 
 @app.route("/api/init", methods=["GET"])
@@ -312,10 +309,11 @@ def api_init():
         if results_list:
             race_results[race_id] = results_list
 
+    driver_standings, constructor_standings = _live_standings(year)
     result = {
         "schedule": schedule, "teams": teams, "drivers": drivers_list,
-        "raceResults": race_results, "driverStandings": OFFICIAL_DRIVER_STANDINGS,
-        "constructorStandings": OFFICIAL_CONSTRUCTOR_STANDINGS,
+        "raceResults": race_results, "driverStandings": driver_standings,
+        "constructorStandings": constructor_standings,
     }
     _INIT_CACHE[cache_key] = result
     return jsonify(result)

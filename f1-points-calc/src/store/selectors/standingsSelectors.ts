@@ -37,6 +37,15 @@ const selectCalculatedPoints = createSelector(
   }
 );
 
+// The user's what-if totals, independent of the official standings the API
+// sends. `selectDriverStandings` prefers the official list whenever it exists,
+// so the simulated numbers only surface here — which is what autosave ships to
+// the server for the reconcile view.
+export const selectSimulatedDriverPoints = createSelector(
+  [selectCalculatedPoints],
+  ({ total }): Record<string, number> => total.driverPoints
+);
+
 export const selectDriverStandings = createSelector(
   [selectCalculatedPoints, selectOfficialDriverStandings],
   ({ official, total }, officialStandings): DriverStanding[] => {

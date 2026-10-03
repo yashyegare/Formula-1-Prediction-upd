@@ -1,6 +1,7 @@
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { NEXT_PUBLIC_API_URL } from "../lib/constants";
+import { explorerTrackUrl, loadCircuitRegistry } from "../lib/trackExplorer";
 
 type Roster = {
     drivers: string[];
@@ -9,47 +10,49 @@ type Roster = {
     season: number;
 };
 
-/* Map Grand Prix names → Track Metrics Lab circuit slugs */
+/* Last-resort Grand Prix name → Track Metrics Lab circuit id map, used
+   only when the season circuit registry (which carries the real
+   explorerSlug) is unreachable. The explorer selects tracks by its own
+   "<cc>-<year>" ids, so a Jolpica slug here opens the wrong track —
+   prefer the registry. */
 const GP_TO_CIRCUIT: Record<string, string> = {
-    "Monaco Grand Prix": "monaco",
-    "British Grand Prix": "silverstone",
-    "Japanese Grand Prix": "suzuka",
-    "Belgian Grand Prix": "spa",
-    "Brazilian Grand Prix": "interlagos",
-    "São Paulo Grand Prix": "interlagos",
-    "Australian Grand Prix": "albert_park",
-    "Bahrain Grand Prix": "bahrain",
-    "Saudi Arabian Grand Prix": "jeddah",
-    "Miami Grand Prix": "miami",
-    "Emilia Romagna Grand Prix": "imola",
-    "Spanish Grand Prix": "catalunya",
-    "Canadian Grand Prix": "villeneuve",
-    "Austrian Grand Prix": "spielberg",
-    "French Grand Prix": "paul_ricard",
-    "Hungarian Grand Prix": "hungaroring",
-    "Dutch Grand Prix": "zandvoort",
-    "Italian Grand Prix": "monza",
-    "Singapore Grand Prix": "marina_bay",
-    "Azerbaijan Grand Prix": "baku",
-    "United States Grand Prix": "americas",
-    "Mexico City Grand Prix": "rodriguez",
-    "Mexican Grand Prix": "rodriguez",
-    "Las Vegas Grand Prix": "las_vegas",
-    "Qatar Grand Prix": "losail",
-    "Abu Dhabi Grand Prix": "yas_marina",
-    "Chinese Grand Prix": "shanghai",
-    "70th Anniversary Grand Prix": "silverstone",
-    "Styrian Grand Prix": "spielberg",
-    "Eifel Grand Prix": "nurburgring",
-    "Portuguese Grand Prix": "portimao",
-    "Turkish Grand Prix": "istanbul",
-    "Russian Grand Prix": "sochi",
-    "Tuscan Grand Prix": "mugello",
-    "Sakhir Grand Prix": "bahrain",
-    "Barcelona Grand Prix": "catalunya",
+    "Monaco Grand Prix": "mc-1929",
+    "British Grand Prix": "gb-1948",
+    "Japanese Grand Prix": "jp-1962",
+    "Belgian Grand Prix": "be-1925",
+    "Brazilian Grand Prix": "br-1940",
+    "São Paulo Grand Prix": "br-1940",
+    "Australian Grand Prix": "au-1953",
+    "Bahrain Grand Prix": "bh-2002",
+    "Saudi Arabian Grand Prix": "sa-2021",
+    "Miami Grand Prix": "us-2022",
+    "Emilia Romagna Grand Prix": "it-1953",
+    "Spanish Grand Prix": "es-1991",
+    "Canadian Grand Prix": "ca-1978",
+    "Austrian Grand Prix": "at-1969",
+    "French Grand Prix": "fr-1969",
+    "Hungarian Grand Prix": "hu-1986",
+    "Dutch Grand Prix": "nl-1948",
+    "Italian Grand Prix": "it-1922",
+    "Singapore Grand Prix": "sg-2008",
+    "Azerbaijan Grand Prix": "az-2016",
+    "United States Grand Prix": "us-2012",
+    "Mexico City Grand Prix": "mx-1962",
+    "Mexican Grand Prix": "mx-1962",
+    "Las Vegas Grand Prix": "us-2023",
+    "Qatar Grand Prix": "qa-2004",
+    "Abu Dhabi Grand Prix": "ae-2009",
+    "Chinese Grand Prix": "cn-2004",
+    "70th Anniversary Grand Prix": "gb-1948",
+    "Styrian Grand Prix": "at-1969",
+    "Eifel Grand Prix": "de-1927",
+    "Portuguese Grand Prix": "pt-2008",
+    "Turkish Grand Prix": "tr-2005",
+    "Russian Grand Prix": "ru-2014",
+    "Tuscan Grand Prix": "it-1914",
+    "Sakhir Grand Prix": "bh-2002",
+    "Barcelona Grand Prix": "es-1991",
 };
-
-const TRACK_METRICS_URL = "https://f1-track-metrics-lab.vercel.app";
 
 /* ── Racing Loader Animation ── */
 const RacingLoader = () => (
@@ -183,6 +186,8 @@ const Predictor = () => {
     const [round, setRound] = useState("");
     const [driver, setDriver] = useState("");
     const [quali, setQuali] = useState(0);
+    // GP name → explorer circuit id, from the season circuit registry
+    const [explorerSlugs, setExplorerSlugs] = useState<Record<string, string>>({});
 
     const [prediction, setPrediction] = useState(-1);
     const [loading, setLoading] = useState(false);
@@ -201,6 +206,14 @@ const Predictor = () => {
             .catch(() => {
                 setRosterError(true);
             });
+        loadCircuitRegistry().then((circuits) => {
+            const byName: Record<string, string> = {};
+            for (const c of circuits) {
+                if (!c.explorerSlug) continue;
+                for (const r of c.rounds ?? []) byName[r.name] = c.explorerSlug;
+            }
+            setExplorerSlugs(byName);
+        });
     }, []);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -281,19 +294,24 @@ const Predictor = () => {
                             </option>
                         ))}
                     </select>
-                    {round && GP_TO_CIRCUIT[round] && (
-                        <a
-                            href={`${TRACK_METRICS_URL}?circuit=${GP_TO_CIRCUIT[round]}&mode=compare3d`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="group mt-1 inline-flex items-center gap-2 rounded-md border border-blue-500/20 bg-blue-500/5 px-3 py-1.5 text-xs font-medium text-blue-400 transition-all hover:border-blue-400/40 hover:bg-blue-500/10 hover:text-blue-300"
-                        >
-                            🗺️ Explore this track in 3D
-                            <svg className="h-3 w-3 opacity-60 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                            </svg>
-                        </a>
-                    )}
+                    {(() => {
+                        // registry first (authoritative), GP-name map only as fallback
+                        const slug = explorerSlugs[round] ?? GP_TO_CIRCUIT[round];
+                        const href = explorerTrackUrl({ explorerSlug: slug });
+                        return href && (
+                            <a
+                                href={href}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="group mt-1 inline-flex items-center gap-2 rounded-md border border-blue-500/20 bg-blue-500/5 px-3 py-1.5 text-xs font-medium text-blue-400 transition-all hover:border-blue-400/40 hover:bg-blue-500/10 hover:text-blue-300"
+                            >
+                                🗺️ Explore this track in 3D
+                                <svg className="h-3 w-3 opacity-60 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                </svg>
+                            </a>
+                        );
+                    })()}
                 </label>
                 <label className="flex flex-col gap-2 text-sm">
                     Driver:

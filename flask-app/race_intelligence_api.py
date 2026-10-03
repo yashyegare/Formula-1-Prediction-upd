@@ -217,7 +217,8 @@ def next_round():
 def circuits():
     """The season's circuit registry, derived from the artifact's
     per-race `circuit` objects (schema v4+): one entry per circuit with
-    its Jolpica circuitId, location, coords and the round it hosts. This
+    its Jolpica circuitId, location, coords, the explorerSlug the Track
+    Explorer's `?circuit=` param needs, and the round it hosts. This
     is the stable join key Track Explorer deep links resolve against —
     it never touches the canonical DB (which is not deployed). A v3
     artifact has no circuits; that is a 503, not a silently empty 200."""

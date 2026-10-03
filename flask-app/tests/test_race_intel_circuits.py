@@ -4,6 +4,7 @@ registry (schema v4), the stable join key Track Explorer deep links use.
 
 States pinned here:
   - v4 artifact   → one entry per circuit, ids + coords + per-round list
+  - v6 shape facts (circuit.traits) pass through the endpoint unflattened
   - v3 artifact   → explicit JSON 503 (the registry was not built)
   - no artifact   → JSON 503 (the shared ArtifactUnavailable contract)
 """
@@ -21,7 +22,9 @@ def _race(rnd: int, cid: str, status: str) -> dict:
         "date": f"2027-0{rnd}-15", "status": status, "n_drivers": 1,
         "circuit": {"circuitId": cid, "name": cid.replace("_", " ").title(),
                     "location": "Somewhere", "country": "Nowhere",
-                    "lat": 1.5, "lng": -2.5},
+                    "lat": 1.5, "lng": -2.5,
+                    "explorerSlug": f"xx-{rnd}",
+                    "traits": {"cornerCount": 9 + rnd, "direction": "Clockwise"}},
         "drivers": [],
     }
 
@@ -60,7 +63,12 @@ def test_circuits_registry(client, artifact):
         ["albert_park", "shanghai"]
     first = body["circuits"][0]
     assert {"circuitId", "name", "location", "country", "lat", "lng",
-            "season", "rounds"} <= set(first)
+            "explorerSlug", "season", "rounds"} <= set(first)
+    # the deep-link id must survive the endpoint untouched — it is the
+    # explorer's own circuit id, not something the API can derive
+    assert first["explorerSlug"] == "xx-1"
+    # v6 shape facts ride along too — the API must not flatten them
+    assert first["traits"] == {"cornerCount": 10, "direction": "Clockwise"}
     assert first["rounds"] == [{"round": 1, "name": "Round 1 GP",
                                 "date": "2027-01-15", "status": "raced"}]
 

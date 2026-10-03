@@ -7,6 +7,7 @@ import { setFingerprint, setSaveInfo } from '../store/slices/predictionSlice';
 import { useAppDispatch } from '../store';
 import { toastService } from '../components/common/ToastContainer';
 import { getActiveSeason } from '../utils/constants';
+import { selectSimulatedDriverPoints } from '../store/selectors/standingsSelectors';
 
 export const useAutoSave = () => {
   const dispatch = useAppDispatch();
@@ -14,6 +15,7 @@ export const useAutoSave = () => {
   const { selectedPointsSystem } = useSelector((state: RootState) => state.ui);
   const { fingerprint, isDirty } = useSelector((state: RootState) => state.predictions);
   const { user } = useSelector((state: RootState) => state.auth);
+  const simulatedStandings = useSelector(selectSimulatedDriverPoints);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedDataRef = useRef<string>('');
   const [isInitialized, setIsInitialized] = useState(false);
@@ -47,13 +49,17 @@ export const useAutoSave = () => {
     if (!identifier || !isDirty) return;
 
     const activeSeason = getActiveSeason();
-    const currentData = JSON.stringify({ positions, selectedPointsSystem, season: activeSeason });
+    // Sorted so that a redraw of the same driver set doesn't look like a change.
+    const standings = Object.fromEntries(
+      Object.entries(simulatedStandings).sort(([a], [b]) => a.localeCompare(b))
+    );
+    const currentData = JSON.stringify({ positions, selectedPointsSystem, season: activeSeason, standings });
     if (currentData === lastSavedDataRef.current) {
       return;
     }
 
     try {
-      const response = await savePrediction(identifier, positions, selectedPointsSystem, activeSeason);
+      const response = await savePrediction(identifier, positions, selectedPointsSystem, activeSeason, standings);
 
       if (response.success) {
         dispatch(setSaveInfo({
@@ -65,7 +71,7 @@ export const useAutoSave = () => {
     } catch (error) {
       toastService.addToast('Failed to save predictions', 'warning', 3000, '#ef4444');
     }
-  }, [getIdentifier, positions, selectedPointsSystem, isDirty, dispatch]);
+  }, [getIdentifier, positions, selectedPointsSystem, simulatedStandings, isDirty, dispatch]);
 
   useEffect(() => {
     const identifier = getIdentifier();

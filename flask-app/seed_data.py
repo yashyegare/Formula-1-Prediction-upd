@@ -42,25 +42,6 @@ DRIVER_ID_MAP = {
     "arvid_lindblad": "lindblad",
 }
 
-# Official 2026 standings (includes sprint + fastest lap points not in Jolpica)
-OFFICIAL_DRIVER_STANDINGS_2026 = [
-    (1, "antonelli", 242), (2, "russell", 183), (3, "hamilton", 183),
-    (4, "norris", 159), (5, "leclerc", 155), (6, "verstappen", 112),
-    (7, "piastri", 104), (8, "hadjar", 68), (9, "lawson", 49),
-    (10, "gasly", 44), (11, "lindblad", 23), (12, "colapinto", 19),
-    (13, "bearman", 18), (14, "bortoleto", 10), (15, "hulkenberg", 6),
-    (16, "sainz", 6), (17, "albon", 5), (18, "ocon", 3),
-    (19, "alonso", 3), (20, "tsunoda", 0), (21, "stroll", 0),
-    (22, "bottas", 0), (23, "perez", 0),
-]
-
-OFFICIAL_CONSTRUCTOR_STANDINGS_2026 = [
-    (1, "mercedes", 425), (2, "ferrari", 338), (3, "mclaren", 263),
-    (4, "red_bull", 186), (5, "rb", 66), (6, "alpine", 63),
-    (7, "haas", 21), (8, "audi", 16), (9, "williams", 11),
-    (10, "aston_martin", 3), (11, "cadillac", 0),
-]
-
 # Sprint rounds by year (approximate — covers 2021+)
 SPRINT_ROUNDS = {
     2021: {3, 10, 14},
@@ -285,15 +266,10 @@ def seed_season(year: int, force: bool = False):
 
 def _seed_standings(year: int, all_results: dict, constructor_map: dict):
     """Fetch championship standings from Jolpica's standings endpoint.
-    This gives accurate final standings including sprint + fastest lap points."""
-    # For 2026, use hardcoded official standings
-    if year == 2026:
-        for pos, did, pts in OFFICIAL_DRIVER_STANDINGS_2026:
-            insert_standing(year, did, "driver", pos, pts)
-        for pos, tid, pts in OFFICIAL_CONSTRUCTOR_STANDINGS_2026:
-            insert_standing(year, tid, "constructor", pos, pts)
-        return
-
+    This gives accurate final standings including sprint + fastest lap
+    points. Every season — 2026 included — reads live: the nightly sync
+    (sync_season_db) keeps the served standings current after each race,
+    so there is no longer a hardcoded snapshot to fall back to."""
     # Fetch final driver standings from Jolpica
     driver_data = api_get(f"{year}/driverStandings.json?limit=100")
     if driver_data:

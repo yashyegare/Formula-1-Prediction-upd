@@ -39,9 +39,18 @@ DIFFERENCES THAT ARE LOAD-BEARING (pinned by tests/test_prediction_endpoints_aut
 RULES FOR CHANGE: New clients must use Family B. Do not add new routes to
 Family A; do not change Family A's status codes (they are a wire contract).
 If both frontends ever migrate to /api/me/*, delete Family A wholesale.
+
+One additive exception, for the season reconciliation: Family A's save takes
+an optional `standings` map ({"driverId": points}) — the simulator's own
+simulated championship points, which the server cannot recompute because the
+scoring rules live in that app. It is stored on predictions.standings_json and
+read back only by Family B's /api/me/prediction/reconcile. Requests without it
+behave exactly as before.
 """
 
 import json
+from typing import Optional
+
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 
@@ -146,6 +155,35 @@ def _score_prediction(grids: dict, season: int) -> dict:
     }
 
 
+# ── Championship points ────────────────────────────────────────────────
+
+# Same scale race_intelligence.py uses to publish expected_points; keeping the
+# two in sync is what makes the reconcile endpoint's columns comparable.
+_RACE_POINTS = (25, 18, 15, 12, 10, 8, 6, 4, 2, 1)
+
+
+def _points_for_position(pos) -> int:
+    if not isinstance(pos, int):
+        return 0
+    return _RACE_POINTS[pos - 1] if 1 <= pos <= len(_RACE_POINTS) else 0
+
+
+def _clean_standings(raw) -> Optional[str]:
+    """Serialise the simulator's standings payload ({"driverId": points}).
+    Returns None when absent or unusable, so save_prediction keeps the last
+    known totals instead of overwriting them with garbage."""
+    if not isinstance(raw, dict) or not raw:
+        return None
+    cleaned = {}
+    for driver_id, points in list(raw.items())[:100]:
+        if not isinstance(driver_id, str) or not driver_id.strip():
+            continue
+        if isinstance(points, bool) or not isinstance(points, (int, float)):
+            continue
+        cleaned[driver_id] = round(float(points), 2)
+    return json.dumps(cleaned) if cleaned else None
+
+
 # ── Prediction routes ────────────────────────────────────────────────────
 
 @predictions_bp.route("/api/predictions", methods=["GET"])
@@ -200,7 +238,8 @@ def api_predictions_save():
                     if 0 <= idx < 22:
                         grids[race_id][idx] = driver_id
 
-        save_prediction(current_user.id, season, json.dumps(grids))
+        save_prediction(current_user.id, season, json.dumps(grids),
+                        standings_json=_clean_standings(data.get("standings")))
 
     return jsonify({"success": True, "version": 1}), 201
 
@@ -439,6 +478,99 @@ def my_prediction_postmortem():
                          if scored else {},
         "races": sorted(races_out, key=lambda r: r["round"]),
     })
+
+@predictions_bp.route("/api/me/prediction/reconcile", methods=["GET"])
+@login_required
+def my_prediction_reconcile():
+    """Put the three point totals for a season side by side, per driver:
+      - simulated: the Season Simulator's own what-if standings, computed
+        client-side from the user's grid and shipped on every autosave
+        (predictions.standings_json). The server cannot recompute them —
+        the 19 points systems and the sprint / fastest-lap / half / double /
+        dropped-score exceptions only exist inside that app.
+      - model: expected_points from the race-intel Monte-Carlo artifact.
+      - actual: real feature-race results, points for P1-P10.
+    They don't share a denominator (the user predicts the whole season, only
+    part of it has been raced), so model is given twice: season-long, which is
+    comparable to simulated, and raced-only, which is comparable to actual."""
+    season = request.args.get("season", 2026, type=int)
+    pred = get_user_prediction(current_user.id, season)
+    if not pred:
+        return jsonify({"error": "No prediction found for this season"}), 404
+    simulated = json.loads(pred["standings_json"]) if pred.get("standings_json") else None
+
+    try:
+        from race_intelligence_api import _load_artifact, ArtifactUnavailable
+        doc = _load_artifact()
+    except ArtifactUnavailable as e:
+        return jsonify({"error": str(e)}), 503
+    if doc["season"] != season:
+        return jsonify({"error": "no race-intel artifact for this season"}), 404
+    if doc.get("schema_version", 0) < 5:
+        return jsonify({
+            "error": "race_intel.json predates schema v5 (no expected_points); "
+                     "rebuild it with race_intelligence.py"}), 503
+
+    model_season: dict[str, float] = {}
+    model_raced: dict[str, float] = {}
+    actual_raced: dict[str, int] = {}
+    identity: dict[str, dict] = {}
+    raced_rounds = 0
+
+    for race in doc["races"]:
+        is_raced = race.get("status") == "raced"
+        if is_raced:
+            raced_rounds += 1
+        for d in race.get("drivers", []):
+            driver_id = d.get("driverId")
+            if not driver_id:
+                continue
+            expected = float(d.get("expected_points") or 0.0)
+            model_season[driver_id] = model_season.get(driver_id, 0.0) + expected
+            identity.setdefault(driver_id, {
+                "surname": d.get("surname", ""),
+                "driverCode": d.get("driverCode", ""),
+                "constructorId": d.get("constructorId", ""),
+            })
+            if is_raced:
+                model_raced[driver_id] = model_raced.get(driver_id, 0.0) + expected
+                actual_raced[driver_id] = (actual_raced.get(driver_id, 0)
+                                           + _points_for_position(d.get("actual_position")))
+
+    rows = []
+    for driver_id in set(model_season) | set(simulated or {}):
+        sim = (simulated or {}).get(driver_id)
+        rows.append({
+            "driverId": driver_id,
+            **identity.get(driver_id, {"surname": "", "driverCode": "", "constructorId": ""}),
+            "simulated": sim,
+            "model_season": round(model_season.get(driver_id, 0.0), 2),
+            "model_raced": round(model_raced.get(driver_id, 0.0), 2),
+            "actual_raced": actual_raced.get(driver_id, 0),
+            # What the user's grid expects beyond/behind the model, season-long.
+            "sim_minus_model": None if sim is None
+                               else round(sim - model_season.get(driver_id, 0.0), 2),
+            # Where the model was optimistic or pessimistic about reality.
+            "model_minus_actual": round(model_raced.get(driver_id, 0.0)
+                                        - actual_raced.get(driver_id, 0), 2),
+        })
+    rows.sort(key=lambda r: (-(r["simulated"] if r["simulated"] is not None
+                               else r["model_season"]), r["driverId"]))
+
+    return jsonify({
+        "season": season,
+        "has_simulated_standings": simulated is not None,
+        "rounds_in_artifact": len(doc["races"]),
+        "raced_rounds": raced_rounds,
+        "drivers": rows,
+        "totals": {
+            "simulated": None if simulated is None else round(sum(simulated.values()), 2),
+            "model_season": round(sum(model_season.values()), 2),
+            "model_raced": round(sum(model_raced.values()), 2),
+            "actual_raced": sum(actual_raced.values()),
+        },
+    })
+
 
 @predictions_bp.route("/api/me/prediction", methods=["GET"])
 @login_required
