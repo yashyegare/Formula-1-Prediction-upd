@@ -56,7 +56,7 @@ const GP_TO_CIRCUIT: Record<string, string> = {
 
 /* ── Racing Loader Animation ── */
 const RacingLoader = () => (
-    <div className="relative w-full py-6 overflow-hidden">
+    <div className="relative w-full py-3 overflow-hidden">
         {/* Speed lines */}
         <div className="absolute inset-0 overflow-hidden">
             {[...Array(8)].map((_, i) => (
@@ -165,13 +165,13 @@ const ResultReveal = ({ prediction, loading, coldStart }: {
 
     return (
         <section
-            className={`my-6 flex w-full max-w-md flex-col gap-4 rounded-xl border bg-gradient-to-br p-8 transition-all duration-700 ${
+            className={`my-3 flex w-full max-w-md flex-col gap-2 rounded-xl border bg-gradient-to-br p-4 transition-all duration-700 ${
                 visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             } ${resultColor}`}
         >
-            <h2 className="text-xl font-medium m-0 text-white">Prediction:</h2>
-            <section className="flex w-full flex-col items-center gap-3 rounded-lg bg-[#161616] p-8 border border-stone-800">
-                <p className="text-center font-bold text-2xl text-white">
+            <h2 className="text-base font-medium m-0 text-white">Prediction:</h2>
+            <section className="flex w-full flex-col items-center gap-2 rounded-lg bg-[#161616] p-4 border border-stone-800">
+                <p className="text-center font-bold text-xl text-white">
                     {resultText}
                 </p>
             </section>
@@ -257,33 +257,33 @@ const Predictor = () => {
 
     return (
         <>
-            <div className="flex flex-col justify-center gap-4">
+            <div className="flex flex-col justify-center gap-1.5">
                 <Image
                     src={"/f1-dark.png"}
-                    width={100}
-                    height={100}
+                    width={56}
+                    height={56}
                     alt={"Formula One Logo"}
                 />
-                <h1 className="text-4xl font-semibold m-0">Result Predictor</h1>
-                <h2 className="text-xl opacity-60 m-0">Based on the Qualifying Position</h2>
+                <h1 className="text-3xl font-semibold m-0">Result Predictor</h1>
+                <h2 className="text-lg opacity-60 m-0">Based on the Qualifying Position</h2>
             </div>
             <form
-                className="my-10 flex w-full max-w-md flex-col gap-4 rounded-lg border-[1px] border-stone-800 bg-[#E6002B]/30 backdrop-blur-2xl p-8"
+                className="my-4 flex w-full max-w-md flex-col gap-2.5 rounded-lg border-[1px] border-stone-800 bg-[#E6002B]/30 backdrop-blur-2xl p-5"
                 onSubmit={handleSubmit}
             >
-                <div className="flex flex-col gap-2 text-sm">
+                <div className="flex flex-col gap-1 text-sm">
                     Season
-                    <div className="flex items-center justify-between rounded-lg border-[1px] border-stone-700 bg-stone-900 px-3 py-2">
+                    <div className="flex items-center justify-between rounded-lg border-[1px] border-stone-700 bg-stone-900 px-3 py-1.5">
                         <span className="font-semibold text-white">{roster?.season ?? "—"}</span>
                         <span className="rounded-full border border-stone-700 bg-stone-800 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-stone-400">
                             {roster ? "Current" : rosterError ? "Unavailable" : "Loading"}
                         </span>
                     </div>
                 </div>
-                <label className="flex flex-col gap-2 text-sm">
+                <label className="flex flex-col gap-1 text-sm">
                     Grand Prix:
                     <select
-                        className="rounded-lg border-[1px] border-stone-700 bg-stone-900 px-2 py-2 text-white outline-white"
+                        className="rounded-lg border-[1px] border-stone-700 bg-stone-900 px-2 py-1.5 text-white outline-white"
                         value={round}
                         onChange={(e) => setRound(e.target.value)}
                         disabled={!roster}
@@ -303,7 +303,7 @@ const Predictor = () => {
                                 href={href}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="group mt-1 inline-flex items-center gap-2 rounded-md border border-blue-500/20 bg-blue-500/5 px-3 py-1.5 text-xs font-medium text-blue-400 transition-all hover:border-blue-400/40 hover:bg-blue-500/10 hover:text-blue-300"
+                                className="group mt-0.5 inline-flex w-fit items-center gap-2 rounded-md border border-blue-500/20 bg-blue-500/5 px-3 py-1 text-xs font-medium text-blue-400 transition-all hover:border-blue-400/40 hover:bg-blue-500/10 hover:text-blue-300"
                             >
                                 🗺️ Explore this track in 3D
                                 <svg className="h-3 w-3 opacity-60 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -313,10 +313,10 @@ const Predictor = () => {
                         );
                     })()}
                 </label>
-                <label className="flex flex-col gap-2 text-sm">
+                <label className="flex flex-col gap-1 text-sm">
                     Driver:
                     <select
-                        className="rounded-lg border-[1px] border-stone-700 bg-stone-900 px-2 py-2 text-white outline-white"
+                        className="rounded-lg border-[1px] border-stone-700 bg-stone-900 px-2 py-1.5 text-white outline-white"
                         value={driver}
                         onChange={(e) => setDriver(e.target.value)}
                         disabled={!roster}
@@ -328,10 +328,10 @@ const Predictor = () => {
                         ))}
                     </select>
                 </label>
-                <label className="flex flex-col gap-2 text-sm">
+                <label className="flex flex-col gap-1 text-sm">
                     Qualifying Position:
                     <input
-                        className="rounded-lg border-[1px] border-stone-700 bg-stone-900 px-2 py-2 text-white outline-white"
+                        className="rounded-lg border-[1px] border-stone-700 bg-stone-900 px-2 py-1.5 text-white outline-white"
                         type="number"
                         min={1}
                         max={22}
@@ -344,7 +344,7 @@ const Predictor = () => {
                     </p>
                 )}
                 <button
-                    className={`rounded-lg p-3 text-sm font-bold text-white transition-all duration-300 ease-in-out ${
+                    className={`rounded-lg p-2.5 text-sm font-bold text-white transition-all duration-300 ease-in-out ${
                         loading
                             ? 'bg-red-900 cursor-wait animate-pulse'
                             : 'bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 hover:shadow-lg hover:shadow-red-500/25 active:scale-95'
@@ -366,7 +366,7 @@ const Predictor = () => {
                 </button>
             </form>
             {loading && (
-                <section className="my-6 flex w-full max-w-md flex-col gap-4 rounded-xl border border-stone-800 bg-[#111111] p-6">
+                <section className="my-3 flex w-full max-w-md flex-col gap-2 rounded-xl border border-stone-800 bg-[#111111] p-4">
                     <RacingLoader />
                     {coldStart && (
                         <p className="text-sm text-amber-400 text-center animate-pulse">

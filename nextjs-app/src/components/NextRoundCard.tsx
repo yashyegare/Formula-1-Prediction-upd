@@ -69,24 +69,24 @@ const NextRoundCard = () => {
     : raceDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 
   return (
-    <section className="mb-8 whitespace-normal rounded-lg border border-[rgba(55,53,47,0.14)] bg-[rgba(241,241,239,0.6)] p-5">
+    <section className="shrink-0 whitespace-normal rounded-lg border border-[rgba(55,53,47,0.14)] bg-[rgba(241,241,239,0.6)] p-3.5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="text-sm font-semibold uppercase tracking-wide text-[rgba(212,76,71,1)]">
           {doc.season_complete ? "Season" : `Round ${doc.race.round}`} · {doc.season}
         </span>
         <span className="text-sm text-[rgba(120,119,116,1)]">{STATUS_LABEL[doc.race.status]}</span>
       </div>
-      <h2 className="mt-1 text-xl font-bold">{doc.race.name}</h2>
+      <h2 className="mt-0.5 text-lg font-bold">{doc.race.name}</h2>
       {doc.race.circuit?.location && (
-        <p className="mt-0.5 text-sm text-[rgba(120,119,116,1)]">
+        <p className="mt-0 text-sm text-[rgba(120,119,116,1)]">
           {doc.race.circuit.location}
           {doc.race.circuit.country ? `, ${doc.race.circuit.country}` : ""}
         </p>
       )}
-      <p className="mt-0.5 text-sm text-[rgba(55,53,47,0.7)]">
+      <p className="mt-0 text-sm text-[rgba(55,53,47,0.7)]">
         {dateText} · {doc.race.n_drivers} drivers · {SUBTITLE[doc.race.status]}
       </p>
-      <div className="mt-3 flex flex-wrap items-center gap-3">
+      <div className="mt-2 flex flex-wrap items-center gap-3">
         <Link
           href="/race-intel"
           className="inline-block rounded-md border border-[rgba(212,76,71,0.4)] bg-[rgba(253,235,236,1)] px-4 py-1.5 text-sm font-medium text-[rgba(212,76,71,1)] no-underline hover:bg-[rgba(212,76,71,0.12)]"

@@ -5,39 +5,38 @@ type Props = {
     children: ReactNode
 }
 
-const HeadingCaption = ({ children }: Props) => {
-    return (
-        <p className="text-xl opacity-60 m-0">{children}</p>
-    )
-}
-
-const Container = ({ children }: Props) => {
-    return (
-        <section className="flex flex-col items-start gap-4 mb-8">
-            {children}
-        </section>
-    )
-}
-
 const CANVA_VIEW_URL = "https://www.canva.com/design/DAFsVnyeZfw/view";
 const CANVA_EDIT_URL = "https://www.canva.com/design/DAFsVnyeZfw/HAKqZREsBBSWqrWKP_fMsQ/edit?utm_content=DAFsVnyeZfw&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton";
 
+/* The deck keeps its own 16:9 ratio but is sized from the viewport height, so
+   it grows into the space the next-round card used to occupy instead of being
+   squashed by it. The 900px cap stops it becoming a full-bleed banner on wide
+   screens; 240px is the header + caption + panel padding above and below. */
 const CanvaEmbed = () => {
     return (
-        <>
-            <div style={{position: 'relative', width: '100%', paddingTop: '62%', paddingBottom: 0, boxShadow: '0 2px 8px 0 rgba(63,69,81,0.16)', marginTop: '0.5em', marginBottom: '0.5em', overflow: 'hidden', borderRadius: '8px', willChange: 'transform'}}>
+        <div className="flex shrink-0 flex-col items-center gap-1.5">
+            <div
+                className="relative overflow-hidden rounded-xl border border-gray-200"
+                style={{
+                    aspectRatio: '16 / 9',
+                    width: 'min(100%, 900px, calc((100vh - 240px) * 16 / 9))',
+                    minHeight: '200px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.05)',
+                }}
+            >
                 <iframe
                     loading="lazy"
-                    style={{position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, border: 'none', padding: 0, margin: 0}}
+                    className="absolute inset-0 h-full w-full border-0"
                     src="https://www.canva.com/design/DAFsVnyeZfw/view?embed"
                     allowFullScreen={true}
                     allow="fullscreen"
+                    title="Predicting Formula 1 Race Results — slide deck"
                 />
             </div>
-            <a href={CANVA_EDIT_URL} target="_blank" rel="noopener" className="text-xs text-gray-500 hover:text-gray-700">
-                Predicting Formula 1 Race Results (open presentation)
+            <a href={CANVA_EDIT_URL} target="_blank" rel="noopener" className="whitespace-normal text-center text-xs text-gray-500 no-underline hover:text-gray-700 hover:underline">
+                Predicting Formula 1 Race Results — open the full presentation
             </a>
-        </>
+        </div>
     );
 };
 
@@ -50,7 +49,7 @@ const FeatureCard = ({ href, isExternal, icon, title, accentColor, delay }: {
     return (
         <Wrapper
             {...wrapperProps}
-            className="group relative flex min-w-[190px] flex-1 items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 no-underline transition-all duration-300 hover:-translate-y-0.5"
+            className="group relative flex min-w-[170px] flex-1 items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2 no-underline transition-all duration-300 hover:-translate-y-0.5"
             style={{
                 animation: `fadeInUp 0.6s ease-out ${delay} both`,
                 boxShadow: `0 1px 3px rgba(0,0,0,0.06)`,
@@ -92,72 +91,79 @@ const SYSTEM_FACTS = [
 const CurrentSystemCard = () => {
     return (
         <section
-            className="w-full rounded-xl border border-gray-200 bg-white p-5"
+            className="w-full shrink-0 rounded-lg border border-gray-200 bg-white p-3"
             style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
         >
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                     Current system
                 </span>
-                <span className="text-xs text-gray-400">What powers the predictor on this page today</span>
+                <span className="whitespace-normal text-xs text-gray-400">What powers the predictor on this page today</span>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {SYSTEM_FACTS.map((fact) => (
-                    <div key={fact.label} className="rounded-lg bg-gray-50 px-3 py-2.5">
+                    <div key={fact.label} className="rounded-md bg-gray-50 px-2.5 py-1.5">
                         <div className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{fact.label}</div>
                         <div className="mt-0.5 text-sm font-semibold text-gray-800">{fact.value}</div>
                     </div>
                 ))}
             </div>
-            <p className="mb-0 mt-3 text-xs leading-relaxed text-gray-500">
-                The pipeline has been rebuilt since the 2023 write-up below: a qualifying-to-result data-leakage bug was
-                found and fixed, and the model now trains on the Jolpica-F1 dataset (successor to the retired Ergast API).
-                The ~66% figure is the honest post-fix accuracy on the podium / points / out-of-points task — the 0.94–0.95
-                numbers in the historical write-up came from the original, pre-fix setup.
-            </p>
         </section>
     );
 };
 
 const HistoricalNotice = () => (
-    <aside className="mb-8 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900">
+    <aside className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900">
         <strong className="font-semibold">Historical write-up (2023).</strong> The dataset, tools and accuracy figures
         below describe the original exploration of this project. They predate the current production system described
         above and are kept for reference.
     </aside>
 );
 
+/* The honest post-fix accuracy note - moved here from the Current-system
+   strip so the deck can keep the whole first screen. */
+const PostFixNote = () => (
+    <p className="mb-6 text-sm leading-relaxed text-gray-600">
+        The pipeline has been rebuilt since the 2023 write-up below: a qualifying-to-result data-leakage bug was
+        found and fixed, and the model now trains on the Jolpica-F1 dataset (successor to the retired Ergast API).
+        The ~66% figure is the honest post-fix accuracy on the podium / points / out-of-points task — the 0.94–0.95
+        numbers in the historical write-up came from the original, pre-fix setup.
+    </p>
+);
+
 const WriteUpDisclosure = ({ children }: Props) => {
     const [open, setOpen] = useState(false);
     return (
         <section className="w-full">
-            <button
-                type="button"
-                onClick={() => setOpen((v) => !v)}
-                aria-expanded={open}
-                className="group inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-all duration-200 hover:border-red-300 hover:text-red-600"
-                style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
-            >
-                {open ? "Hide full write-up" : "Read the full write-up"}
-                <svg
-                    className={`h-4 w-4 text-gray-400 transition-transform duration-200 group-hover:text-red-500 ${open ? "rotate-180" : ""}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <button
+                    type="button"
+                    onClick={() => setOpen((v) => !v)}
+                    aria-expanded={open}
+                    className="group inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-all duration-200 hover:border-red-300 hover:text-red-600"
+                    style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
                 >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
-            <p className="mt-2 text-xs text-gray-400">
-                Abstract, methodology, results &amp; conclusion — the original research paper behind this project.
-            </p>
-            {open && <div className="mt-6">{children}</div>}
+                    {open ? "Hide full write-up" : "Read the full write-up"}
+                    <svg
+                        className={`h-4 w-4 text-gray-400 transition-transform duration-200 group-hover:text-red-500 ${open ? "rotate-180" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <p className="m-0 whitespace-normal text-xs text-gray-400">
+                    The 2023 paper, plus the post-fix accuracy note.
+                </p>
+            </div>
+            {open && <div className="mt-6"><PostFixNote />{children}</div>}
         </section>
     );
 };
 
-const Docs = () => {
+const Docs = ({ nextRound }: { nextRound?: ReactNode }) => {
     return (
         <>
             <style jsx>{`
@@ -167,13 +173,19 @@ const Docs = () => {
                 }
             `}</style>
 
-            <header>
-                <h1 className="text-2xl font-bold mt-0 mb-1">Predicting Formula 1 Race Results</h1>
-                <p className="text-sm opacity-60 m-0 mb-2">A Machine Learning approach to predict race results</p>
+            <header className="mb-3 flex shrink-0 flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <div className="flex flex-wrap items-baseline gap-x-3">
+                    <h1 className="m-0 text-lg font-bold">Predicting Formula 1 Race Results</h1>
+                    <p className="m-0 whitespace-normal text-xs opacity-60">A Machine Learning approach to predict race results</p>
+                </div>
+                <p className="m-0 whitespace-normal text-xs text-gray-500">
+                    Developed By: <span className="font-semibold text-gray-800">Yash Yegare</span>{" "}
+                    <a className="text-gray-500 underline underline-offset-2 hover:text-gray-700" href={"https://github.com/yashyegare"} target="_blank" rel="noreferrer">GitHub</a>
+                </p>
             </header>
 
             {/* Feature cards — Track Explorer (flagship), Season Simulator, Draw Line Racing & Race Intelligence */}
-            <div className="mb-6 flex flex-wrap gap-3">
+            <div className="mb-4 flex shrink-0 flex-wrap gap-2.5">
                     <FeatureCard
                         href="https://f1-track-metrics-lab.vercel.app"
                         isExternal
@@ -205,29 +217,14 @@ const Docs = () => {
                         delay="0.4s"
                     />
             </div>
-            <Container>
-                <h3 className="text-xl font-medium">Developed By:</h3>
-                <section className="flex flex-col md:flex-row gap-4 mb-8 justify-center w-full">
-                    <section className="w-full flex flex-col items-center gap-1 px-4 py-2 rounded-xl bg-orange-100 border-2 border-orange-600">
-                        <p className="text-md font-bold">Yash Yegare</p>
-                        <section>
-                            <a className="no-underline p-1 hover:bg-orange-300 rounded" href={"https://github.com/yashyegare"} target="_blank">Github</a>
-                        </section>
-                    </section>
-                </section>
-            </Container>
-            <div className="page-body">
+            <div className="page-body flex flex-col">
 
-                <div>
-                    <CanvaEmbed />
-                </div>
+                <CanvaEmbed />
 
-                <div className="mt-6">
+                <div className="mt-4 flex shrink-0 flex-col gap-3">
+                    {nextRound}
                     <CurrentSystemCard />
-                </div>
-
-                <div className="mt-8">
-                <WriteUpDisclosure>
+                    <WriteUpDisclosure>
                 <HistoricalNotice />
                 <h3 id="7c7d4c6c-4f3f-45f6-ad3e-58df8fca8b85">Abstract:</h3><p id="61139936-184e-4c80-91a9-8ce328f0c9c7" >The project presents a comprehensive approach to predicting the performance of drivers in Formula One races. I combined machine learning models, such as logistic regression, decision tree, random forest, support vector machine, Gaussian Naive Bayes, and K-Nearest Neighbors, with data analysis techniques to analyze the impact of various factors on the likelihood of a driver achieving a podium finish or scoring points.</p><p id="2d80ca01-ddc2-4a52-98c2-a6cc7d2dcf43" >Also conducted extensive exploratory data analysis on race data results, analyzing data on drivers, constructors, circuits, and other variables to identify the most significant factors affecting driver performance. I also examined the impact of circuit location, the number of races held at a particular circuit, driver experience, nationality, and constructor performance on the likelihood of a driver achieving a podium finish or scoring points.</p><p id="ed1e3271-84ef-4781-9125-0f5816739211" >The approach utilizes both one-hot encoding to transform categorical and numerical data into a format that can be used by the machine learning models. I also got to introduce the concepts of Driver DNF index and Constructor DNF index to quantify the impact of driver and constructor errors on race results. I bring in my understanding through the models and their results to actually see what are the factors contributing to a win.</p><p id="462c1543-dd97-45e1-927f-dd460567637e" >Overall, the approach provides a comprehensive methodology for predicting driver performance in Formula One races, and the results demonstrate the effectiveness of the approach. The findings can be used by teams and analysts to make informed decisions regarding driver selection, strategy, and overall race performance. </p><h2 id="ea352a10-1899-484c-b0a8-998fcd72f4f7" >Keywords: </h2><p id="7051dd0e-deb3-4632-ad21-192ac641bb1c" >motorsport, Formula One, data analysis, machine learning, classification, driver performance, constructor performance, podium prediction, points prediction, DNF index, home team effect, circuit analysis, race history, driver nationality, neural networks, statistical modeling, predictive modeling, feature engineering, exploratory data analysis, data visualization, data preprocessing, data cleaning, data transformation, feature selection, model evaluation.</p><h2 id="617a02a8-1b83-40dc-b69c-d020dd1bd145" >Introduction:</h2><p id="cc38e75f-677d-4ab1-ab6b-800274e84297" ><strong>Background:
             </strong>Formula 1 is one of the most prestigious and challenging motorsports that attracts millions of

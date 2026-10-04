@@ -14,14 +14,13 @@ const Home: NextPage = () => {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className="flex flex-col md:flex-row min-h-screen font-inter">
-        <section className="md:fixed md:overflow-auto md:left-0 md:overflow-y-auto md:h-full bg-[#161616] px-16 py-12 md:w-1/2 xl:w-1/3 bg-[url('/red-bg.jpg')] bg-cover text-white">
+      <main className="flex min-h-screen flex-col font-inter md:h-screen md:flex-row md:overflow-hidden">
+        <section className="bg-[#161616] bg-[url('/red-bg.jpg')] bg-cover px-8 py-10 text-white md:flex md:h-full md:w-1/2 md:flex-col md:justify-center md:overflow-hidden md:px-10 md:py-4 xl:w-1/3">
           <Predictor />
         </section>
-        <section className="p-8 md:py-10 md:px-16 xl:px-28 md:w-1/2 xl:w-2/3 md:overflow-y-auto md:fixed md:right-0 md:h-full">
-          <NextRoundCard />
-          <article id="871047b8-2997-4a68-9c0f-53ade839e37d" className="page sans">
-          <Docs />
+        <section className="flex flex-col p-6 md:h-full md:w-1/2 md:overflow-y-auto md:px-10 md:py-5 xl:w-2/3 xl:px-14">
+          <article id="871047b8-2997-4a68-9c0f-53ade839e37d" className="page sans flex min-h-0 flex-col">
+            <Docs nextRound={<NextRoundCard />} />
           </article>
         </section>
       </main>
