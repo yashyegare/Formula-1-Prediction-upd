@@ -47,7 +47,7 @@ jobs:
         # run from ~3000 live requests into just the handful of new/changed
         # ones. Without it every night refetched the whole 2018-2026 window
         # uncached — the long, failure-prone path.
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: model-notebooks/.jolpica_cache
           key: jolpica-${{ github.run_id }}
