@@ -62,7 +62,8 @@ jobs:
           python fetch_jolpica_data.py --start-year 2018 --end-year 2026 \
             --out ./datasets --cache-dir ./.jolpica_cache
           python fetch_lap_pace.py --start-year 2018 --end-year 2026 \
-            --out ./datasets --cache-dir ./.jolpica_cache --finalize
+            --out ./datasets --cache-dir ./.jolpica_cache
+          python fetch_lap_pace.py --out ./datasets --finalize
 
       - name: Rebuild the canonical DB and manifest
         run: python build_canonical.py
