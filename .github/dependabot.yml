@@ -43,8 +43,6 @@ updates:
         versions: [">=0.5"]        # 0.5+ requires Prettier 3; repo is on Prettier 2
       - dependency-name: "prettier"
         versions: [">=3"]          # Prettier 3 reflows formatting; migrate deliberately with the plugin
-      - dependency-name: "@t3-oss/env-nextjs"
-        versions: [">=0.4"]        # 0.4+ needs moduleResolution: bundler/node16; this app uses legacy resolution (PR #32 type error)
       - dependency-name: "next"
         versions: [">=16"]         # Next 16 major needs a migration pass
       - dependency-name: "typescript"
