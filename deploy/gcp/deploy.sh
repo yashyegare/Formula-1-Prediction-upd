@@ -9,9 +9,12 @@ image="$region-docker.pkg.dev/$project/f1-backend/api:$tag"
 # Validate federation explicitly; builds.submit wraps token-exchange failures
 # in a generic source-bucket error, obscuring the permission that actually failed.
 gcloud auth print-access-token --project="$project" >/dev/null
-gcloud storage buckets describe "gs://${project}_cloudbuild" --project="$project" --format='value(name)'
+bucket="gs://${project}_cloudbuild"
+bucket_project=$(gcloud storage buckets describe "$bucket" --project="$project" --format='value(project_number)')
+[ "$bucket_project" = '530426302059' ] || { echo 'Source bucket belongs to an unexpected project'; exit 1; }
 
 gcloud builds submit . --project="$project" --region="$region" \
+  --gcs-source-staging-dir="$bucket/source" \
   --config=deploy/gcp/cloudbuild.yaml --ignore-file=deploy/gcp/.gcloudignore \
   --substitutions="_IMAGE=$image" \
   --service-account="projects/$project/serviceAccounts/f1-build@$project.iam.gserviceaccount.com" \
