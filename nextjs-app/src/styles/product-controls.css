@@ -1,8 +1,8 @@
 .lab-home {
-  --lab-control-bg: #111924;
-  --lab-control-stroke: #445269;
-  --lab-copy-muted: #a9b7ca;
-  --lab-accent: #ff9c90;
+  --lab-control-bg: #101720;
+  --lab-control-stroke: #596b84;
+  --lab-copy-muted: var(--lab-muted);
+  --lab-accent: var(--lab-red-soft);
   --lab-fast: 160ms;
   --lab-medium: 260ms;
 }
@@ -199,6 +199,23 @@
   font-size: 13px;
   border-radius: 6px;
 }
+.lab-home .lab-driver-tool select,
+.lab-home .lab-driver-tool input {
+  border-color: var(--lab-control-stroke);
+  background: var(--lab-control-bg);
+  border-radius: 6px;
+  transition: border-color var(--lab-fast), box-shadow var(--lab-fast);
+}
+.lab-home .lab-driver-tool select:hover:not(:disabled),
+.lab-home .lab-driver-tool input:hover:not(:disabled) {
+  border-color: #8797ae;
+}
+.lab-home .lab-driver-tool input:focus,
+.lab-home .lab-driver-tool select:focus {
+  border-color: #9bc5ff;
+  box-shadow: 0 0 0 3px #9bc5ff13;
+  outline: 2px solid #9bc5ff;
+}
 .lab-tool-track-link {
   font-size: 11px;
   color: var(--lab-accent) !important;
@@ -274,6 +291,42 @@
   font-size: 13px;
   font-weight: 650;
   transition: background var(--lab-fast), transform var(--lab-fast);
+}
+.lab-home .lab-predictor button[type="submit"] {
+  background: var(--lab-red);
+  border: 1px solid #e35b50;
+  transition: background var(--lab-fast), transform var(--lab-fast),
+    box-shadow var(--lab-fast);
+}
+.lab-home .lab-predictor button[type="submit"]:hover:not(:disabled) {
+  background: var(--lab-red-hover);
+  box-shadow: 0 5px 20px #ce352c20;
+  transform: translateY(-1px);
+}
+.lab-home .lab-predictor button[type="submit"]:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+.lab-position-stepper button {
+  transition: background var(--lab-fast), border-color var(--lab-fast),
+    transform var(--lab-fast);
+}
+.lab-position-stepper button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+.lab-home .lab-driver-tool label {
+  font-size: 13px;
+}
+.lab-home .lab-tool-track-link {
+  font-size: 12px;
+  min-height: 36px;
+}
+.lab-home .lab-input-help,
+.lab-home .lab-request-status {
+  font-size: 12px;
+}
+.lab-home .lab-request-status {
+  min-height: 42px;
 }
 .lab-estimate-button:active:not(:disabled) {
   transform: translateY(1px);

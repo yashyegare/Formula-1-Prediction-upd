@@ -208,9 +208,7 @@ export default function HomePage() {
                 </button>
               </p>
             )}
-            {next?.circuitId && (
-              <CircuitPreview circuitId={next.circuitId} />
-            )}
+            {next?.circuitId && <CircuitPreview circuitId={next.circuitId} />}
             <div className="lab-weekend-footer">
               <span>Race weekend, in context</span>
               <a className="lab-text-link" href="#predict">
@@ -338,7 +336,10 @@ export default function HomePage() {
       </main>
       <footer className="lab-footer">
         <span>F1 Race Lab · An independent fan project by Yash Yegare</span>
-        <Link href="/about">About & methodology</Link>
+        <div className="lab-footer-links">
+          <Link href="/about">About & methodology</Link>
+          <a href="#main-content">Back to top ↑</a>
+        </div>
       </footer>
     </div>
   );
