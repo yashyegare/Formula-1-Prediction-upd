@@ -59,7 +59,7 @@ const CurrentSystemCard = () => {
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                     Current system
                 </span>
-                <span className="whitespace-normal text-xs text-gray-400">What powers the predictor on this page today</span>
+                <span className="whitespace-normal text-xs text-gray-400">What powers the driver outcome predictor</span>
             </div>
             <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {SYSTEM_FACTS.map((fact) => (
@@ -135,7 +135,7 @@ const Docs = ({ nextRound }: { nextRound?: ReactNode }) => {
 
             <header className="mb-3 flex shrink-0 flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <div className="flex flex-wrap items-baseline gap-x-3">
-                    <h1 className="m-0 text-lg font-bold">Predicting Formula 1 Race Results</h1>
+                    <h2 className="m-0 text-lg font-bold">Predicting Formula 1 Race Results</h2>
                     <p className="m-0 whitespace-normal text-xs opacity-60">A Machine Learning approach to predict race results</p>
                 </div>
                 <p className="m-0 whitespace-normal text-xs text-gray-500">

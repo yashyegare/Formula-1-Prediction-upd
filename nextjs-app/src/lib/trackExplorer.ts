@@ -1,5 +1,3 @@
-import { NEXT_PUBLIC_API_URL } from "src/lib/constants";
-
 export const TRACK_EXPLORER_BASE = "https://f1-track-metrics-lab.vercel.app";
 
 export interface ExplorerCircuitRef {
@@ -12,7 +10,7 @@ export interface ExplorerCircuitRef {
  *  it rather than let the explorer silently open a different track. */
 export const explorerTrackUrl = (circuit?: ExplorerCircuitRef | null) =>
   circuit?.explorerSlug
-    ? `${TRACK_EXPLORER_BASE}/?circuit=${circuit.explorerSlug}&mode=compare3d`
+    ? `${TRACK_EXPLORER_BASE}/?circuit=${encodeURIComponent(circuit.explorerSlug)}&mode=compare3d`
     : null;
 
 export interface CircuitRegistryEntry extends ExplorerCircuitRef {
@@ -30,7 +28,7 @@ let registryPromise: Promise<CircuitRegistryEntry[]> | null = null;
  *  API is cold so callers fall back rather than hang. */
 export const loadCircuitRegistry = (): Promise<CircuitRegistryEntry[]> => {
   if (!registryPromise) {
-    registryPromise = fetch(`${NEXT_PUBLIC_API_URL}/api/race-intel/circuits`)
+    registryPromise = fetch('/api/race-intel/circuits', { signal: AbortSignal.timeout(15000) })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`API ${res.status}`))))
       .then((body: { circuits: CircuitRegistryEntry[] }) => body.circuits ?? [])
       .catch(() => {

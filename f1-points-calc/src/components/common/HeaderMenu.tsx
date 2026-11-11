@@ -1,8 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 
 const HeaderMenu: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -11,7 +13,11 @@ const HeaderMenu: React.FC = () => {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && menuRef.current?.contains(document.activeElement)) { setIsOpen(false); buttonRef.current?.focus(); }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => { document.removeEventListener('mousedown', handleClickOutside); document.removeEventListener('keydown', handleKeyDown); };
   }, []);
 
   const handlePromoClick = () => {
@@ -21,8 +27,10 @@ const HeaderMenu: React.FC = () => {
   return (
     <div className="relative" ref={menuRef}>
       <button
+        ref={buttonRef}
+        aria-controls={menuId}
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center justify-center h-7 sm:h-8 w-7 sm:w-8 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors"
+        className="inline-flex items-center justify-center h-11 sm:h-8 w-11 sm:w-8 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-red-600"
         aria-label="Menu"
         aria-expanded={isOpen}
       >
@@ -32,7 +40,9 @@ const HeaderMenu: React.FC = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+        <div id={menuId} className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsOpen(false); }}>
+          <a href="https://f1-track-metrics-lab.vercel.app" onClick={() => setIsOpen(false)} className="flex min-h-11 items-center px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">Track Explorer ↗</a>
+          <a href="https://nextjs-app-yashyegare.vercel.app/race-intel" onClick={() => setIsOpen(false)} className="flex min-h-11 items-center px-4 text-sm text-gray-700 hover:bg-gray-50">Race analysis ↗</a>
           <a
             href="/about"
             onClick={() => setIsOpen(false)}
@@ -67,7 +77,7 @@ const HeaderMenu: React.FC = () => {
           </a>
 
           <a
-            href="https://#/issues"
+            href="https://github.com/yashyegare/Formula-1-Prediction-upd/issues"
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => setIsOpen(false)}

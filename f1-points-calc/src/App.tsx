@@ -16,7 +16,7 @@ import ToastContainer from './components/common/ToastContainer';
 import HorizontalScrollBar from './components/common/HorizontalScrollBar';
 import VersionHistory from './components/common/VersionHistory';
 import ExportModal from './components/common/ExportModal';
-import SponsorBanner from './components/common/SponsorBanner';
+
 import HeaderMenu from './components/common/HeaderMenu';
 import CalculatorDropdown from './components/common/CalculatorDropdown';
 import GridSkeleton from './components/common/GridSkeleton';
@@ -202,7 +202,7 @@ const App: React.FC<{ year?: string }> = ({ year }) => {
 
                     {/* Promo only visible at lg+ where there's room */}
                     <div className="hidden lg:inline-flex">
-                      <SponsorBanner />
+                      <a href="https://f1-track-metrics-lab.vercel.app" className="inline-flex h-8 items-center rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-red-600">Track Explorer ↗</a>
                     </div>
 
                     <HeaderMenu />

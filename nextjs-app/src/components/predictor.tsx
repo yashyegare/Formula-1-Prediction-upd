@@ -147,12 +147,12 @@ const ResultReveal = ({ prediction, loading, coldStart }: {
     if (loading) return null;
 
     const resultText = prediction === 1
-        ? "🏅 Podium Finish!"
+        ? "Podium · P1–P3"
         : prediction === 2
-        ? "🔢 Points Finish!"
+        ? "Points · P4–P10"
         : prediction === 3
-        ? "🅾️ Out of Points!"
-        : "🛑 Something went wrong!!";
+        ? "Outside the points · P11+"
+        : "Prediction unavailable. Please try again.";
 
     const resultColor = prediction === 1
         ? "from-yellow-500/20 to-amber-500/10 border-yellow-500/30"
@@ -168,9 +168,9 @@ const ResultReveal = ({ prediction, loading, coldStart }: {
                 visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             } ${resultColor}`}
         >
-            <h2 className="text-base font-medium m-0 text-white">Prediction:</h2>
+            <h4 className="text-base font-medium m-0 text-white">Estimated outcome</h4>
             <section className="flex w-full flex-col items-center gap-2 rounded-lg bg-[#161616] p-4 border border-stone-800">
-                <p className="text-center font-bold text-xl text-white">
+                <p role="status" className="text-center font-bold text-xl text-white">
                     {resultText}
                 </p>
             </section>
@@ -192,6 +192,8 @@ const Predictor = ({ defaultRace }: { defaultRace?: string }) => {
     const [loading, setLoading] = useState(false);
     const [coldStart, setColdStart] = useState(false);
 
+    useEffect(() => { setPrediction(-1); }, [round, driver, quali]);
+
     useEffect(() => {
         if (defaultRace && roster?.grandsPrix.includes(defaultRace)) setRound(defaultRace);
     }, [defaultRace, roster]);
@@ -199,8 +201,8 @@ const Predictor = ({ defaultRace }: { defaultRace?: string }) => {
     // fetch the live driver/GP list once on mount, instead of hardcoding
     // a season's roster that goes stale every year
     useEffect(() => {
-        fetch('/roster')
-            .then((res) => res.json())
+        fetch('/roster', { signal: AbortSignal.timeout(20000) })
+            .then((res) => { if (!res.ok) throw new Error('Roster unavailable'); return res.json(); })
             .then((data: Roster) => {
                 setRoster(data);
                 setRound(data.grandsPrix[0] ?? "");
@@ -242,12 +244,14 @@ const Predictor = ({ defaultRace }: { defaultRace?: string }) => {
             method: "POST",
             headers: myHeaders,
             body: raw,
+            signal: AbortSignal.timeout(45000),
         })
             .then((response) => {
                 if (!response.ok) throw new Error('Prediction unavailable');
                 return response.json();
             })
             .then((result) => {
+                if (!Array.isArray(result) || ![1, 2, 3].includes(result[0])) throw new Error('Invalid prediction');
                 clearTimeout(coldStartTimer);
                 setPrediction(result[0]);
                 setLoading(false);
@@ -287,12 +291,13 @@ const Predictor = ({ defaultRace }: { defaultRace?: string }) => {
                     </div>
                 </div>
                 <label className="flex flex-col gap-1 text-sm">
-                    Grand Prix:
+                    <span>Grand Prix</span>
                     <select
+                        aria-label="Grand Prix"
                         className="rounded-lg border-[1px] border-stone-700 bg-stone-900 px-2 py-1.5 text-white outline-white"
                         value={round}
                         onChange={(e) => setRound(e.target.value)}
-                        disabled={!roster}
+                        disabled={!roster || loading}
                     >
                         {roster?.grandsPrix.map((name) => (
                             <option key={name} value={name}>
@@ -311,7 +316,7 @@ const Predictor = ({ defaultRace }: { defaultRace?: string }) => {
                                 rel="noreferrer"
                                 className="group mt-0.5 inline-flex w-fit items-center gap-2 rounded-md border border-blue-500/20 bg-blue-500/5 px-3 py-1 text-xs font-medium text-blue-400 transition-all hover:border-blue-400/40 hover:bg-blue-500/10 hover:text-blue-300"
                             >
-                                🗺️ Explore this track in 3D
+                                Explore circuit in Track Metrics Lab ↗
                                 <svg className="h-3 w-3 opacity-60 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                                 </svg>
@@ -320,12 +325,12 @@ const Predictor = ({ defaultRace }: { defaultRace?: string }) => {
                     })()}
                 </label>
                 <label className="flex flex-col gap-1 text-sm">
-                    Driver:
+                    Driver
                     <select
                         className="rounded-lg border-[1px] border-stone-700 bg-stone-900 px-2 py-1.5 text-white outline-white"
                         value={driver}
                         onChange={(e) => setDriver(e.target.value)}
-                        disabled={!roster}
+                        disabled={!roster || loading}
                     >
                         {roster?.drivers.map((name) => (
                             <option key={name} value={name}>
@@ -335,16 +340,20 @@ const Predictor = ({ defaultRace }: { defaultRace?: string }) => {
                     </select>
                 </label>
                 <label className="flex flex-col gap-1 text-sm">
-                    Qualifying Position:
+                    Qualifying position (your scenario)
                     <input
                         className="rounded-lg border-[1px] border-stone-700 bg-stone-900 px-2 py-1.5 text-white outline-white"
                         type="number"
                         required
+                        disabled={loading}
                         value={quali}
                         min={1}
                         max={22}
+                        step={1}
+                        aria-describedby="qualifying-help"
                         onChange={(e) => setQuali(Number(e.target.value))}
                     />
+                    <span id="qualifying-help" className="text-xs text-stone-400">Enter a position from 1 to 22. This is your input, not a live qualifying result.</span>
                 </label>
                 {rosterError && (
                     <p className="text-sm text-red-400">
@@ -369,7 +378,7 @@ const Predictor = ({ defaultRace }: { defaultRace?: string }) => {
                             Predicting...
                         </span>
                     ) : (
-                        '🪄 Predict'
+                        'Predict driver outcome'
                     )}
                 </button>
             </form>

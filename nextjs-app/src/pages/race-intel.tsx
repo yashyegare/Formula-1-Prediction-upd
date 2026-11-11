@@ -1,6 +1,7 @@
 import { type NextPage } from "next";
 import Head from "next/head";
 import Link from "next/link";
+import SiteNav from '../components/SiteNav';
 import { useEffect, useMemo, useState } from "react";
 
 import { NEXT_PUBLIC_API_URL } from "src/lib/constants";
@@ -337,7 +338,8 @@ const RaceIntelPage: NextPage = () => {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className="min-h-screen bg-[#0e0e0e] text-zinc-100 font-inter">
+      <div className="f1-site"><SiteNav /></div>
+      <main id="main-content" className="min-h-screen bg-[#0e0e0e] text-zinc-100 font-inter">
         <div className="mx-auto max-w-5xl px-6 py-10">
           <header className="mb-8">
             <p className="text-xs uppercase tracking-[0.25em] text-red-500 mb-2">
