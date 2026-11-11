@@ -53,6 +53,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import Blueprint, Response, abort, jsonify
+from database import get_season_init_data
 
 ARTIFACT_PATH = Path(__file__).resolve().parents[1] \
     / "model-notebooks" / "datasets" / "race_intel.json"
@@ -197,6 +198,35 @@ def next_round():
     anchor; /race/<year>/<round> carries the detail. A completed season
     is NOT a 404: it returns season_complete with the last raced round,
     so the post-race view is still addressable."""
+    # Official results refresh independently of the expensive ML artifacts.
+    # Never use an old artifact's next_round as the current race calendar.
+    year = datetime.now(timezone.utc).year
+    data = get_season_init_data(year)
+    if data and data.get("schedule"):
+        schedule = sorted(data["schedule"], key=lambda r: int(r["round"]))
+        pending = [r for r in schedule if not r["completed"]]
+        target = pending[0] if pending else schedule[-1]
+        rnd = int(target["round"])
+        try:
+            doc = _load_artifact()
+        except ArtifactUnavailable:
+            doc = {}
+        analysis = next((r for r in doc.get("races", [])
+                         if doc.get("season") == year and r["round"] == rnd), None)
+        # Do not advertise stale/preliminary probabilities as post-qualifying.
+        status = "raced" if target["completed"] else "scheduled"
+        if analysis and analysis["status"] == "upcoming_post_quali" and pending:
+            status = "upcoming_post_quali"
+        summary = {"year": year, "round": rnd, "name": target["name"],
+                   "date": target["date"], "status": status,
+                   "n_drivers": len(data["drivers"])}
+        if analysis and analysis.get("circuit"):
+            summary["circuit"] = analysis["circuit"]
+        return jsonify({"season": year, "season_complete": not pending,
+                        "race": summary, "source": "season_database",
+                        "analysis_available": analysis is not None,
+                        "results_through_round": max(
+                            (int(r["round"]) for r in schedule if r["completed"]), default=0)})
     doc = _load_artifact()
     nxt = doc.get("next_round")
     races = doc["races"]

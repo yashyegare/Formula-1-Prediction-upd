@@ -222,6 +222,7 @@ const RaceIntelPage: NextPage = () => {
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [officialRound, setOfficialRound] = useState<number | null>(null);
   const [curves, setCurves] = useState<LapCurvesDoc["races"][number] | null>(null);
   const [curvesMetric, setCurvesMetric] = useState<CurveMetric>("podium");
   const [highlight, setHighlight] = useState<string | null>(null);
@@ -230,6 +231,10 @@ const RaceIntelPage: NextPage = () => {
 
   useEffect(() => {
     let cancelled = false;
+    fetch('/api/race-intel/next-round')
+      .then(res => { if (!res.ok) throw new Error('Calendar unavailable'); return res.json(); })
+      .then((doc: { results_through_round?: number }) => { if (!cancelled) setOfficialRound(doc.results_through_round ?? null); })
+      .catch(() => { /* Analysis remains usable without the calendar. */ });
     setLoading(true);
     setError(null);
     fetch(`${NEXT_PUBLIC_API_URL}/api/race-intel/season/2026`)
@@ -352,6 +357,11 @@ const RaceIntelPage: NextPage = () => {
               <span className="text-zinc-300">why it happened</span> view.
             </p>
           </header>
+
+          {season && <aside className="mb-6 rounded-lg border border-zinc-700 p-4 text-sm text-zinc-300" role="status">
+            Analysis includes completed races through round {Math.max(0, ...season.races.filter(r => r.status === 'raced').map(r => r.round))}.
+            {officialRound !== null && officialRound > Math.max(0, ...season.races.filter(r => r.status === 'raced').map(r => r.round)) && <span> Official results are available through round {officialRound}; this analysis is awaiting a refresh. <a href="https://formula-1-prediction-upd-fxzg.vercel.app" className="underline">View current results in the simulator</a>.</span>}
+          </aside>}
 
           {loading && (
             <div className="py-24 text-center text-zinc-500">

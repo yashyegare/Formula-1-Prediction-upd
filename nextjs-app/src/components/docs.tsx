@@ -1,12 +1,11 @@
 import {useState, type ReactNode} from "react";
-import Link from "next/link";
+
 
 type Props = {
     children: ReactNode
 }
 
 const CANVA_VIEW_URL = "https://www.canva.com/design/DAFsVnyeZfw/view";
-const CANVA_EDIT_URL = "https://www.canva.com/design/DAFsVnyeZfw/HAKqZREsBBSWqrWKP_fMsQ/edit?utm_content=DAFsVnyeZfw&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton";
 
 /* The deck keeps its own 16:9 ratio but is sized from the viewport height, so
    it grows into the space the next-round card used to occupy instead of being
@@ -33,56 +32,17 @@ const CanvaEmbed = () => {
                     title="Predicting Formula 1 Race Results — slide deck"
                 />
             </div>
-            <a href={CANVA_EDIT_URL} target="_blank" rel="noopener" className="whitespace-normal text-center text-xs text-gray-500 no-underline hover:text-gray-700 hover:underline">
+            <a href={CANVA_VIEW_URL} target="_blank" rel="noopener" className="whitespace-normal text-center text-xs text-gray-500 no-underline hover:text-gray-700 hover:underline">
                 Predicting Formula 1 Race Results — open the full presentation
             </a>
         </div>
     );
 };
 
-const FeatureCard = ({ href, isExternal, icon, title, accentColor, delay }: {
-    href: string; isExternal?: boolean; icon: React.ReactNode; title: string;
-    accentColor: string; delay: string;
-}) => {
-    const Wrapper = isExternal ? 'a' : Link;
-    const wrapperProps = isExternal ? { href, target: '_blank', rel: 'noopener noreferrer' } : { href };
-    return (
-        <Wrapper
-            {...wrapperProps}
-            className="group relative flex min-w-[170px] flex-1 items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2 no-underline transition-all duration-300 hover:-translate-y-0.5"
-            style={{
-                animation: `fadeInUp 0.6s ease-out ${delay} both`,
-                boxShadow: `0 1px 3px rgba(0,0,0,0.06)`,
-            }}
-            onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = `0 4px 20px ${accentColor}25, 0 0 0 1px ${accentColor}30`;
-                e.currentTarget.style.borderColor = accentColor + '50';
-            }}
-            onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = `0 1px 3px rgba(0,0,0,0.06)`;
-                e.currentTarget.style.borderColor = '';
-            }}
-        >
-            <div
-                className="flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center transition-colors duration-300"
-                style={{ backgroundColor: accentColor + '10' }}
-            >
-                <div style={{ color: accentColor }}>{icon}</div>
-            </div>
-            <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-gray-900 group-hover:text-black transition-colors">{title}</div>
-            </div>
-            <svg className="w-4 h-4 text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all duration-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-        </Wrapper>
-    );
-};
-
 /* Facts about the CURRENT production system — kept in sync with what
    actually runs in flask-app/, unlike the 2023 write-up below. */
 const SYSTEM_FACTS = [
-    { label: "Model", value: "XGBoost · 3-class" },
+    { label: "Model", value: "Random Forest · 3-class" },
     { label: "Data", value: "Jolpica-F1 · 2018–2026" },
     { label: "Accuracy (post-fix)", value: "~66%" },
     { label: "Backend", value: "Flask · PostgreSQL" },
@@ -184,39 +144,6 @@ const Docs = ({ nextRound }: { nextRound?: ReactNode }) => {
                 </p>
             </header>
 
-            {/* Feature cards — Track Explorer (flagship), Season Simulator, Draw Line Racing & Race Intelligence */}
-            <div className="mb-4 flex shrink-0 flex-wrap gap-2.5">
-                    <FeatureCard
-                        href="https://f1-track-metrics-lab.vercel.app"
-                        isExternal
-                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>}
-                        title="Track Explorer"
-                        accentColor="#3b82f6"
-                        delay="0.1s"
-                    />
-                    <FeatureCard
-                        href="https://formula-1-prediction-upd-fxzg.vercel.app"
-                        isExternal
-                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>}
-                        title="Season Simulator"
-                        accentColor="#dc2626"
-                        delay="0.2s"
-                    />
-                    <FeatureCard
-                        href="/race-intel"
-                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>}
-                        title="Race Intelligence"
-                        accentColor="#8b5cf6"
-                        delay="0.3s"
-                    />
-                    <FeatureCard
-                        href="/racing"
-                        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17h2a2 2 0 002-2v0a2 2 0 00-2-2H5v4zM15 17h2a2 2 0 002-2v0a2 2 0 00-2-2h-2v4z"/><path d="M12 3v14"/><path d="M8 7l4-4 4 4"/><path d="M3 11h18v2a4 4 0 01-4 4H7a4 4 0 01-4-4v-2z"/></svg>}
-                        title="Draw Line Racing"
-                        accentColor="#22c55e"
-                        delay="0.4s"
-                    />
-            </div>
             <div className="page-body flex flex-col">
 
                 <CanvaEmbed />

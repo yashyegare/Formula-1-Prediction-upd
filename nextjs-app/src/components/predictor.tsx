@@ -1,6 +1,5 @@
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
-import { NEXT_PUBLIC_API_URL } from "../lib/constants";
 import { explorerTrackUrl, loadCircuitRegistry } from "../lib/trackExplorer";
 
 type Roster = {
@@ -179,13 +178,13 @@ const ResultReveal = ({ prediction, loading, coldStart }: {
     );
 };
 
-const Predictor = () => {
+const Predictor = ({ defaultRace }: { defaultRace?: string }) => {
     const [roster, setRoster] = useState<Roster | null>(null);
     const [rosterError, setRosterError] = useState(false);
 
     const [round, setRound] = useState("");
     const [driver, setDriver] = useState("");
-    const [quali, setQuali] = useState(0);
+    const [quali, setQuali] = useState(1);
     // GP name → explorer circuit id, from the season circuit registry
     const [explorerSlugs, setExplorerSlugs] = useState<Record<string, string>>({});
 
@@ -193,10 +192,14 @@ const Predictor = () => {
     const [loading, setLoading] = useState(false);
     const [coldStart, setColdStart] = useState(false);
 
+    useEffect(() => {
+        if (defaultRace && roster?.grandsPrix.includes(defaultRace)) setRound(defaultRace);
+    }, [defaultRace, roster]);
+
     // fetch the live driver/GP list once on mount, instead of hardcoding
     // a season's roster that goes stale every year
     useEffect(() => {
-        fetch(`${NEXT_PUBLIC_API_URL}/roster`)
+        fetch('/roster')
             .then((res) => res.json())
             .then((data: Roster) => {
                 setRoster(data);
@@ -235,12 +238,15 @@ const Predictor = () => {
             qualifying_pos: quali.toString(),
         });
 
-        await fetch(`${NEXT_PUBLIC_API_URL}/predictGrid`, {
+        await fetch('/predictGrid', {
             method: "POST",
             headers: myHeaders,
             body: raw,
         })
-            .then((response) => response.json())
+            .then((response) => {
+                if (!response.ok) throw new Error('Prediction unavailable');
+                return response.json();
+            })
             .then((result) => {
                 clearTimeout(coldStartTimer);
                 setPrediction(result[0]);
@@ -264,8 +270,8 @@ const Predictor = () => {
                     height={56}
                     alt={"Formula One Logo"}
                 />
-                <h1 className="text-3xl font-semibold m-0">Result Predictor</h1>
-                <h2 className="text-lg opacity-60 m-0">Based on the Qualifying Position</h2>
+                <h3 className="text-2xl font-semibold m-0">Driver outcome predictor</h3>
+                <p className="text-sm opacity-70 m-0">Podium · Points · Outside the points</p>
             </div>
             <form
                 className="my-4 flex w-full max-w-md flex-col gap-2.5 rounded-lg border-[1px] border-stone-800 bg-[#E6002B]/30 backdrop-blur-2xl p-5"
@@ -333,6 +339,8 @@ const Predictor = () => {
                     <input
                         className="rounded-lg border-[1px] border-stone-700 bg-stone-900 px-2 py-1.5 text-white outline-white"
                         type="number"
+                        required
+                        value={quali}
                         min={1}
                         max={22}
                         onChange={(e) => setQuali(Number(e.target.value))}
@@ -340,7 +348,7 @@ const Predictor = () => {
                 </label>
                 {rosterError && (
                     <p className="text-sm text-red-400">
-                        Couldn&apos;t load the current driver/race list from the API. Is flask-app running?
+                        The driver and race list is unavailable. Please reload to try again.
                     </p>
                 )}
                 <button

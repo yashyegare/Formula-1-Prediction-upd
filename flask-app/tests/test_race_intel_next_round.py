@@ -56,6 +56,7 @@ def artifact(tmp_path, monkeypatch):
     """Repoint the blueprint's artifact path at a fixture doc and reset
     the mtime cache so each test loads its own document. Passing None
     points at a file that is never written (the missing-artifact state)."""
+    monkeypatch.setattr(ria, "get_season_init_data", lambda year: None)
     def write(doc):
         path = tmp_path / "race_intel.json"
         if doc is not None:
@@ -103,3 +104,34 @@ def test_missing_artifact_is_json_503(client, artifact):
     assert resp.status_code == 503
     assert resp.is_json
     assert "error" in resp.get_json()
+
+
+@pytest.mark.parametrize("complete", [False, True])
+def test_live_calendar_overrides_stale_analysis(client, artifact, monkeypatch, complete):
+    artifact(_doc(next_round=2))
+    monkeypatch.setattr(ria, "get_season_init_data", lambda year: {
+        "drivers": [{"id": "norris"}],
+        "schedule": [
+            {"round": "20", "name": "Brazil", "date": "2026-11-08", "completed": True},
+            {"round": "21", "name": "Las Vegas", "date": "2026-11-22", "completed": complete},
+        ],
+    })
+    body = client.get("/api/race-intel/next-round").get_json()
+    assert body["race"]["round"] == 21
+    assert body["race"]["name"] == "Las Vegas"
+    assert body["race"]["status"] == ("raced" if complete else "scheduled")
+    assert body["season_complete"] is complete
+    assert body["analysis_available"] is False
+    assert body["results_through_round"] == (21 if complete else 20)
+
+
+def test_live_calendar_works_without_ml_artifact(client, artifact, monkeypatch):
+    artifact(None)
+    monkeypatch.setattr(ria, "get_season_init_data", lambda year: {
+        "drivers": [], "schedule": [
+            {"round": "1", "name": "Australia", "date": "2026-03-08", "completed": False},
+        ],
+    })
+    response = client.get("/api/race-intel/next-round")
+    assert response.status_code == 200
+    assert response.get_json()["results_through_round"] == 0
