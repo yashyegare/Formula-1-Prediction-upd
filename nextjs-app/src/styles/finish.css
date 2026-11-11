@@ -1,0 +1,225 @@
+/* Final surface and interaction treatment. No additional animation runtime. */
+.lab-home {
+  background-color: #0b1017;
+  background-image: radial-gradient(
+      ellipse at 85% 8%,
+      #29324635,
+      transparent 45%
+    ),
+    radial-gradient(ellipse at 0% 75%, #632e2720, transparent 45%),
+    url("/race-contours.svg");
+  background-size: auto, auto, 1600px 1200px;
+  background-repeat: no-repeat, no-repeat, repeat-y;
+}
+.lab-home-header {
+  background: #101620ed;
+  box-shadow: 0 1px 0 #ffffff08;
+}
+.lab-home .lab-hero::before {
+  background: linear-gradient(120deg, #101720dd, #0d121bd9);
+}
+.lab-home .lab-hero::after {
+  opacity: 0.38;
+}
+.lab-home .lab-hero-copy {
+  padding: 12px 0;
+}
+.lab-home .lab-intro {
+  max-width: 460px;
+  line-height: 1.8;
+}
+.lab-home .lab-weekend,
+.lab-home .lab-predictor,
+.lab-home .lab-results {
+  background-image: linear-gradient(135deg, #ffffff04, transparent 65%);
+  border-color: #384457;
+  box-shadow: 0 16px 40px #00000020, inset 0 1px 0 #ffffff04;
+}
+.lab-home .lab-weekend {
+  border-top-color: #ee7466;
+}
+.lab-home .lab-predictor {
+  padding: 30px;
+}
+.lab-home .lab-track-outline {
+  background-image: radial-gradient(
+    ellipse at center,
+    #27354a60,
+    transparent 75%
+  );
+}
+.lab-home .lab-track-outline svg {
+  transition: transform 0.4s var(--lab-ease);
+}
+.lab-home .lab-tool-header {
+  margin-bottom: 24px;
+}
+.lab-home .lab-tool-season {
+  padding-bottom: 18px;
+}
+.lab-home .lab-driver-identity {
+  padding: 14px;
+  border: 1px solid #364359;
+  border-radius: 8px;
+  background: #101822;
+  margin: 4px 0;
+  gap: 14px;
+}
+.lab-home .lab-driver-identity strong {
+  font-size: 16px;
+  line-height: 1.5;
+}
+.lab-home .lab-driver-identity small {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.lab-home .lab-driver-avatar {
+  box-shadow: 0 0 0 3px #ffffff04;
+}
+.lab-home .lab-driver-tool select {
+  padding: 13px 36px 13px 14px;
+  cursor: pointer;
+}
+.lab-home .lab-driver-tool select:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+.lab-home .lab-driver-tool label {
+  margin-top: 14px !important;
+}
+.lab-home .lab-position-stepper {
+  gap: 10px;
+}
+.lab-home .lab-position-stepper button {
+  background: #233044;
+  border-color: #52647e;
+}
+.lab-home .lab-position-stepper button:hover:not(:disabled) {
+  background: #34445d;
+  border-color: #8197b7;
+}
+.lab-home .lab-position-stepper button:focus-visible {
+  outline-offset: 3px;
+}
+.lab-home .lab-estimate-button {
+  min-height: 52px;
+  margin-top: 16px;
+  border-radius: 7px;
+}
+.lab-home .lab-outcome {
+  padding: 24px;
+  background: #101a27;
+  box-shadow: inset 0 1px 0 #ffffff05;
+}
+.lab-home .lab-outcome-actions {
+  gap: 8px 16px;
+}
+.lab-home .lab-outcome-actions button,
+.lab-home .lab-outcome-actions a {
+  padding: 8px 12px;
+  border: 1px solid #4b5c73;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background 0.18s, border-color 0.18s;
+}
+.lab-home .lab-outcome-actions button:hover,
+.lab-home .lab-outcome-actions a:hover {
+  background: #25344a;
+  border-color: #8193ac;
+}
+.lab-home .lab-comparison tbody tr:last-child {
+  background: #ffffff03;
+}
+.lab-home .lab-comparison td {
+  line-height: 1.6;
+}
+.lab-home .lab-season-pulse {
+  gap: 30px;
+  padding: 28px 0;
+}
+.lab-home .lab-season-bar {
+  height: 5px;
+  box-shadow: inset 0 1px 2px #00000030;
+}
+.lab-home .lab-season-bar span {
+  box-shadow: 0 0 12px #e45c5020;
+}
+.lab-home .lab-explainer li {
+  margin-bottom: 22px;
+  padding-bottom: 22px;
+}
+.lab-home .lab-explainer li strong {
+  font-size: 16px;
+}
+.lab-home .lab-explainer li p {
+  font-size: 15px;
+  margin-top: 10px;
+}
+.lab-home .lab-results {
+  padding: 30px;
+  gap: 24px;
+}
+.lab-home .lab-podium li {
+  background: #202a38;
+  padding: 16px;
+}
+.lab-home .lab-podium strong {
+  font-size: 15px;
+}
+.lab-home .lab-footer {
+  margin-top: 12px;
+  line-height: 1.8;
+}
+.lab-home button,
+.lab-home a,
+.lab-home input,
+.lab-home select {
+  touch-action: manipulation;
+}
+.lab-home button {
+  transition-timing-function: var(--lab-ease);
+}
+.lab-home :focus-visible {
+  outline-width: 2px;
+  outline-color: #accfff;
+}
+@media (hover: hover) {
+  .lab-home .lab-track-outline:hover svg {
+    transform: scale(1.04);
+  }
+}
+@media (max-width: 800px) {
+  .lab-home .lab-predictor,
+  .lab-home .lab-weekend {
+    padding: 22px;
+  }
+  .lab-home .lab-predict-section {
+    padding-top: 36px;
+    padding-bottom: 36px;
+  }
+  .lab-home .lab-results {
+    padding: 22px;
+  }
+  .lab-home .lab-season-pulse {
+    gap: 16px;
+  }
+  .lab-home .lab-podium li {
+    padding: 12px 10px;
+  }
+  .lab-home .lab-podium strong {
+    font-size: 14px;
+  }
+  .lab-home .lab-outcome {
+    padding: 18px;
+  }
+}
+@media (max-width: 420px) {
+  .lab-home .lab-outcome-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .lab-home .lab-outcome-actions a,
+  .lab-home .lab-outcome-actions button {
+    justify-content: center;
+  }
+}
