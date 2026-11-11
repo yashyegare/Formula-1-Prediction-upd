@@ -250,6 +250,41 @@
   font-size: var(--lab-font-caption);
   margin-top: 3px;
 }
+.lab-driver-identity > .lab-driver-avatar {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  overflow: hidden;
+  border: 1px solid var(--lab-control-stroke);
+  background: #263247;
+  border-radius: 50%;
+}
+.lab-avatar-initials {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transition: opacity var(--lab-fast);
+}
+.lab-driver-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  transform: scale(1.2);
+  transform-origin: center 15%;
+  opacity: 0;
+  transition: opacity var(--lab-fast);
+}
+.lab-driver-avatar[data-loaded="true"] img {
+  opacity: 1;
+}
+.lab-driver-avatar[data-loaded="true"] .lab-avatar-initials {
+  opacity: 0;
+}
 .lab-position-stepper {
   display: flex;
   align-items: stretch;

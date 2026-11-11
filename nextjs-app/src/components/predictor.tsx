@@ -5,6 +5,7 @@ import {
   type CircuitRegistryEntry,
 } from "../lib/trackExplorer";
 import { SIMULATOR_URL } from "./SiteNav";
+import DriverPortrait from "./DriverPortrait";
 
 interface Roster {
   drivers: string[];
@@ -321,14 +322,7 @@ export default function Predictor({
         </select>
         {roster && (
           <div className="lab-driver-identity">
-            <span aria-hidden="true">
-              {driver
-                .split(" ")
-                .filter(Boolean)
-                .map((part) => part[0])
-                .join("")
-                .slice(0, 2)}
-            </span>
+            <DriverPortrait name={driver} />
             <div>
               <strong>{driver}</strong>
               <small>
