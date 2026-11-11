@@ -1,0 +1,75 @@
+name: Sync live season results
+
+on:
+  schedule:
+    - cron: '17 */3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-season-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/530426302059/locations/global/workloadIdentityPools/f1-github/providers/github
+          service_account: f1-refresh@mcp-memory-bridge.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v3
+
+      # Keep serving data current even when the much longer ML refresh fails.
+      - name: Sync production results and standings
+        env:
+          CLOUDSDK_METRICS_ENVIRONMENT: datacloud.codex
+        run: |
+          set -euo pipefail
+          TOKEN=$(gcloud secrets versions access 1 --secret=f1-sync-token --project=mcp-memory-bridge)
+          echo "::add-mask::$TOKEN"
+          YEAR=$(date -u +%Y)
+          curl --fail-with-body --silent --show-error --retry 2 --retry-delay 10 \
+            --max-time 125 \
+            -X POST https://f1-api-530426302059.us-central1.run.app/api/admin/sync-season \
+            -H 'Content-Type: application/json' -H "X-Sync-Token: $TOKEN" \
+            -d "{\"year\": $YEAR}"
+
+      - name: Verify production contains the latest published round
+        run: |
+          python3 - <<'PY'
+          import datetime
+          import json
+          import time
+          import urllib.request
+
+          def fetch(url):
+              for attempt in range(3):
+                  try:
+                      request = urllib.request.Request(url, headers={'User-Agent': 'F1-season-sync'})
+                      with urllib.request.urlopen(request, timeout=30) as response:
+                          return json.load(response)
+                  except Exception:
+                      if attempt == 2:
+                          raise
+                      time.sleep(10)
+
+          year = datetime.datetime.now(datetime.timezone.utc).year
+          races = fetch(f'https://api.jolpi.ca/ergast/f1/{year}/last/results.json')['MRData']['RaceTable']['Races']
+          if not races:
+              print(f'No published results for {year} yet.')
+          else:
+              latest = races[0]
+              race_id = f"{year}_r{int(latest['round'])}"
+              season = fetch(f'https://f1-api-530426302059.us-central1.run.app/api/init?year={year}')
+              results = season['raceResults'].get(race_id, [])
+              if not results or not any(r['id'] == race_id and r['completed'] for r in season['schedule']):
+                  raise SystemExit(f'Production is stale: missing {race_id} ({latest["raceName"]})')
+              if len(results) != len(latest['Results']):
+                  raise SystemExit(f'Incomplete results for {race_id}: production={len(results)}, upstream={len(latest["Results"])}')
+              print(f'Production is current through {race_id}: {latest["raceName"]} ({len(results)} finishers).')
+          PY
