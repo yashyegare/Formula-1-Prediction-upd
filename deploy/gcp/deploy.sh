@@ -10,7 +10,7 @@ image="$region-docker.pkg.dev/$project/f1-backend/api:$tag"
 # in a generic source-bucket error, obscuring the permission that actually failed.
 gcloud auth print-access-token --project="$project" >/dev/null
 bucket="gs://${project}_cloudbuild"
-bucket_project=$(gcloud storage buckets describe "$bucket" --project="$project" --format='value(project_number)')
+bucket_project=$(gcloud storage buckets describe "$bucket" --project="$project" --raw --format='value(projectNumber)')
 [ "$bucket_project" = '530426302059' ] || { echo 'Source bucket belongs to an unexpected project'; exit 1; }
 
 gcloud builds submit . --project="$project" --region="$region" \
