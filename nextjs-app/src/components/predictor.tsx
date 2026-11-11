@@ -187,7 +187,9 @@ export default function Predictor({ defaultRace }: { defaultRace?: string }) {
     }
   };
   const outcome = result ? OUTCOMES[result.outcome] : null;
-  const simulatorHref = `${SIMULATOR_URL}/?race=${encodeURIComponent(round)}`;
+  const simulatorHref = `${SIMULATOR_URL}/?race=${encodeURIComponent(
+    round
+  )}&driver=${encodeURIComponent(driver)}`;
   return (
     <div className="lab-driver-tool">
       <div className="lab-tool-header">
@@ -375,8 +377,9 @@ export default function Predictor({ defaultRace }: { defaultRace?: string }) {
             <a href={simulatorHref}>Explore championship impact ↗</a>
           </div>
           <p className="lab-input-help">
-            The simulator opens this race. You choose the finishing order; this
-            estimate is not inserted as an official result.
+            The simulator opens this race and highlights your driver. You choose
+            the finishing order; this estimate is not inserted as an official
+            result.
           </p>
         </section>
       )}

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import DragDropProvider from './components/common/DragDropProvider';
-import { initializeUiState, setMobileView, syncPointsSystemForYear, toggleOfficialResults as toggleOfficialResultsUI } from './store/slices/uiSlice';
+import { initializeUiState, selectDriver, setMobileView, syncPointsSystemForYear, toggleOfficialResults as toggleOfficialResultsUI } from './store/slices/uiSlice';
 import type { RootState } from './store';
 import { moveDriver, resetGrid, toggleOfficialResults } from './store/slices/gridSlice';
 import { fetchLockedPredictions } from './store/slices/lockedPredictionsSlice';
@@ -49,6 +49,12 @@ const App: React.FC<{ year?: string }> = ({ year }) => {
   const mobileView = useSelector((state: RootState) => state.ui.mobileView);
   const showOfficialResults = useSelector((state: RootState) => state.ui.showOfficialResults);
   const pastResults = useSelector((state: RootState) => state.seasonData.pastResults);
+  const seasonDrivers = useSelector((state: RootState) => state.seasonData.drivers);
+  useEffect(() => {
+    const requestedDriver = new URLSearchParams(window.location.search).get('driver');
+    const match = seasonDrivers.find(driver => `${driver.givenName} ${driver.familyName}` === requestedDriver || driver.id === requestedDriver);
+    if (match) dispatch(selectDriver(match.id));
+  }, [seasonDrivers, dispatch]);
   const isLoading = useSelector((state: RootState) => state.seasonData.isLoading);
   const requiresSubscription = useSelector((state: RootState) => state.seasonData.requiresSubscription);
   const { fingerprint } = useSelector((state: RootState) => state.predictions);

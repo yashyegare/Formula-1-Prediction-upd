@@ -73,6 +73,9 @@ it("preserves the chosen race, submits the restored scenario, and carries it int
   expect(new URL(handoff.href).searchParams.get("race")).toBe(
     "Monaco Grand Prix"
   );
+  expect(new URL(handoff.href).searchParams.get("driver")).toBe(
+    "Max Verstappen"
+  );
   act(() =>
     (
       host.querySelector(
