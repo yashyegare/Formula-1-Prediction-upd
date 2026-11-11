@@ -35,10 +35,11 @@ alone never reaches a running DATABASE_URL install.
 """
 import argparse
 import json
+from datetime import datetime, timezone
 
 from database import (
     _execute, _fetchall, _is_pg, get_all_predictions, get_connection,
-    is_seeded, update_leaderboard,
+    init_db, is_seeded, update_leaderboard,
 )
 from seed_data import TEAM_COLORS, api_get, normalize_driver_id
 
@@ -60,8 +61,11 @@ def _fetch_round_results(year: int, rnd: int) -> list[dict] | None:
     """One round's classified finishers from Jolpica, or None when the
     round has not been raced (no Results block)."""
     data = api_get(f"{year}/{rnd}/results.json")
-    races = ((data or {}).get("MRData", {})
-             .get("RaceTable", {}).get("Races", []))
+    metadata = data.get("MRData") if isinstance(data, dict) else None
+    table = metadata.get("RaceTable") if isinstance(metadata, dict) else None
+    if not isinstance(table, dict) or not isinstance(table.get("Races"), list):
+        raise RuntimeError("Race feed unavailable; sync freshness was not updated")
+    races = table["Races"]
     if not races or not races[0].get("Results"):
         return None
     out = []
@@ -234,18 +238,25 @@ def _rescore_season(year: int) -> int:
 
 
 def sync_year(year: int, rescore: bool = True) -> dict:
+    init_db()
     if not is_seeded(year):
         raise ValueError(
             f"season {year} is not seeded — run seed_data.py --year {year}")
     new_rounds: list[int] = []
     with get_connection() as conn:
-        for rnd in _open_rounds(conn, year):
+        open_rounds = _open_rounds(conn, year)
+        for rnd in open_rounds:
             results = _fetch_round_results(year, rnd)
             if results is None:
                 break
             _ingest_round(conn, year, rnd, results)
             new_rounds.append(rnd)
         refreshed = _refresh_standings(conn, year) if new_rounds else False
+        if open_rounds and (not new_rounds or refreshed):
+            checked_at = datetime.now(timezone.utc).isoformat()
+            _execute(conn, "INSERT INTO season_sync_status (year, checked_at) "
+                     f"VALUES ({_ph()}, {_ph()}) ON CONFLICT(year) DO UPDATE "
+                     "SET checked_at = excluded.checked_at", (year, checked_at))
     scored = _rescore_season(year) if (new_rounds and rescore) else 0
     return {
         "year": year,

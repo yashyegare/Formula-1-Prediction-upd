@@ -1,6 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Predictor from "./predictor";
 import CircuitPreview from "./CircuitPreview";
 import SiteNav, { SIMULATOR_URL } from "./SiteNav";
@@ -14,6 +14,7 @@ interface Race {
   circuitId?: string;
 }
 interface Season {
+  sync?: { lastSuccessfulSync: string | null };
   schedule: Race[];
   drivers: Array<{ id: string; givenName: string; familyName: string }>;
   raceResults: Record<string, Array<{ driverId: string; position: number }>>;
@@ -108,6 +109,10 @@ export default function HomePage() {
   const completed = races.filter((r) => r.completed);
   const next = races.find((r) => !r.completed);
   const latest = completed[completed.length - 1];
+  const seasonRaces = useMemo(
+    () => season?.schedule.map((race) => race.name),
+    [season]
+  );
   const podium = latest
     ? [...(season?.raceResults[latest.id] ?? [])]
         .sort((a, b) => a.position - b.position)
@@ -136,12 +141,12 @@ export default function HomePage() {
               Season {year}
             </p>
             <h1>
-              One race.
-              <br />A different <em>championship.</em>
+              Predict the race.
+              <br />
+              <em>Explore the title fight.</em>
             </h1>
             <p className="lab-intro">
-              Understand the circuit. Predict a driver outcome. Explore what it
-              means for the title.
+              Test a driver outcome, then build your championship scenario.
             </p>
             <div className="lab-actions">
               <a className="lab-primary" href="#predict">
@@ -208,13 +213,31 @@ export default function HomePage() {
                 </button>
               </p>
             )}
+            {season && (
+              <p className="lab-sync-time">
+                {season.sync?.lastSuccessfulSync ? (
+                  <>
+                    Last successful sync:{" "}
+                    <time dateTime={season.sync.lastSuccessfulSync}>
+                      {new Date(season.sync.lastSuccessfulSync).toLocaleString(
+                        "en-GB",
+                        {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          timeZone: "UTC",
+                        }
+                      )}{" "}
+                      UTC
+                    </time>
+                  </>
+                ) : (
+                  "Sync time not yet recorded"
+                )}
+              </p>
+            )}
             {next?.circuitId && <CircuitPreview circuitId={next.circuitId} />}
-            <div className="lab-weekend-footer">
-              <span>Race weekend, in context</span>
-              <a className="lab-text-link" href="#predict">
-                Make your prediction ↓
-              </a>
-            </div>
           </aside>
         </section>
         {season && races.length > 0 && (
@@ -250,32 +273,36 @@ export default function HomePage() {
           data-reveal="visible"
         >
           <div className="lab-section-heading">
-            <p className="lab-eyebrow">01 / Make your call</p>
-            <h2>Where will your driver finish?</h2>
+            <p className="lab-eyebrow">Make your call</p>
+            <h2>Explore your driver’s race.</h2>
             <p>
-              Choose a driver and qualifying position. The model estimates an
-              outcome category, rather than an exact finishing position.
+              Choose a driver and qualifying position to estimate podium,
+              points, or outside the points.
             </p>
           </div>
           <div className="lab-predict-layout">
             <div className="lab-predictor">
-              <Predictor defaultRace={next?.name} />
+              <Predictor
+                defaultRace={next?.name}
+                seasonRaces={seasonRaces}
+                seasonError={failed}
+              />
             </div>
             <div className="lab-explainer">
-              <h3>Start with a race. Follow the consequences.</h3>
+              <h3>Make the estimate useful.</h3>
               <ol>
                 <li>
-                  <strong>Predict an outcome</strong>
+                  <strong>Compare two scenarios</strong>
                   <p>
-                    Explore podium, points, or outside-the-points finishes based
-                    on qualifying and historical form.
+                    Change qualifying position and predict again to compare the
+                    two outcome categories.
                   </p>
                 </li>
                 <li>
                   <strong>Build your scenario</strong>
                   <p>
-                    Arrange finishing positions in the simulator and watch
-                    driver and constructor standings change.
+                    Set the finishing order and see how the championship
+                    changes.
                   </p>
                   <a href={SIMULATOR_URL} className="lab-text-link">
                     Try a championship scenario →
@@ -283,10 +310,7 @@ export default function HomePage() {
                 </li>
                 <li>
                   <strong>Compare after the flag</strong>
-                  <p>
-                    Review race analysis and compare saved simulator predictions
-                    with actual results.
-                  </p>
+                  <p>Review race analysis against the official results.</p>
                   <Link href="/race-intel" className="lab-text-link">
                     Review race analysis →
                   </Link>

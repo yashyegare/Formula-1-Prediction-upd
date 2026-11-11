@@ -5,6 +5,10 @@ body:has(.f1-site) {
   background: #f7f7f4;
 }
 .f1-site {
+  --lab-font-caption: 13px;
+  --lab-font-small: 14px;
+  --lab-font-control: 15px;
+  --lab-font-body: 16px;
   color: #202321;
   font-family: Inter, sans-serif;
 }
@@ -25,7 +29,7 @@ body:has(.f1-site) {
   text-decoration: none;
 }
 .lab-brand {
-  font-size: 15px;
+  font-size: var(--lab-font-control);
   font-weight: 800;
   letter-spacing: 0.05em;
   white-space: nowrap;
@@ -38,7 +42,7 @@ body:has(.f1-site) {
 .lab-nav nav {
   display: flex;
   gap: 28px;
-  font-size: 13px;
+  font-size: var(--lab-font-control);
   font-weight: 500;
 }
 .lab-nav a:hover,
@@ -97,11 +101,11 @@ body:has(.f1-site) {
 }
 .lab-track-meta strong {
   display: block;
-  font-size: 13px;
+  font-size: var(--lab-font-control);
 }
 .lab-track-meta span {
   display: block;
-  font-size: 12px;
+  font-size: var(--lab-font-small);
   color: #626960;
   margin-top: 5px;
 }
@@ -112,7 +116,7 @@ body:has(.f1-site) {
   align-items: center;
 }
 .lab-track-source {
-  font-size: 10px;
+  font-size: var(--lab-font-caption);
   color: #626960;
   line-height: 1.7;
   margin: 8px 0 0;
@@ -128,7 +132,7 @@ body:has(.f1-site) {
   border-top: 1px solid #e3e6df;
 }
 .lab-weekend-footer span {
-  font-size: 11px;
+  font-size: var(--lab-font-caption);
   color: #626960;
 }
 .lab-weekend-footer a {
@@ -171,7 +175,7 @@ body:has(.f1-site) {
 }
 .f1-site .lab-eyebrow {
   color: #9a3229;
-  font-size: 11px;
+  font-size: var(--lab-font-caption);
   letter-spacing: 0.13em;
   text-transform: uppercase;
   font-weight: 700;
@@ -185,7 +189,7 @@ body:has(.f1-site) {
   font-weight: 650;
 }
 .lab-intro {
-  font-size: 16px;
+  font-size: var(--lab-font-body);
   line-height: 1.8;
   color: #626960;
   max-width: 510px;
@@ -198,7 +202,7 @@ body:has(.f1-site) {
   margin: 28px 0 16px;
 }
 .lab-actions a {
-  font-size: 13px;
+  font-size: var(--lab-font-control);
   padding: 13px 18px;
   border-radius: 5px;
   text-decoration: none;
@@ -216,7 +220,7 @@ body:has(.f1-site) {
 }
 .lab-caption {
   color: #70766d;
-  font-size: 12px;
+  font-size: var(--lab-font-small);
   line-height: 1.8;
 }
 .lab-weekend {
@@ -234,7 +238,7 @@ body:has(.f1-site) {
 }
 .lab-race-date {
   margin: 12px 0;
-  font-size: 15px;
+  font-size: var(--lab-font-control);
 }
 .lab-rule {
   height: 1px;
@@ -243,7 +247,7 @@ body:has(.f1-site) {
 }
 .lab-text-link,
 .lab-text-button {
-  font-size: 13px;
+  font-size: var(--lab-font-control);
   font-weight: 600;
 }
 .lab-text-button {
@@ -260,7 +264,7 @@ body:has(.f1-site) {
 }
 .lab-section-heading p:not(.lab-eyebrow) {
   color: #626960;
-  font-size: 14px;
+  font-size: var(--lab-font-small);
   line-height: 1.8;
 }
 .lab-predict-layout {
@@ -297,7 +301,7 @@ body:has(.f1-site) {
 .lab-explainer li {
   padding-left: 10px;
   margin-bottom: 26px;
-  font-size: 14px;
+  font-size: var(--lab-font-small);
 }
 .lab-explainer li::marker {
   color: #9a3229;
@@ -308,7 +312,7 @@ body:has(.f1-site) {
   margin: 6px 0;
 }
 .lab-method-note {
-  font-size: 12px;
+  font-size: var(--lab-font-small);
   color: #70766d;
   line-height: 1.8;
   border-top: 1px solid #dfe1db;
@@ -330,7 +334,7 @@ body:has(.f1-site) {
   padding: 0;
   display: flex;
   gap: 24px;
-  font-size: 13px;
+  font-size: var(--lab-font-control);
 }
 .lab-podium li {
   display: flex;
@@ -339,7 +343,7 @@ body:has(.f1-site) {
 }
 .lab-podium span {
   color: #9a3229;
-  font-size: 11px;
+  font-size: var(--lab-font-caption);
 }
 .lab-footer {
   max-width: 1240px;
@@ -347,7 +351,7 @@ body:has(.f1-site) {
   padding: 24px 40px;
   border-top: 1px solid #dfe1db;
   color: #70766d;
-  font-size: 11px;
+  font-size: var(--lab-font-caption);
   display: flex;
   justify-content: space-between;
   gap: 20px;
@@ -361,12 +365,12 @@ body:has(.f1-site) {
   padding: 20px 0 35px;
 }
 .lab-about-tools p {
-  font-size: 14px;
+  font-size: var(--lab-font-small);
   margin: 14px 0;
 }
 .lab-about-tools summary {
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--lab-font-control);
 }
 .f1-site :focus-visible {
   outline: 3px solid #3982bf;

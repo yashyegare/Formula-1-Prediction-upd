@@ -11,9 +11,11 @@ export default function CircuitPreview({ circuitId }: { circuitId: string }) {
   const [track, setTrack] = useState<{ preview: Preview; href: string } | null>(
     null
   );
+  const [settled, setSettled] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
     setTrack(null);
+    setSettled(false);
     Promise.all([
       loadCircuitRegistry(),
       fetch("/track-previews.json", { signal: controller.signal }).then(
@@ -34,10 +36,30 @@ export default function CircuitPreview({ circuitId }: { circuitId: string }) {
       })
       .catch(() => {
         /* Calendar and prediction stay usable without a preview. */
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSettled(true);
       });
     return () => controller.abort();
   }, [circuitId]);
-  if (!track) return null;
+  if (!track)
+    return (
+      <div className="lab-circuit-placeholder" role="status">
+        {settled ? (
+          <>
+            <span>Circuit profile unavailable.</span>
+            <a href="https://f1-track-metrics-lab.vercel.app">
+              Browse Track Metrics Lab ↗
+            </a>
+          </>
+        ) : (
+          <>
+            <span className="lab-skeleton" aria-hidden="true" />
+            <span>Loading circuit profile…</span>
+          </>
+        )}
+      </div>
+    );
   const circuitPath = `M${track.preview.points.trim().split(/\s+/).join(" L")}`;
   return (
     <div className="lab-circuit-preview">
@@ -84,8 +106,7 @@ export default function CircuitPreview({ circuitId }: { circuitId: string }) {
         </a>
       </div>
       <p className="lab-track-source">
-        Circuit profile from Track Metrics Lab · 3D layouts and historical
-        qualifying telemetry
+        Track Metrics Lab · Layouts and historical qualifying telemetry
       </p>
     </div>
   );

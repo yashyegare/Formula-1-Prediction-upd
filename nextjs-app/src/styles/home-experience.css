@@ -65,10 +65,10 @@ html:has(.lab-home) {
 .lab-home .lab-hero {
   position: relative;
   isolation: isolate;
-  padding-top: 64px;
-  padding-bottom: 60px;
+  padding-top: 36px;
+  padding-bottom: 36px;
   gap: 64px;
-  min-height: 660px;
+  min-height: 0;
   color: #f6f8fc;
 }
 .lab-home .lab-hero::before {
@@ -96,7 +96,7 @@ html:has(.lab-home) {
   mask-image: linear-gradient(to right, transparent, #000 60%);
 }
 .lab-home .lab-hero h1 {
-  font-size: clamp(42px, 4.7vw, 64px);
+  font-size: clamp(36px, 4vw, 52px);
   font-weight: 750;
   letter-spacing: -0.055em;
   line-height: 1.05;
@@ -121,7 +121,7 @@ html:has(.lab-home) {
 }
 .lab-home .lab-hero .lab-intro {
   color: #aeb9c9;
-  font-size: 16px;
+  font-size: var(--lab-font-body);
   max-width: 430px;
 }
 .lab-home .lab-hero .lab-caption {
@@ -171,7 +171,7 @@ html:has(.lab-home) {
 }
 .lab-scroll-cue {
   text-decoration: none;
-  font-size: 11px;
+  font-size: var(--lab-font-caption);
   color: #b8c2d1 !important;
   display: inline-flex;
   align-items: center;
@@ -192,7 +192,7 @@ html:has(.lab-home) {
   transform: translateY(4px);
 }
 .lab-motion-toggle {
-  font-size: 10px;
+  font-size: var(--lab-font-caption);
   color: #a9b5c6;
   min-height: 44px;
   text-decoration: underline;
@@ -219,7 +219,7 @@ html:has(.lab-home) {
 }
 .lab-home .lab-race-date {
   color: #d6deeb;
-  font-size: 14px;
+  font-size: var(--lab-font-small);
 }
 .lab-home .lab-circuit-preview {
   border-color: #303b4b;
@@ -233,7 +233,7 @@ html:has(.lab-home) {
   overflow: hidden;
 }
 .lab-home .lab-track-outline svg {
-  height: 166px;
+  height: 136px;
   transition: transform 0.5s;
 }
 .lab-home .lab-track-outline:hover svg,
@@ -278,7 +278,7 @@ html:has(.lab-home) {
   font-variant-numeric: tabular-nums;
 }
 .lab-season-pulse strong span {
-  font-size: 12px;
+  font-size: var(--lab-font-small);
   color: #677384;
   font-weight: 400;
 }
@@ -296,7 +296,7 @@ html:has(.lab-home) {
   border-radius: inherit;
 }
 .lab-season-pulse > a {
-  font-size: 12px;
+  font-size: var(--lab-font-small);
   font-weight: 600;
   text-decoration: none;
   min-height: 44px;
@@ -353,7 +353,7 @@ html:has(.lab-home) {
   position: absolute;
   left: 0;
   top: 0;
-  font-size: 11px;
+  font-size: var(--lab-font-caption);
   font-weight: 650;
   color: var(--lab-red-soft);
   width: 30px;
@@ -414,7 +414,7 @@ html:has(.lab-home) {
 }
 .lab-home .lab-method-note {
   border-color: var(--lab-border);
-  font-size: 12px;
+  font-size: var(--lab-font-small);
 }
 .lab-home .lab-method-note a {
   color: #d3dce9;
@@ -469,7 +469,7 @@ html:has(.lab-home) {
   border-color: var(--lab-border);
   padding-top: 28px;
   padding-bottom: 32px;
-  font-size: 12px;
+  font-size: var(--lab-font-small);
 }
 .lab-footer-links {
   display: flex;
@@ -667,7 +667,7 @@ html:has(.lab-motion-paused) {
     flex: 1;
     min-width: 80px;
     padding: 12px 10px;
-    font-size: 12px;
+    font-size: var(--lab-font-small);
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -31,7 +31,15 @@ const OUTCOMES: Record<
   3: { label: "Outside the points", detail: "P11+", category: "outside" },
 };
 
-export default function Predictor({ defaultRace }: { defaultRace?: string }) {
+export default function Predictor({
+  defaultRace,
+  seasonRaces,
+  seasonError = false,
+}: {
+  defaultRace?: string;
+  seasonRaces?: string[];
+  seasonError?: boolean;
+}) {
   const [roster, setRoster] = useState<Roster | null>(null);
   const [rosterError, setRosterError] = useState(false);
   const [rosterAttempt, setRosterAttempt] = useState(0);
@@ -43,12 +51,14 @@ export default function Predictor({ defaultRace }: { defaultRace?: string }) {
   const [slow, setSlow] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
+  const [comparison, setComparison] = useState<Result[]>([]);
   const [restored, setRestored] = useState(false);
   const chosenRace = useRef(false);
   const request = useRef<AbortController | null>(null);
   const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const qualifyingInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
+    if (!seasonRaces?.length) return;
     const controller = new AbortController();
     setRosterError(false);
     fetch("/roster", {
@@ -80,12 +90,18 @@ export default function Predictor({ defaultRace }: { defaultRace?: string }) {
           saved &&
           saved.season === data.season &&
           data.grandsPrix.includes(saved.round ?? "") &&
+          seasonRaces.includes(saved.round ?? "") &&
           data.drivers.includes(saved.driver ?? "") &&
           Number.isInteger(saved.quali) &&
           (saved.quali ?? 0) >= 1 &&
           (saved.quali ?? 23) <= 22;
         chosenRace.current = Boolean(valid);
-        setRound(valid ? saved.round! : data.grandsPrix[0]!);
+        setRound(
+          valid
+            ? saved.round!
+            : seasonRaces.find((name) => data.grandsPrix.includes(name)) ??
+                seasonRaces[0]!
+        );
         setDriver(valid ? saved.driver! : data.drivers[0]!);
         setQuali(valid ? saved.quali! : 1);
         setRestored(Boolean(valid));
@@ -97,15 +113,15 @@ export default function Predictor({ defaultRace }: { defaultRace?: string }) {
       if (!controller.signal.aborted) setCircuits(data);
     });
     return () => controller.abort();
-  }, [rosterAttempt]);
+  }, [rosterAttempt, seasonRaces]);
   useEffect(() => {
     if (
       !chosenRace.current &&
       defaultRace &&
-      roster?.grandsPrix.includes(defaultRace)
+      seasonRaces?.includes(defaultRace)
     )
       setRound(defaultRace);
-  }, [defaultRace, roster]);
+  }, [defaultRace, roster, seasonRaces]);
   useEffect(() => {
     if (!roster || !round || !driver) return;
     try {
@@ -124,7 +140,8 @@ export default function Predictor({ defaultRace }: { defaultRace?: string }) {
     },
     []
   );
-  const clearResult = () => {
+  const clearResult = (resetComparison = false) => {
+    if (resetComparison) setComparison([]);
     setResult(null);
     setError(null);
     setRestored(false);
@@ -142,7 +159,9 @@ export default function Predictor({ defaultRace }: { defaultRace?: string }) {
       loading ||
       !Number.isInteger(quali) ||
       quali < 1 ||
-      quali > 22
+      quali > 22 ||
+      !seasonRaces?.includes(round) ||
+      !roster.grandsPrix.includes(round)
     )
       return;
     const scenario: Scenario = { round, driver, quali, season: roster.season };
@@ -171,8 +190,22 @@ export default function Predictor({ defaultRace }: { defaultRace?: string }) {
       const body: unknown = await response.json();
       if (!Array.isArray(body) || ![1, 2, 3].includes(body[0] as number))
         throw new Error("Invalid response");
-      if (!controller.signal.aborted)
-        setResult({ ...scenario, outcome: body[0] as number });
+      if (!controller.signal.aborted) {
+        const nextResult = { ...scenario, outcome: body[0] as number };
+        setResult(nextResult);
+        setComparison((previous) => [
+          ...previous
+            .filter(
+              (item) =>
+                item.round === scenario.round &&
+                item.driver === scenario.driver &&
+                item.season === scenario.season &&
+                item.quali !== scenario.quali
+            )
+            .slice(-1),
+          nextResult,
+        ]);
+      }
     } catch {
       if (!controller.signal.aborted)
         setError(
@@ -225,13 +258,45 @@ export default function Predictor({ defaultRace }: { defaultRace?: string }) {
           onChange={(event) => {
             chosenRace.current = true;
             setRound(event.target.value);
-            clearResult();
+            clearResult(true);
           }}
         >
-          {roster?.grandsPrix.map((name) => (
-            <option key={name}>{name}</option>
+          {seasonRaces?.map((name) => (
+            <option
+              key={name}
+              value={name}
+              disabled={!roster?.grandsPrix.includes(name)}
+            >
+              {name}
+              {roster && !roster.grandsPrix.includes(name)
+                ? " — model unavailable"
+                : ""}
+            </option>
           ))}
         </select>
+        <p className="lab-input-help">
+          Current-season calendar ·{" "}
+          <a
+            href={`${SIMULATOR_URL}/${
+              (roster?.season ?? new Date().getUTCFullYear()) - 1
+            }`}
+          >
+            Browse past seasons ↗
+          </a>
+        </p>
+        {!seasonRaces && (
+          <p className="lab-input-help" role="status">
+            {seasonError
+              ? "Calendar unavailable. Retry the race calendar above to continue."
+              : "Loading the current-season calendar…"}
+          </p>
+        )}
+        {roster && round && !roster.grandsPrix.includes(round) && (
+          <p role="status" className="lab-tool-error">
+            This race is on the calendar, but this circuit is not supported by
+            the model yet. You can explore it in the simulator.
+          </p>
+        )}
         {trackHref && (
           <a className="lab-tool-track-link" href={trackHref}>
             Explore {circuit?.name} ↗
@@ -244,7 +309,7 @@ export default function Predictor({ defaultRace }: { defaultRace?: string }) {
           disabled={!roster || loading}
           onChange={(event) => {
             setDriver(event.target.value);
-            clearResult();
+            clearResult(true);
           }}
         >
           {roster?.drivers.map((name) => (
@@ -280,7 +345,11 @@ export default function Predictor({ defaultRace }: { defaultRace?: string }) {
             type="button"
             disabled={loading || quali <= 1}
             aria-label="Improve qualifying position"
-            onClick={() => changeQualifying(Math.max(1, quali - 1))}
+            onClick={() =>
+              changeQualifying(
+                Number.isFinite(quali) ? Math.max(1, quali - 1) : 1
+              )
+            }
           >
             −
           </button>
@@ -301,7 +370,11 @@ export default function Predictor({ defaultRace }: { defaultRace?: string }) {
             type="button"
             disabled={loading || quali >= 22}
             aria-label="Lower qualifying position"
-            onClick={() => changeQualifying(Math.min(22, quali + 1))}
+            onClick={() =>
+              changeQualifying(
+                Number.isFinite(quali) ? Math.min(22, quali + 1) : 1
+              )
+            }
           >
             +
           </button>
@@ -323,7 +396,12 @@ export default function Predictor({ defaultRace }: { defaultRace?: string }) {
         <button
           className="lab-estimate-button"
           type="submit"
-          disabled={!roster || loading}
+          disabled={
+            !roster ||
+            loading ||
+            !seasonRaces?.includes(round) ||
+            !roster.grandsPrix.includes(round)
+          }
         >
           {loading ? (
             <>
@@ -344,6 +422,38 @@ export default function Predictor({ defaultRace }: { defaultRace?: string }) {
             : "Estimates are not guarantees of a race result."}
         </p>
       </form>
+      {comparison.length === 2 && (
+        <section className="lab-comparison" aria-label="Scenario comparison">
+          <h4>Compare qualifying scenarios</h4>
+          <p>
+            {comparison[0]!.driver} · {comparison[0]!.round}
+          </p>
+          <table>
+            <caption className="sr-only">
+              Two model estimates for the same driver and race
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Qualifying</th>
+                <th scope="col">Estimated outcome</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparison.map((item) => (
+                <tr key={item.quali}>
+                  <th scope="row">P{item.quali}</th>
+                  <td>{OUTCOMES[item.outcome]?.label}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="lab-input-help">
+            {comparison[0]!.outcome === comparison[1]!.outcome
+              ? "Same outcome category for both inputs. This does not imply equal probability."
+              : "Changing qualifying position changed the estimated outcome category."}
+          </p>
+        </section>
+      )}
       {error && (
         <p className="lab-tool-error" role="alert">
           {error}

@@ -32,6 +32,70 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+it("uses only the current calendar and rejects a restored historical circuit", async () => {
+  sessionStorage.setItem(
+    "f1-prediction-scenario-v1",
+    JSON.stringify({
+      season: 2026,
+      round: "Monaco Grand Prix",
+      driver: "Max Verstappen",
+      quali: 7,
+    })
+  );
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: true, json: async () => roster })
+  );
+  const calendar = ["Las Vegas Grand Prix", "New Grand Prix"];
+  await act(async () => {
+    root.render(
+      <Predictor seasonRaces={calendar} defaultRace="Las Vegas Grand Prix" />
+    );
+  });
+  const select = host.querySelector("#prediction-race") as HTMLSelectElement;
+  expect([...select.options].map((option) => option.value)).toEqual(calendar);
+  expect(select.value).toBe("Las Vegas Grand Prix");
+  expect(select.options[1]!.disabled).toBe(true);
+  expect(select.options[1]!.textContent).toContain("model unavailable");
+});
+
+it("compares two different qualifying inputs without inventing probabilities or duplicate rows", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockImplementation(async (url: string) => ({
+        ok: true,
+        json: async () => (url === "/roster" ? roster : [2]),
+      }))
+  );
+  await act(async () => {
+    root.render(
+      <Predictor
+        seasonRaces={roster.grandsPrix}
+        defaultRace="Las Vegas Grand Prix"
+      />
+    );
+  });
+  const submit = () =>
+    (host.querySelector('button[type="submit"]') as HTMLButtonElement).click();
+  await act(async () => submit());
+  act(() =>
+    (
+      host.querySelector(
+        '[aria-label="Lower qualifying position"]'
+      ) as HTMLButtonElement
+    ).click()
+  );
+  await act(async () => submit());
+  expect(host.querySelector(".lab-comparison")?.textContent).toContain(
+    "does not imply equal probability"
+  );
+  expect(host.querySelectorAll(".lab-comparison tbody tr")).toHaveLength(2);
+  await act(async () => submit());
+  expect(host.querySelectorAll(".lab-comparison tbody tr")).toHaveLength(2);
+});
+
 it("preserves the chosen race, submits the restored scenario, and carries it into the simulator", async () => {
   sessionStorage.setItem(
     "f1-prediction-scenario-v1",
@@ -48,7 +112,12 @@ it("preserves the chosen race, submits the restored scenario, and carries it int
     .mockResolvedValueOnce({ ok: true, json: async () => [2] });
   vi.stubGlobal("fetch", fetchMock);
   await act(async () => {
-    root.render(<Predictor defaultRace="Las Vegas Grand Prix" />);
+    root.render(
+      <Predictor
+        seasonRaces={roster.grandsPrix}
+        defaultRace="Las Vegas Grand Prix"
+      />
+    );
   });
   expect(
     (host.querySelector("#prediction-race") as HTMLSelectElement).value
@@ -98,7 +167,12 @@ it("recovers from a failed roster load without requiring a page reload", async (
       .mockResolvedValueOnce({ ok: true, json: async () => roster })
   );
   await act(async () => {
-    root.render(<Predictor defaultRace="Las Vegas Grand Prix" />);
+    root.render(
+      <Predictor
+        seasonRaces={roster.grandsPrix}
+        defaultRace="Las Vegas Grand Prix"
+      />
+    );
   });
   expect(host.querySelector('[role="alert"]')).not.toBeNull();
   await act(async () => {

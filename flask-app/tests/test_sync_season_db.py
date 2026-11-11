@@ -133,6 +133,19 @@ def test_unseeded_season_raises():
         sync_season_db.sync_year(YEAR)
 
 
+def test_freshness_records_a_verified_check_but_not_a_failed_feed(monkeypatch):
+    from database import get_season_init_data
+    _seed_season()
+    _patch_api(monkeypatch, {})
+    sync_season_db.sync_year(YEAR, rescore=False)
+    checked_at = get_season_init_data(YEAR)["sync"]["lastSuccessfulSync"]
+    assert checked_at is not None
+    monkeypatch.setattr(sync_season_db, "api_get", lambda path: None)
+    with pytest.raises(RuntimeError, match="freshness was not updated"):
+        sync_season_db.sync_year(YEAR, rescore=False)
+    assert get_season_init_data(YEAR)["sync"]["lastSuccessfulSync"] == checked_at
+
+
 def test_ingests_raced_round_and_stops_at_first_unraced(monkeypatch):
     _wipe()
     _seed_season()

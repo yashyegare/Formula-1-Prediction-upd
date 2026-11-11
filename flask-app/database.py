@@ -188,6 +188,8 @@ def init_db():
         else:
             _init_sqlite(conn)
         _migrate(conn)
+        _execute(conn, "CREATE TABLE IF NOT EXISTS season_sync_status "
+                 "(year INTEGER PRIMARY KEY, checked_at TEXT NOT NULL)")
 
 
 # Additive columns for databases created before the column existed. Both DDLs
@@ -568,7 +570,10 @@ def get_season_init_data(year: int) -> Optional[dict]:
                 entry["teamId"] = s["entity_id"]
                 constructor_standings.append(entry)
 
+        sync = _fetchone(conn, "SELECT checked_at FROM season_sync_status WHERE year = "
+                         + ("%s" if _is_pg() else "?"), (year,))
         return {
+            "sync": {"lastSuccessfulSync": sync["checked_at"] if sync else None},
             "schedule": schedule,
             "teams": teams,
             "drivers": drivers,
