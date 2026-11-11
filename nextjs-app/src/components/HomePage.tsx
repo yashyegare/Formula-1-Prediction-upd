@@ -30,7 +30,37 @@ export default function HomePage() {
   const [season, setSeason] = useState<Season | null>(null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [motionPaused, setMotionPaused] = useState(false);
   const year = new Date().getUTCFullYear();
+  useEffect(() => {
+    if (
+      !("IntersectionObserver" in window) ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            (entry.target as HTMLElement).dataset.reveal = "visible";
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.08 }
+    );
+    const sections = document.querySelectorAll<HTMLElement>("[data-reveal]");
+    sections.forEach((section) => {
+      section.dataset.reveal = "pending";
+      observer.observe(section);
+    });
+    return () => {
+      observer.disconnect();
+      sections.forEach((section) => {
+        section.dataset.reveal = "visible";
+      });
+    };
+  }, []);
   useEffect(() => {
     const controller = new AbortController();
     setFailed(false);
@@ -69,7 +99,9 @@ export default function HomePage() {
     : [];
 
   return (
-    <div className="f1-site">
+    <div
+      className={`f1-site lab-home ${motionPaused ? "lab-motion-paused" : ""}`}
+    >
       <Head>
         <title>F1 Race Lab — Predict the race. Explore the championship.</title>
         <meta
@@ -77,14 +109,19 @@ export default function HomePage() {
           content="Explore the next Formula 1 race, predict driver outcomes, and simulate how your results change the championship."
         />
       </Head>
-      <SiteNav />
+      <div className="lab-home-header">
+        <SiteNav />
+      </div>
       <main id="main-content" className="lab-main">
         <section className="lab-hero">
-          <div>
-            <p className="lab-eyebrow">Your take on the next race</p>
+          <div className="lab-hero-copy">
+            <p className="lab-eyebrow">
+              <span className="lab-live-dot" aria-hidden="true" /> Formula 1 /
+              Season {year}
+            </p>
             <h1>
               One race.
-              <br />A different championship.
+              <br />A different <em>championship.</em>
             </h1>
             <p className="lab-intro">
               Understand the circuit. Predict a driver outcome. Explore what it
@@ -102,6 +139,21 @@ export default function HomePage() {
               Explore without an account. Sign in to save your simulator
               predictions.
             </p>
+            <div className="lab-hero-bottom">
+              <a href="#results" className="lab-scroll-cue">
+                <span aria-hidden="true">↓</span> Latest race results
+              </a>
+              <button
+                type="button"
+                className="lab-motion-toggle"
+                aria-pressed={motionPaused}
+                onClick={() => setMotionPaused((value) => !value)}
+              >
+                {motionPaused
+                  ? "Resume visual effects"
+                  : "Pause visual effects"}
+              </button>
+            </div>
           </div>
           <aside className="lab-weekend" aria-live="polite">
             <p className="lab-eyebrow">
@@ -149,7 +201,38 @@ export default function HomePage() {
             </div>
           </aside>
         </section>
-        <section id="predict" className="lab-predict-section">
+        {season && races.length > 0 && (
+          <section className="lab-season-pulse" aria-label="Season progress">
+            <div>
+              <span className="lab-eyebrow">The championship so far</span>
+              <strong>
+                {completed.length}
+                <span> / {races.length} races complete</span>
+              </strong>
+            </div>
+            <div
+              className="lab-season-bar"
+              role="progressbar"
+              aria-label="Completed races"
+              aria-valuenow={completed.length}
+              aria-valuemin={0}
+              aria-valuemax={races.length}
+            >
+              <span
+                style={{ width: `${(completed.length / races.length) * 100}%` }}
+              />
+            </div>
+            <a href={SIMULATOR_URL}>
+              {races.length - completed.length} races to shape{" "}
+              <span aria-hidden="true">↗</span>
+            </a>
+          </section>
+        )}
+        <section
+          id="predict"
+          className="lab-predict-section"
+          data-reveal="visible"
+        >
           <div className="lab-section-heading">
             <p className="lab-eyebrow">01 / Make your call</p>
             <h2>Where will your driver finish?</h2>
@@ -201,7 +284,7 @@ export default function HomePage() {
             </div>
           </div>
         </section>
-        <section id="results" className="lab-results">
+        <section id="results" className="lab-results" data-reveal="visible">
           <div>
             <p className="lab-eyebrow">
               Latest completed{latest ? ` / Round ${latest.round}` : ""}

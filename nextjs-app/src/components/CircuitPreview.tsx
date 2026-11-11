@@ -38,6 +38,7 @@ export default function CircuitPreview({ circuitId }: { circuitId: string }) {
     return () => controller.abort();
   }, [circuitId]);
   if (!track) return null;
+  const circuitPath = `M${track.preview.points.trim().split(/\s+/).join(" L")}`;
   return (
     <div className="lab-circuit-preview">
       <a
@@ -57,6 +58,16 @@ export default function CircuitPreview({ circuitId }: { circuitId: string }) {
             strokeWidth="3"
             strokeLinejoin="round"
             strokeLinecap="round"
+          />
+          <path
+            className="lab-track-tracer"
+            d={circuitPath}
+            pathLength="1"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="4"
+            strokeLinecap="round"
+            aria-hidden="true"
           />
         </svg>
       </a>
