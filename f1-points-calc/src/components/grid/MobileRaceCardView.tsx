@@ -47,7 +47,9 @@ const MobileRaceCardView: React.FC<MobileRaceCardViewProps> = ({
   // Initialize to first upcoming race
   useEffect(() => {
     if (races.length === 0) return;
-    const firstUpcoming = races.findIndex(r => !r.completed);
+    const requestedRace = new URLSearchParams(window.location.search).get('race');
+    const requestedIndex = races.findIndex(r => r.id === requestedRace || r.name === requestedRace);
+    const firstUpcoming = requestedIndex >= 0 ? requestedIndex : races.findIndex(r => !r.completed);
     if (firstUpcoming !== -1) {
       setCurrentIndex(firstUpcoming);
     }

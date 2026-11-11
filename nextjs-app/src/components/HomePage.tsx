@@ -33,6 +33,22 @@ export default function HomePage() {
   const [motionPaused, setMotionPaused] = useState(false);
   const year = new Date().getUTCFullYear();
   useEffect(() => {
+    try {
+      setMotionPaused(localStorage.getItem("f1-motion-paused") === "true");
+    } catch {
+      /* Storage is optional. */
+    }
+  }, []);
+  const toggleMotion = () => {
+    const nextValue = !motionPaused;
+    setMotionPaused(nextValue);
+    try {
+      localStorage.setItem("f1-motion-paused", String(nextValue));
+    } catch {
+      /* Storage is optional. */
+    }
+  };
+  useEffect(() => {
     if (
       !("IntersectionObserver" in window) ||
       window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -147,7 +163,7 @@ export default function HomePage() {
                 type="button"
                 className="lab-motion-toggle"
                 aria-pressed={motionPaused}
-                onClick={() => setMotionPaused((value) => !value)}
+                onClick={toggleMotion}
               >
                 {motionPaused
                   ? "Resume visual effects"
@@ -192,7 +208,12 @@ export default function HomePage() {
                 </button>
               </p>
             )}
-            {next?.circuitId && <CircuitPreview circuitId={next.circuitId} />}
+            {next?.circuitId && (
+              <CircuitPreview
+                circuitId={next.circuitId}
+                paused={motionPaused}
+              />
+            )}
             <div className="lab-weekend-footer">
               <span>Race weekend, in context</span>
               <a className="lab-text-link" href="#predict">

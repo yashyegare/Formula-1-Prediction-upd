@@ -70,7 +70,9 @@ const RaceGrid: React.FC<RaceGridProps> = ({
   useEffect(() => {
     if (!actualScrollRef?.current || races.length === 0) return;
 
-    const firstUpcomingRaceIndex = races.findIndex(race => !race.completed);
+    const requestedRace = new URLSearchParams(window.location.search).get('race');
+    const requestedIndex = racesOverride ? -1 : races.findIndex(race => race.id === requestedRace || race.name === requestedRace);
+    const firstUpcomingRaceIndex = requestedIndex >= 0 ? requestedIndex : races.findIndex(race => !race.completed);
     if (firstUpcomingRaceIndex === -1) return;
 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
