@@ -6,6 +6,11 @@ region=us-central1
 tag=${1:?Pass a unique image tag, normally the Git commit SHA}
 image="$region-docker.pkg.dev/$project/f1-backend/api:$tag"
 
+# Validate federation explicitly; builds.submit wraps token-exchange failures
+# in a generic source-bucket error, obscuring the permission that actually failed.
+gcloud auth print-access-token --project="$project" >/dev/null
+gcloud storage buckets describe "gs://${project}_cloudbuild" --project="$project" --format='value(name)'
+
 gcloud builds submit . --project="$project" --region="$region" \
   --config=deploy/gcp/cloudbuild.yaml --ignore-file=deploy/gcp/.gcloudignore \
   --substitutions="_IMAGE=$image" \
