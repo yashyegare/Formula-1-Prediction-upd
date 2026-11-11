@@ -209,10 +209,7 @@ export default function HomePage() {
               </p>
             )}
             {next?.circuitId && (
-              <CircuitPreview
-                circuitId={next.circuitId}
-                paused={motionPaused}
-              />
+              <CircuitPreview circuitId={next.circuitId} />
             )}
             <div className="lab-weekend-footer">
               <span>Race weekend, in context</span>
