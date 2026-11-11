@@ -20,12 +20,10 @@ from flask_login import (
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
-import secrets
-import datetime
 from database import (
     create_user, get_user_by_id, get_user_by_username,
     get_user_by_email, update_last_login,
-    get_user_by_reset_token, set_reset_token, reset_password,
+    get_user_by_reset_token, reset_password,
     update_user_profile, delete_user, get_prediction_history,
     load_prediction,
 )
@@ -219,28 +217,16 @@ def optional_auth(f):
 @auth_bp.route("/api/auth/forgot-password", methods=["POST"])
 @limiter.limit("3 per hour;10 per day")
 def forgot_password():
-    """Generate a password reset token. In production, email this link."""
+    """Fail closed until an out-of-band email delivery flow is configured."""
     data = request.get_json(force=True, silent=True) or {}
     email = (data.get("email") or "").strip().lower()
     if not email:
         return jsonify({"error": "Email is required"}), 400
 
-    user = get_user_by_email(email)
-    if not user:
-        # Don't reveal whether email exists
-        return jsonify({"message": "If an account exists, a reset link has been generated."})
-
-    token = secrets.token_urlsafe(32)
-    expires = (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).isoformat()
-    set_reset_token(user["id"], token, expires)
-
-    # In production, send email. For now, return the token directly.
-    reset_url = f"https://f1pointscalculator.yashyegare.com/reset-password?token={token}"
-    return jsonify({
-        "message": "If an account exists, a reset link has been generated.",
-        "resetUrl": reset_url,
-        "token": token,
-    })
+    # Returning a token here lets anyone reset an account using only its email.
+    # Give the same response for known and unknown addresses, without minting a
+    # token or changing the account, until delivery can verify mailbox control.
+    return jsonify({"error": "Password recovery is temporarily unavailable."}), 503
 
 
 @auth_bp.route("/api/auth/reset-password", methods=["POST"])

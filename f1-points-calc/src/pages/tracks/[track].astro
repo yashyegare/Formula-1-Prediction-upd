@@ -16,7 +16,9 @@ const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL;
 export async function getStaticPaths() {
   let circuits: CircuitListItem[];
   try {
-    const res = await fetch(`${import.meta.env.PUBLIC_API_BASE_URL}/api/circuits`);
+    const res = await fetch(`${import.meta.env.PUBLIC_API_BASE_URL}/api/circuits`, {
+      signal: AbortSignal.timeout(10000),
+    });
     if (!res.ok) {
       throw new Error(`/api/circuits returned HTTP ${res.status}`);
     }
@@ -73,7 +75,8 @@ export async function getStaticPaths() {
     );
   }
 
-  return circuits.map((c) => ({ params: { track: c.slug }, props: c }));
+  return [...new Map(circuits.map((c) => [c.slug, c])).values()]
+    .map((c) => ({ params: { track: c.slug }, props: c }));
 }
 
 const { circuitId, fullName, country } = Astro.props as CircuitListItem;
@@ -82,7 +85,9 @@ const slug = Astro.params.track;
 // Build-time fetch (unauthenticated): free years full, premium years locked.
 let history: CircuitHistory | null = null;
 try {
-  const res = await fetch(`${API_BASE_URL}/api/circuit?circuitId=${circuitId}`);
+  const res = await fetch(`${API_BASE_URL}/api/circuit?circuitId=${circuitId}`, {
+    signal: AbortSignal.timeout(5000),
+  });
   if (res.ok) history = (await res.json()) as CircuitHistory;
 } catch {
   history = null;

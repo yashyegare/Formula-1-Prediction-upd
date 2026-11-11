@@ -95,7 +95,7 @@ const AuthModal: React.FC = () => {
         throw new Error(data.error || 'Too many attempts. Please wait a few minutes and try again.');
       }
       const data = await res.json();
-      if (data.token) setResetToken(data.token);
+      if (!res.ok) throw new Error(data.error || 'Password recovery is unavailable');
       setResetSent(true);
     } catch (err) {
       setError(friendlyNetworkError(err).message);

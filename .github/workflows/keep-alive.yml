@@ -1,9 +1,9 @@
-name: Keep Render Alive
+name: API Health Check
 
 on:
   schedule:
-    # Every 10 minutes (cron has minute granularity, so we use two 5-min offsets)
-    - cron: '*/10 * * * *'
+    # Sparse health checks preserve Cloud Run's scale-to-zero savings.
+    - cron: '0 */6 * * *'
   workflow_dispatch: # Allow manual trigger
 
 permissions:
@@ -22,7 +22,7 @@ jobs:
           # after — which is what filled the mailbox. Three attempts with
           # a generous budget only alert on genuine downtime.
           for i in 1 2 3; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 120 https://f1-predictor-api-nddf.onrender.com/health || echo "000")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 120 https://f1-api-530426302059.us-central1.run.app/health) || STATUS=000
             echo "attempt $i: health returned $STATUS"
             if [ "$STATUS" = "200" ]; then
               echo "Service awake/healthy"
@@ -42,7 +42,7 @@ jobs:
             exit 0
           fi
           # json.dumps guarantees valid JSON regardless of shell quoting.
-          MSG=$(printf ':rotating_light: F1 API health check FAILED (keep-alive ping)\nhttps://f1-predictor-api-nddf.onrender.com/health did not return 200.\nCheck: https://dashboard.render.com')
+          MSG=$(printf ':rotating_light: F1 API health check FAILED\nhttps://f1-api-530426302059.us-central1.run.app/health did not return 200.\nCheck Cloud Run in project mcp-memory-bridge.')
           MSG="$MSG" python3 -c 'import json, os; print(json.dumps({"text": os.environ["MSG"]}))' > /tmp/payload.json
           curl -s -X POST -H 'Content-Type: application/json' -d @/tmp/payload.json "$WEBHOOK_URL" > /dev/null || \
             echo "::warning::Notification webhook POST failed"

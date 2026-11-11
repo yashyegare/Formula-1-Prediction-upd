@@ -1,5 +1,9 @@
 # F1 Race Predictor
 
+Backend hosting has moved to **Google Cloud Run + PostgreSQL on Compute Engine**.
+See [the GCP runbook](deploy/gcp/README.md) for current deployment, backups,
+credentials, and trial-expiry notes. The Render instructions below are legacy.
+
 Full-stack Formula 1 prediction platform: an ML race predictor, an interactive season simulator, and a community leaderboard — three apps sharing one Flask API.
 
 | App | Stack | Live |
@@ -10,7 +14,7 @@ Full-stack Formula 1 prediction platform: an ML race predictor, an interactive s
 
 ## Features
 
-- **ML Race Predictor** — Random Forest classifier (94% validation accuracy) trained on 70+ years of F1 data; predicts podium / points / outside-points from qualifying position, driver form, constructor reliability, and circuit history.
+- **ML Race Predictor** — Random Forest classifier with 66.6% walk-forward accuracy versus a 66.3% qualifying-position baseline; predicts podium / points / outside-points from qualifying position, driver form, constructor reliability, and circuit history.
 - **Season Simulator** — drag-and-drop full-season grid editor, 20+ scoring systems (Current, 90s, Fibonacci, Olympic Medals…), Monte Carlo championship projections (1,500 runs), historical seasons from 1981–2026.
 - **Community Leaderboard** — accounts with server-side session auth, predictions locked per season, accuracy scored against real results, public leaderboard and per-race consensus.
 - **Draw Line Racing** — canvas mini-game: draw a racing line, race it, compare lap times.

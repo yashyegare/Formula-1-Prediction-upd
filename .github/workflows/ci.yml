@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch: {}
   push:
     branches: [main]
   pull_request:
@@ -244,28 +245,41 @@ jobs:
         continue-on-error: true
         run: npm audit --omit=dev
 
+  deploy-gcp:
+    name: Deploy Backend to Cloud Run
+    needs: [flask, flask-postgres, dependency-audit, ml-pipeline, nextjs, astro]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/530426302059/locations/global/workloadIdentityPools/f1-github/providers/github
+          service_account: f1-deploy@mcp-memory-bridge.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Test image, deploy, and verify API
+        run: bash deploy/gcp/deploy.sh "$GITHUB_SHA"
+
   live-smoke:
     name: Live Deployment Smoke Tests
     runs-on: ubuntu-latest
-    # Runs AFTER deploy-render (main pushes only): it must probe the service
+    # Runs AFTER deploy-gcp (main pushes only): it must probe the service
     # that just swapped in, not the one being replaced — running in parallel
     # raced the deploy and checked the old build's behavior.
-    needs: [deploy-render]
-    if: always() && needs.deploy-render.result == 'success'
+    needs: [deploy-gcp]
+    if: always() && needs.deploy-gcp.result == 'success'
     # Genuine production checks: they verify the real deployed URLs, so a
     # failure means a stale/broken deployment, not a code regression in this
     # push. Use continue-on-error so an ambient outage can't block unrelated
     # merges while still being loudly visible.
     continue-on-error: true
     steps:
-      - name: Wait for the Render swap to propagate
-        # deploy-render's /health poll can't tell old from new service (both
-        # answer 200 while Render assembles the new build). Give the swap time
-        # before probing behavior that differs between builds.
-        run: sleep 480
       - name: API — health, init, circuits, roster
         run: |
-          API=https://f1-predictor-api-nddf.onrender.com
+          API=https://f1-api-530426302059.us-central1.run.app
           for path in "/health" "/api/init?year=2024" "/api/circuits" "/roster"; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$API$path")
             echo "$path -> $STATUS"
@@ -278,12 +292,12 @@ jobs:
         run: |
           # The committed f1_data.db must serve /api/init in ~1s; a regression
           # to the 90s+ Jolpica fallback would starve the 2-worker service.
-          SECS=$(curl -s -o /dev/null -w "%{time_total}" --max-time 15 "https://f1-predictor-api-nddf.onrender.com/api/init?year=1984")
+          SECS=$(curl -s -o /dev/null -w "%{time_total}" --max-time 15 "https://f1-api-530426302059.us-central1.run.app/api/init?year=1984")
           echo "init(1984) took ${SECS}s"
           awk -v t="$SECS" 'BEGIN { exit !(t < 5) }' || { echo "::warning::init latency regressed (${SECS}s)"; exit 1; }
       - name: API — CORS allowlist live (no foreign reflection, both frontends allowed)
         run: |
-          API=https://f1-predictor-api-nddf.onrender.com
+          API=https://f1-api-530426302059.us-central1.run.app
           # 1) A foreign origin must get NO Access-Control-Allow-Origin.
           #    (A bare @cross_origin() once reflected any Origin on /predictGrid,
           #    silently bypassing the CORS_ORIGINS allowlist.)
@@ -329,75 +343,3 @@ jobs:
               exit 1
             fi
           done
-
-  deploy-render:
-    name: Deploy Backend to Render
-    # ml-pipeline gates the deploy too: a push ships the model artifacts, so
-    # a failing ML suite or a stale-artifact drift should block it.
-    needs: [flask, flask-postgres, dependency-audit, ml-pipeline]
-    # Only auto-deploy on pushes to main once the backend test suites pass.
-    # Frontend jobs deliberately do NOT gate this: the backend is a separate
-    # deployable, and a frontend-only failure shouldn't block backend fixes.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - id: hook
-        name: Trigger Render deploy hook
-        env:
-          HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-        run: |
-          if [ -z "$HOOK_URL" ]; then
-            echo "::warning::RENDER_DEPLOY_HOOK_URL secret not set - automated deploy skipped."
-            echo "To enable: Render dashboard -> f1-predictor-api -> Settings -> Deploy Hook,"
-            echo "copy the URL, then add it in GitHub repo Settings -> Secrets and variables -> Actions."
-            echo "triggered=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          HTTP=$(curl -s -o /tmp/hook-response.json -w "%{http_code}" -X POST "$HOOK_URL")
-          echo "Deploy hook responded: $HTTP"
-          cat /tmp/hook-response.json; echo
-          if [ "$HTTP" != "200" ] && [ "$HTTP" != "201" ] && [ "$HTTP" != "202" ]; then
-            echo "Deploy hook failed"
-            exit 1
-          fi
-          echo "triggered=true" >> "$GITHUB_OUTPUT"
-      - name: Smoke-check the service after deploy
-        # Meaningless without a deploy - don't poll if the hook never fired.
-        if: steps.hook.outputs.triggered == 'true'
-        run: |
-          # The new deploy either swaps in cleanly (health stays 200) or the
-          # service crashes at boot (health starts failing). This catches the
-          # boot-crash case that previously required a manual dashboard check.
-          sleep 120
-          for i in $(seq 1 30); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 https://f1-predictor-api-nddf.onrender.com/health)
-            echo "[$i] /health -> $STATUS"
-            if [ "$STATUS" = "200" ]; then
-              echo "Backend healthy after deploy"
-              exit 0
-            fi
-            sleep 20
-          done
-          echo "Backend did not report healthy within the deploy window"
-          exit 1
-      - name: Notify on failure
-        # The body skips gracefully when the webhook secret is unset.
-        if: failure()
-        env:
-          # Slack-compatible webhook. Render/GitHub Actions docs use Slack;
-          # Discord works by appending /slack to its webhook URL.
-          WEBHOOK_URL: ${{ secrets.DEPLOY_NOTIFICATION_WEBHOOK }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          if [ -z "$WEBHOOK_URL" ]; then
-            echo "::warning::DEPLOY_NOTIFICATION_WEBHOOK not set - failure notification skipped."
-            exit 0
-          fi
-          MSG=$(printf ':x: Render deploy FAILED for %s@%s\nRun: %s\nProd keeps running the previous known-good deploy.' \
-            "$REPO" "${SHA:0:7}" "$RUN_URL")
-          # json.dumps guarantees valid JSON regardless of shell quoting.
-          MSG="$MSG" python3 -c 'import json, os; print(json.dumps({"text": os.environ["MSG"]}))' > /tmp/payload.json
-          curl -s -X POST -H 'Content-Type: application/json' -d @/tmp/payload.json "$WEBHOOK_URL" > /dev/null || \
-            echo "::warning::Notification webhook POST failed (deploy failure already logged)"

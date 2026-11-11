@@ -160,21 +160,29 @@ def test_logout_clears_session(client):
 
 # ── Password reset ────────────────────────────────────────────────────────
 
-def test_forgot_password_returns_token_for_existing_user(client):
+def test_forgot_password_never_exposes_token_for_existing_user(client):
     client.post("/api/auth/signup", json={
         "username": "peggy", "email": "peggy@example.com", "password": "supersecret123",
     })
     res = client.post("/api/auth/forgot-password", json={"email": "peggy@example.com"})
-    assert res.status_code == 200
+    assert res.status_code == 503
     body = res.get_json()
-    assert body.get("token"), "expected a reset token for an existing account"
+    assert "token" not in body
+    assert "resetUrl" not in body
+    unknown = client.post("/api/auth/forgot-password", json={"email": "unknown@example.com"})
+    assert unknown.status_code == res.status_code
+    assert unknown.get_json() == body
+    from database import get_connection, _fetchone
+    with get_connection() as conn:
+        user = _fetchone(conn, "SELECT reset_token FROM users WHERE username = 'peggy'")
+    assert user["reset_token"] is None
 
 
 def test_forgot_password_does_not_reveal_unknown_email(client):
     res = client.post("/api/auth/forgot-password", json={"email": "ghost@example.com"})
-    assert res.status_code == 200
+    assert res.status_code == 503
     body = res.get_json()
-    assert "message" in body
+    assert "error" in body
     assert "token" not in body, "unknown email must not get a reset token"
 
 
@@ -182,9 +190,10 @@ def test_full_password_reset_flow(client):
     client.post("/api/auth/signup", json={
         "username": "trent", "email": "trent@example.com", "password": "oldpassword1",
     })
-    token = client.post(
-        "/api/auth/forgot-password", json={"email": "trent@example.com"}
-    ).get_json()["token"]
+    from database import get_user_by_email, set_reset_token
+    token = "test-mail-delivered-trent-token"
+    set_reset_token(get_user_by_email("trent@example.com")["id"], token,
+                    (datetime.utcnow() + timedelta(hours=1)).isoformat())
 
     res = client.post("/api/auth/reset-password", json={
         "token": token, "password": "newpassword1",
@@ -204,9 +213,10 @@ def test_reset_token_is_single_use(client):
     client.post("/api/auth/signup", json={
         "username": "victor", "email": "victor@example.com", "password": "supersecret123",
     })
-    token = client.post(
-        "/api/auth/forgot-password", json={"email": "victor@example.com"}
-    ).get_json()["token"]
+    from database import get_user_by_email, set_reset_token
+    token = "test-mail-delivered-victor-token"
+    set_reset_token(get_user_by_email("victor@example.com")["id"], token,
+                    (datetime.utcnow() + timedelta(hours=1)).isoformat())
     assert client.post("/api/auth/reset-password", json={
         "token": token, "password": "newpassword1",
     }).status_code == 200

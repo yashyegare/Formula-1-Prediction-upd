@@ -59,6 +59,7 @@ flask-app/seed_log*.txt
 # local env files
 .env
 .env*.local
+gha-creds-*.json
 
 # vercel
 .vercel

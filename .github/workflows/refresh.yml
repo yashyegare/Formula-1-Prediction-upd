@@ -22,6 +22,8 @@ concurrency:
 
 permissions:
   contents: write # the conditional commit below needs to push
+  actions: write # dispatch CI after a GITHUB_TOKEN push
+  id-token: write # short-lived GCP credentials for the sync token
 
 jobs:
   refresh:
@@ -64,6 +66,11 @@ jobs:
           python fetch_lap_pace.py --start-year 2018 --end-year 2026 \
             --out ./datasets --cache-dir ./.jolpica_cache
           python fetch_lap_pace.py --out ./datasets --finalize
+
+      - name: Rebuild training artifacts and serving roster
+        run: |
+          python build_training_data.py --datasets ./datasets --out ./datasets
+          cp datasets/current_roster.json ../flask-app/current_roster.json
 
       - name: Rebuild the canonical DB and manifest
         run: python build_canonical.py
@@ -142,7 +149,7 @@ jobs:
         run: |
           git config user.name "yashyegare"
           git config user.email "tbzyash1@gmail.com"
-          git add datasets/ ../flask-app/f1_data.db
+          git add datasets/ ../flask-app/f1_data.db ../flask-app/current_roster.json
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No data changes since the last refresh."
@@ -153,7 +160,17 @@ jobs:
 
       - name: Push
         if: steps.commit.outputs.changed == 'true'
-        run: git push
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git push
+          gh workflow run ci.yml --ref main
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/530426302059/locations/global/workloadIdentityPools/f1-github/providers/github
+          service_account: f1-refresh@mcp-memory-bridge.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v3
 
       - name: Sync production Postgres via the admin endpoint
         # The committed SQLite DB only ships the file — production reads
@@ -161,16 +178,12 @@ jobs:
         # through the token-gated endpoint. 404 (endpoint not deployed
         # yet) and 400 (season not seeded in prod) are tolerated; a 403
         # or 5xx is a loud failure.
-        env:
-          SYNC_ADMIN_TOKEN: ${{ secrets.SYNC_ADMIN_TOKEN }}
         run: |
-          if [ -z "$SYNC_ADMIN_TOKEN" ]; then
-            echo "::warning::SYNC_ADMIN_TOKEN secret not set - production sync skipped."
-            exit 0
-          fi
+          SYNC_ADMIN_TOKEN=$(gcloud secrets versions access 1 --secret=f1-sync-token --project=mcp-memory-bridge)
+          echo "::add-mask::$SYNC_ADMIN_TOKEN"
           YEAR=$(date -u +%Y)
           HTTP=$(curl -s -o /tmp/sync.json -w "%{http_code}" --max-time 120 \
-            -X POST https://f1-predictor-api-nddf.onrender.com/api/admin/sync-season \
+            -X POST https://f1-api-530426302059.us-central1.run.app/api/admin/sync-season \
             -H "Content-Type: application/json" -H "X-Sync-Token: $SYNC_ADMIN_TOKEN" \
             -d "{\"year\": $YEAR}")
           cat /tmp/sync.json; echo
