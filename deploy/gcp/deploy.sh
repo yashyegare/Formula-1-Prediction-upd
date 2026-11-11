@@ -9,7 +9,8 @@ image="$region-docker.pkg.dev/$project/f1-backend/api:$tag"
 gcloud builds submit . --project="$project" --region="$region" \
   --config=deploy/gcp/cloudbuild.yaml --ignore-file=deploy/gcp/.gcloudignore \
   --substitutions="_IMAGE=$image" \
-  --service-account="projects/$project/serviceAccounts/f1-build@$project.iam.gserviceaccount.com" --quiet
+  --service-account="projects/$project/serviceAccounts/f1-build@$project.iam.gserviceaccount.com" \
+  --suppress-logs --quiet
 
 gcloud run deploy f1-api --project="$project" --region="$region" --image="$image" \
   --service-account="f1-api@$project.iam.gserviceaccount.com" \
