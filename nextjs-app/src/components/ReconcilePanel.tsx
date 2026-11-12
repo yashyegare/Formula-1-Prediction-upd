@@ -44,8 +44,8 @@ const delta = (v: number | null) =>
           Math.abs(v) < 0.05
             ? "text-zinc-500"
             : v > 0
-              ? "text-emerald-400"
-              : "text-rose-400",
+            ? "text-emerald-400"
+            : "text-rose-400",
       };
 
 type PanelState =
@@ -57,30 +57,44 @@ type PanelState =
 
 const ReconcilePanel = ({ season }: { season: number }) => {
   const [state, setState] = useState<PanelState>({ kind: "loading" });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    setState({ kind: "loading" });
     fetch(`/api/me/prediction/reconcile?season=${season}`, {
       credentials: "include",
+      signal: controller.signal,
     })
       .then(async (res) => {
+        if (cancelled) return;
         if (res.status === 401) return setState({ kind: "anonymous" });
         if (res.status === 404) return setState({ kind: "no_prediction" });
         const body = await res.json().catch(() => null);
         if (!res.ok) {
-          return setState({ kind: "error", message: body?.error ?? `API ${res.status}` });
+          return setState({
+            kind: "error",
+            message: body?.error ?? `API ${res.status}`,
+          });
         }
         if (!cancelled) setState({ kind: "ready", doc: body });
       })
       .catch(() => {
-        if (!cancelled) setState({ kind: "error", message: "Reconciliation unavailable" });
-      });
+        if (!cancelled)
+          setState({ kind: "error", message: "Reconciliation unavailable" });
+      })
+      .finally(() => clearTimeout(timeout));
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
+      controller.abort();
     };
-  }, [season]);
+  }, [season, attempt]);
 
-  const th = "px-2 py-1.5 text-right font-medium text-zinc-500 whitespace-nowrap";
+  const th =
+    "px-2 py-1.5 text-right font-medium text-zinc-500 whitespace-nowrap";
   const td = "px-2 py-1 text-right font-mono whitespace-nowrap";
 
   return (
@@ -88,7 +102,7 @@ const ReconcilePanel = ({ season }: { season: number }) => {
       <h3 className="text-sm font-semibold text-zinc-200">
         Season reconciliation — your simulator, the model, and what happened
       </h3>
-      <p className="mt-0.5 text-xs text-zinc-500 max-w-xl">
+      <p className="mt-0.5 max-w-xl text-xs text-zinc-500">
         Three point currencies per driver: the championship points your Season
         Simulator grid projects, the points the Monte-Carlo model expected, and
         the points actually scored. The model is shown twice because the three
@@ -97,7 +111,9 @@ const ReconcilePanel = ({ season }: { season: number }) => {
       </p>
 
       {state.kind === "loading" && (
-        <p className="py-6 text-center text-xs text-zinc-500">Loading your reconciliation…</p>
+        <p className="py-6 text-center text-xs text-zinc-500">
+          Loading your reconciliation…
+        </p>
       )}
 
       {state.kind === "anonymous" && (
@@ -119,7 +135,15 @@ const ReconcilePanel = ({ season }: { season: number }) => {
       )}
 
       {state.kind === "error" && (
-        <p className="mt-3 text-xs text-zinc-400">{state.message}</p>
+        <p className="mt-3 text-xs text-zinc-400">
+          {state.message}{" "}
+          <button
+            className="ri-button"
+            onClick={() => setAttempt((n) => n + 1)}
+          >
+            Retry
+          </button>
+        </p>
       )}
 
       {state.kind === "ready" && !state.doc.has_simulated_standings && (
@@ -162,20 +186,31 @@ const ReconcilePanel = ({ season }: { season: number }) => {
                   const youVsModel = delta(d.sim_minus_model);
                   const modelVsReal = delta(d.model_minus_actual);
                   return (
-                    <tr key={d.driverId} className="border-t border-zinc-800/60">
+                    <tr
+                      key={d.driverId}
+                      className="border-t border-zinc-800/60"
+                    >
                       <td className="px-2 py-1 text-left">
-                        <span className="font-mono text-zinc-500">{d.driverCode}</span>{" "}
+                        <span className="font-mono text-zinc-500">
+                          {d.driverCode}
+                        </span>{" "}
                         <span className="text-zinc-200">{d.surname}</span>
                         {d.simulated == null && (
-                          <span className="ml-1 text-zinc-600">(not in your standings)</span>
+                          <span className="ml-1 text-zinc-600">
+                            (not in your standings)
+                          </span>
                         )}
                       </td>
                       <td className={td}>{num(d.simulated)}</td>
                       <td className={td}>{num(d.model_season)}</td>
-                      <td className={`${td} ${youVsModel.className}`}>{youVsModel.text}</td>
+                      <td className={`${td} ${youVsModel.className}`}>
+                        {youVsModel.text}
+                      </td>
                       <td className={td}>{num(d.model_raced)}</td>
                       <td className={td}>{num(d.actual_raced)}</td>
-                      <td className={`${td} ${modelVsReal.className}`}>{modelVsReal.text}</td>
+                      <td className={`${td} ${modelVsReal.className}`}>
+                        {modelVsReal.text}
+                      </td>
                     </tr>
                   );
                 })}

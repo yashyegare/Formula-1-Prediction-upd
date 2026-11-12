@@ -69,42 +69,56 @@ type PanelState =
 const PostmortemPanel = ({ season }: { season: number }) => {
   const [state, setState] = useState<PanelState>({ kind: "loading" });
 
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    setState({ kind: "loading" });
     fetch(`/api/me/prediction/postmortem?season=${season}`, {
       credentials: "include",
+      signal: controller.signal,
     })
       .then(async (res) => {
+        if (cancelled) return;
         if (res.status === 401) return setState({ kind: "anonymous" });
         if (res.status === 404) return setState({ kind: "no_prediction" });
         const body = await res.json().catch(() => null);
         if (!res.ok) {
-          return setState({ kind: "error", message: body?.error ?? `API ${res.status}` });
+          return setState({
+            kind: "error",
+            message: body?.error ?? `API ${res.status}`,
+          });
         }
         if (!cancelled) setState({ kind: "ready", doc: body });
       })
       .catch(() => {
-        if (!cancelled) setState({ kind: "error", message: "Postmortem unavailable" });
-      });
+        if (!cancelled)
+          setState({ kind: "error", message: "Postmortem unavailable" });
+      })
+      .finally(() => clearTimeout(timeout));
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
+      controller.abort();
     };
-  }, [season]);
+  }, [season, attempt]);
 
   return (
     <section className="mt-8 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
       <h3 className="text-sm font-semibold text-zinc-200">
         Why your picks missed — {season} season postmortem
       </h3>
-      <p className="mt-0.5 text-xs text-zinc-500 max-w-xl">
+      <p className="mt-0.5 max-w-xl text-xs text-zinc-500">
         Your locked predictions joined against the same outcome evidence the
-        model&apos;s attribution uses: every miss labelled Nailed it / Near
-        miss / Finished worse / Finished better / DNF, with the race result as
-        proof.
+        model&apos;s attribution uses: every miss labelled Nailed it / Near miss
+        / Finished worse / Finished better / DNF, with the race result as proof.
       </p>
 
       {state.kind === "loading" && (
-        <p className="py-6 text-center text-xs text-zinc-500">Loading your postmortem…</p>
+        <p className="py-6 text-center text-xs text-zinc-500">
+          Loading your postmortem…
+        </p>
       )}
 
       {state.kind === "anonymous" && (
@@ -126,18 +140,30 @@ const PostmortemPanel = ({ season }: { season: number }) => {
       )}
 
       {state.kind === "error" && (
-        <p className="mt-3 text-xs text-zinc-400">{state.message}</p>
+        <p className="mt-3 text-xs text-zinc-400">
+          {state.message}{" "}
+          <button
+            className="ri-button"
+            onClick={() => setAttempt((n) => n + 1)}
+          >
+            Retry
+          </button>
+        </p>
       )}
 
       {state.kind === "ready" && state.doc.predictions_scored > 0 && (
         <div className="mt-4">
           <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
             <span className="font-mono text-lg text-zinc-100">
-              {(state.doc.hit_rate != null ? state.doc.hit_rate * 100 : 0).toFixed(1)}%
+              {(state.doc.hit_rate != null
+                ? state.doc.hit_rate * 100
+                : 0
+              ).toFixed(1)}
+              %
             </span>
             <span className="text-zinc-500">
-              of {state.doc.predictions_scored} predicted placements landed within 2 places
-              across {state.doc.races_scored} raced rounds
+              of {state.doc.predictions_scored} predicted placements landed
+              within 2 places across {state.doc.races_scored} raced rounds
             </span>
             {Object.entries(state.doc.verdict_share)
               .filter(([k]) => k !== "exact" && k !== "near")
@@ -150,7 +176,10 @@ const PostmortemPanel = ({ season }: { season: number }) => {
           </div>
           <div className="flex flex-col gap-4">
             {state.doc.races.map((race) => (
-              <div key={race.round} className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4">
+              <div
+                key={race.round}
+                className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4"
+              >
                 <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
                   <p className="text-xs font-semibold text-zinc-300">
                     R{race.round} · {race.name}
@@ -172,15 +201,27 @@ const PostmortemPanel = ({ season }: { season: number }) => {
                 {race.misses.length > 0 && (
                   <ul className="mt-3 flex flex-col gap-1">
                     {race.misses.map((m) => (
-                      <li key={m.driverId} className="text-[11px] text-zinc-400">
-                        <span className="text-zinc-200">{m.surname}</span>: picked P
-                        {m.predicted_position} →{" "}
-                        {m.actual_position != null ? `P${m.actual_position}` : "no classified finish"}
+                      <li
+                        key={m.driverId}
+                        className="text-[11px] text-zinc-400"
+                      >
+                        <span className="text-zinc-200">{m.surname}</span>:
+                        picked P{m.predicted_position} →{" "}
+                        {m.actual_position != null
+                          ? `P${m.actual_position}`
+                          : "no classified finish"}
                         {" · "}
-                        <span className={VERDICT_COLOR[m.verdict]?.split(" ")[0] ?? "text-zinc-400"}>
+                        <span
+                          className={
+                            VERDICT_COLOR[m.verdict]?.split(" ")[0] ??
+                            "text-zinc-400"
+                          }
+                        >
                           {VERDICT_LABEL[m.verdict] ?? m.verdict}
                         </span>
-                        {m.status && m.status !== "Finished" && <> · {m.status}</>}
+                        {m.status && m.status !== "Finished" && (
+                          <> · {m.status}</>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -193,8 +234,8 @@ const PostmortemPanel = ({ season }: { season: number }) => {
 
       {state.kind === "ready" && state.doc.predictions_scored === 0 && (
         <p className="mt-3 text-xs text-zinc-400">
-          Your prediction doesn&apos;t overlap any raced rounds of {season} yet —
-          lock picks before a GP and they show up here afterwards.
+          Your prediction doesn&apos;t overlap any raced rounds of {season} yet
+          — lock picks before a GP and they show up here afterwards.
         </p>
       )}
     </section>

@@ -53,7 +53,7 @@ describe('signUp', () => {
 
   it('posts the full payload with credentials to the signup proxy route', async () => {
     await signUp('yash_12', 'tbzyash1@gmail.com', 'secret', 'Yash');
-    const [path, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const [path, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]!;
     expect(path).toBe('/api/auth/signup');
     expect(init.method).toBe('POST');
     expect(init.credentials).toBe('include');
@@ -91,7 +91,7 @@ describe('signIn', () => {
   it('posts username+password with credentials', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ user: { id: 1 } }), { status: 200 }));
     await signIn('tbzyash1@gmail.com', 'pw');
-    const [path, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const [path, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]!;
     expect(path).toBe('/api/auth/login');
     expect(JSON.parse(init.body)).toEqual({ username: 'tbzyash1@gmail.com', password: 'pw' });
     expect(init.credentials).toBe('include');
@@ -153,7 +153,7 @@ describe('getLeaderboard', () => {
       new Response(JSON.stringify({ entries: [] }), { status: 200 })
     );
     await getLeaderboard(2026, 25);
-    const [path, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const [path, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]!;
     expect(path).toBe('/api/leaderboard?season=2026&limit=25');
     expect(init.credentials).toBe('include');
   });

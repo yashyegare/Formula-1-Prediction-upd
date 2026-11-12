@@ -63,7 +63,7 @@ const TrackErrorSection = ({ trackError }: { trackError: TrackError }) => {
   return (
     <section className="mt-8 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
       <h3 className="text-sm font-semibold text-zinc-200">
-        Where the model misses, by track shape
+        Track shape and model error
       </h3>
       <p className="mt-0.5 text-xs text-zinc-500 max-w-xl">
         Each raced round gets one error number — the mean absolute gap between
@@ -97,11 +97,11 @@ const TrackErrorSection = ({ trackError }: { trackError: TrackError }) => {
               <th className="px-2 py-1.5 text-left font-medium">Round</th>
               <th className={th}>Mean position error</th>
               <th className={th}>DNF rate</th>
-              <th className={th}>Corners</th>
-              <th className={th}>Spin</th>
+              <th className={th}>Inferred corners</th>
+              <th className={th}>Direction</th>
               <th className={th}>Longest straight</th>
               <th className={th}>Altitude</th>
-              <th className={th}>DRS</th>
+              <th className={th}>Archived DRS</th>
             </tr>
           </thead>
           <tbody className="text-zinc-300">
