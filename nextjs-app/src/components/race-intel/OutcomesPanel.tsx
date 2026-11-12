@@ -33,6 +33,8 @@ const NAMES: Record<string, string> = {
   BOT: "Valtteri Bottas",
   LIN: "Arvid Lindblad",
   COL: "Franco Colapinto",
+  CAM: "Rafael Camara",
+  HIR: "Ryo Hirakawa",
 };
 type Sort = "expected" | "podium" | "points" | "dnf" | "grid";
 const signed = (value: number | null) =>

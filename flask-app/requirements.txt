@@ -5,7 +5,8 @@ numpy
 requests
 Werkzeug
 Gunicorn
-scikit-learn
+# Must match the version used to serialize rffinal.pkl.
+scikit-learn==1.8.0
 flask_cors
 flask_login
 flask_limiter

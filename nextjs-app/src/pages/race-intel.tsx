@@ -1,16 +1,12 @@
 import type { NextPage } from "next";
 import Head from "next/head";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import SiteNav, { SIMULATOR_URL } from "src/components/SiteNav";
 import OutcomesPanel from "src/components/race-intel/OutcomesPanel";
 import StateMessage from "src/components/race-intel/IntelStateMessage";
-import PostmortemPanel from "src/components/PostmortemPanel";
-import ReconcilePanel from "src/components/ReconcilePanel";
-import TrackErrorSection from "src/components/TrackErrorSection";
-import ReplayPanel from "src/components/race-intel/ReplayPanel";
-import DriverProfilePanel from "src/components/race-intel/DriverProfilePanel";
 import { useIntelResource } from "src/lib/useIntelResource";
 import {
   chooseRound,
@@ -22,6 +18,35 @@ import {
   type IntelDriver,
 } from "src/lib/raceIntel";
 import { explorerTrackUrl } from "src/lib/trackExplorer";
+
+const loadingPanel = () => (
+  <p className="ri-caption" role="status">
+    Preparing this view…
+  </p>
+);
+const PostmortemPanel = dynamic(
+  () => import("src/components/PostmortemPanel"),
+  { loading: loadingPanel }
+);
+const ReconcilePanel = dynamic(() => import("src/components/ReconcilePanel"), {
+  loading: loadingPanel,
+});
+const TrackErrorSection = dynamic(
+  () => import("src/components/TrackErrorSection"),
+  { loading: loadingPanel }
+);
+const ReplayPanel = dynamic(
+  () => import("src/components/race-intel/ReplayPanel"),
+  { loading: loadingPanel }
+);
+const DriverProfilePanel = dynamic(
+  () => import("src/components/race-intel/DriverProfilePanel"),
+  { loading: loadingPanel }
+);
+const EvaluationPanel = dynamic(
+  () => import("src/components/race-intel/EvaluationPanel"),
+  { loading: loadingPanel }
+);
 
 const TABS = [
   { id: "outcomes", label: "Driver outcomes" },
@@ -198,6 +223,21 @@ const RaceIntelPage: NextPage = () => {
                       {stale
                         ? "Later scenario rows are archived estimates, not updated race analysis."
                         : "Simulation probabilities are estimates, not guarantees."}
+                      {season.refresh && (
+                        <span className="ri-snapshot-time">
+                          {" "}
+                          Snapshot built{" "}
+                          {new Date(season.refresh.published_at).toLocaleString(
+                            "en-GB",
+                            {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                              timeZone: "UTC",
+                            }
+                          )}{" "}
+                          UTC.
+                        </span>
+                      )}
                     </p>
                   </div>
                   <a href={SIMULATOR_URL}>
@@ -301,7 +341,7 @@ const RaceIntelPage: NextPage = () => {
                           <span>
                             Grid:{" "}
                             {race.status === "scheduled"
-                              ? "championship snapshot"
+                              ? "latest field · championship snapshot"
                               : race.status === "upcoming_post_quali"
                               ? "qualifying result"
                               : "recorded race grid"}
@@ -432,6 +472,9 @@ const RaceIntelPage: NextPage = () => {
                     )}
                     {tab === "context" && (
                       <section className="ri-context">
+                        {season.evaluation && (
+                          <EvaluationPanel evaluation={season.evaluation} />
+                        )}
                         <div className="ri-panel">
                           <div className="ri-section-heading">
                             <div>
@@ -454,8 +497,11 @@ const RaceIntelPage: NextPage = () => {
                               <p>
                                 Finishing-position changes and retirement risk
                                 are simulated from parameters fitted on strictly
-                                prior seasons. Scheduled rounds use a
-                                championship-order grid snapshot.
+                                prior seasons. Scheduled rounds use a latest
+                                completed field, ordered by constructor
+                                standings and then driver standings. This is a
+                                scenario grid, not a confirmed future entry
+                                list.
                               </p>
                             </article>
                             <article>

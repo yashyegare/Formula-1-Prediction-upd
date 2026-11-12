@@ -147,7 +147,15 @@ def season(year: int):
     doc = _load_artifact()
     if doc["season"] != year:
         abort(404, description="no race-intel artifact for this season")
-    return jsonify(doc)
+    refresh = None
+    try:
+        status = json.loads(ARTIFACT_PATH.with_name('refresh_status.json').read_text(encoding='utf-8'))
+        completed = max((r['round'] for r in doc['races'] if r['status'] == 'raced'), default=0)
+        if status.get('season') == year and status.get('results_through_round') == completed:
+            refresh = status
+    except (OSError, ValueError):
+        pass
+    return jsonify({**doc, 'refresh': refresh})
 
 
 @race_intel_bp.route("/api/race-intel/races/<int:year>")

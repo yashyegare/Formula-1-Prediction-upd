@@ -89,6 +89,11 @@
     {
       "name": "Valtteri Bottas",
       "source": "https://media.formula1.com/d_driver_fallback_image.png/content/dam/fom-website/drivers/V/VALBOT01_Valtteri_Bottas/valbot01.png.transform/1col/image.png"
+    },
+    {
+      "name": "Rafael Camara",
+      "source": "https://res.cloudinary.com/prod-f2f3/d_common:f2:fallback.webp/c_fill,w_720/q_auto/v1770000000/common/f2/2026/invictaracing/rafcam01/2026invictaracingrafcam01right.webp",
+      "profile": "https://www.fiaformula2.com/en/drivers/rafael-camara"
     }
   ]
 }

@@ -312,6 +312,8 @@ def backtest(entries: pd.DataFrame, years: range, n_sims: int,
                     actual=lambda d: d["position"].map(position_bucket)),
                 on="driverId", how="left")
             summ["year"], summ["round"] = yr, rnd
+            for col, rate in zip(("p_podium_gr", "p_points_gr", "p_out_gr"), global_rates):
+                summ[col] = rate
             rows.append(summ)
     probs = pd.concat(rows, ignore_index=True)
     probs["actual_podium"] = (probs["actual"] == 1).astype(float)
@@ -326,9 +328,8 @@ def backtest(entries: pd.DataFrame, years: range, n_sims: int,
     # Baseline 1, global-rates: the training seasons' pooled bucket
     # frequencies as a constant vector (the no-skill probabilistic floor
     # any per-driver distribution must beat).
-    for col, rate in zip(("p_podium_gr", "p_points_gr", "p_out_gr"),
-                         global_rates):
-        probs[col] = rate
+    # Baselines were attached inside each fold using only that fold's
+    # training seasons. Applying the final fold's rates here leaks later data.
     metrics["global_rates_log_loss"] = bucket_log_loss(probs, suffix="_gr")
     metrics["global_rates_brier"] = bucket_brier(probs, suffix="_gr")
 

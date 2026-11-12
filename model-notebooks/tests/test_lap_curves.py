@@ -215,7 +215,10 @@ class TestCurvesArtifact:
     def test_schema_and_coverage(self):
         doc = lc.build_curves(str(DB), 2026, 60, 42)
         assert doc["schema_version"] == 1 and doc["season"] == 2026
-        assert len(doc["races"]) == 11  # all raced 2026 rounds have laps
+        import sqlite3
+        with sqlite3.connect(DB) as con:
+            expected = {row[0] for row in con.execute('SELECT DISTINCT round FROM fact_lap WHERE year = 2026')}
+        assert {race['round'] for race in doc['races']} == expected
         for r in doc["races"]:
             assert r["n_laps"] >= 40
             assert r["sample_laps"][0] == 1

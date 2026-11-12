@@ -3569,11 +3569,11 @@ year,round,raceName,driverId,driverName,constructorId,constructorName,grid,posit
 2026,5,Canadian Grand Prix,arvid_lindblad,Arvid Lindblad,rb,RB F1 Team,9,22,W,0,0,Did not start
 2026,6,Monaco Grand Prix,antonelli,Andrea Kimi Antonelli,mercedes,Mercedes,1,1,1,25,78,Finished
 2026,6,Monaco Grand Prix,hamilton,Lewis Hamilton,ferrari,Ferrari,3,2,2,18,78,Finished
-2026,6,Monaco Grand Prix,gasly,Pierre Gasly,alpine,Alpine F1 Team,9,3,3,15,78,Finished
-2026,6,Monaco Grand Prix,hadjar,Isack Hadjar,red_bull,Red Bull,5,4,4,12,78,Finished
-2026,6,Monaco Grand Prix,piastri,Oscar Piastri,mclaren,McLaren,7,5,5,10,78,Finished
-2026,6,Monaco Grand Prix,lawson,Liam Lawson,rb,RB F1 Team,10,6,6,8,78,Finished
-2026,6,Monaco Grand Prix,arvid_lindblad,Arvid Lindblad,rb,RB F1 Team,15,7,7,6,78,Finished
+2026,6,Monaco Grand Prix,hadjar,Isack Hadjar,red_bull,Red Bull,5,3,3,15,78,Finished
+2026,6,Monaco Grand Prix,piastri,Oscar Piastri,mclaren,McLaren,7,4,4,12,78,Finished
+2026,6,Monaco Grand Prix,lawson,Liam Lawson,rb,RB F1 Team,10,5,5,10,78,Finished
+2026,6,Monaco Grand Prix,arvid_lindblad,Arvid Lindblad,rb,RB F1 Team,15,6,6,8,78,Finished
+2026,6,Monaco Grand Prix,gasly,Pierre Gasly,alpine,Alpine F1 Team,9,7,7,6,78,Finished
 2026,6,Monaco Grand Prix,albon,Alexander Albon,williams,Williams,11,8,8,4,78,Finished
 2026,6,Monaco Grand Prix,ocon,Esteban Ocon,haas,Haas F1 Team,17,9,9,2,78,Finished
 2026,6,Monaco Grand Prix,alonso,Fernando Alonso,aston_martin,Aston Martin,21,10,10,1,78,Finished
@@ -3699,3 +3699,201 @@ year,round,raceName,driverId,driverName,constructorId,constructorName,grid,posit
 2026,11,Hungarian Grand Prix,piastri,Oscar Piastri,mclaren,McLaren,3,20,R,0,55,Retired
 2026,11,Hungarian Grand Prix,perez,Sergio Pérez,cadillac,Cadillac F1 Team,22,21,R,0,48,Retired
 2026,11,Hungarian Grand Prix,bottas,Valtteri Bottas,cadillac,Cadillac F1 Team,21,22,R,0,13,Retired
+2026,12,Dutch Grand Prix,norris,Lando Norris,mclaren,McLaren,1,1,1,25,72,Finished
+2026,12,Dutch Grand Prix,antonelli,Andrea Kimi Antonelli,mercedes,Mercedes,3,2,2,18,72,Finished
+2026,12,Dutch Grand Prix,russell,George Russell,mercedes,Mercedes,2,3,3,15,72,Finished
+2026,12,Dutch Grand Prix,hamilton,Lewis Hamilton,ferrari,Ferrari,5,4,4,12,72,Finished
+2026,12,Dutch Grand Prix,leclerc,Charles Leclerc,ferrari,Ferrari,6,5,5,10,72,Finished
+2026,12,Dutch Grand Prix,piastri,Oscar Piastri,mclaren,McLaren,4,6,6,8,72,Finished
+2026,12,Dutch Grand Prix,lawson,Liam Lawson,red_bull,Red Bull,8,7,7,6,72,Finished
+2026,12,Dutch Grand Prix,hulkenberg,Nico Hülkenberg,audi,Audi,13,8,8,4,71,Lapped
+2026,12,Dutch Grand Prix,alonso,Fernando Alonso,aston_martin,Aston Martin,18,9,9,2,71,Lapped
+2026,12,Dutch Grand Prix,gasly,Pierre Gasly,alpine,Alpine F1 Team,11,10,10,1,71,Lapped
+2026,12,Dutch Grand Prix,tsunoda,Yuki Tsunoda,rb,RB F1 Team,12,11,11,0,71,Lapped
+2026,12,Dutch Grand Prix,arvid_lindblad,Arvid Lindblad,rb,RB F1 Team,10,12,12,0,71,Lapped
+2026,12,Dutch Grand Prix,bortoleto,Gabriel Bortoleto,audi,Audi,9,13,13,0,71,Lapped
+2026,12,Dutch Grand Prix,colapinto,Franco Colapinto,alpine,Alpine F1 Team,14,14,14,0,70,Lapped
+2026,12,Dutch Grand Prix,perez,Sergio Pérez,cadillac,Cadillac F1 Team,22,15,15,0,70,Lapped
+2026,12,Dutch Grand Prix,sainz,Carlos Sainz,williams,Williams,17,16,16,0,70,Lapped
+2026,12,Dutch Grand Prix,albon,Alexander Albon,williams,Williams,16,17,17,0,66,Retired
+2026,12,Dutch Grand Prix,bottas,Valtteri Bottas,cadillac,Cadillac F1 Team,21,18,R,0,61,Retired
+2026,12,Dutch Grand Prix,ocon,Esteban Ocon,haas,Haas F1 Team,15,19,R,0,52,Retired
+2026,12,Dutch Grand Prix,stroll,Lance Stroll,aston_martin,Aston Martin,19,20,R,0,45,Retired
+2026,12,Dutch Grand Prix,bearman,Oliver Bearman,haas,Haas F1 Team,20,21,R,0,2,Retired
+2026,12,Dutch Grand Prix,max_verstappen,Max Verstappen,red_bull,Red Bull,7,22,R,0,0,Retired
+2026,13,Italian Grand Prix,antonelli,Andrea Kimi Antonelli,mercedes,Mercedes,19,1,1,25,53,Finished
+2026,13,Italian Grand Prix,russell,George Russell,mercedes,Mercedes,2,2,2,18,53,Finished
+2026,13,Italian Grand Prix,max_verstappen,Max Verstappen,red_bull,Red Bull,5,3,3,15,53,Finished
+2026,13,Italian Grand Prix,norris,Lando Norris,mclaren,McLaren,8,4,4,12,53,Finished
+2026,13,Italian Grand Prix,piastri,Oscar Piastri,mclaren,McLaren,6,5,5,10,53,Finished
+2026,13,Italian Grand Prix,hamilton,Lewis Hamilton,ferrari,Ferrari,4,6,6,8,53,Finished
+2026,13,Italian Grand Prix,gasly,Pierre Gasly,alpine,Alpine F1 Team,1,7,7,6,53,Finished
+2026,13,Italian Grand Prix,arvid_lindblad,Arvid Lindblad,rb,RB F1 Team,9,8,8,4,53,Finished
+2026,13,Italian Grand Prix,colapinto,Franco Colapinto,alpine,Alpine F1 Team,7,9,9,2,53,Finished
+2026,13,Italian Grand Prix,tsunoda,Yuki Tsunoda,rb,RB F1 Team,15,10,10,1,53,Finished
+2026,13,Italian Grand Prix,bortoleto,Gabriel Bortoleto,audi,Audi,10,11,11,0,53,Finished
+2026,13,Italian Grand Prix,hulkenberg,Nico Hülkenberg,audi,Audi,12,12,12,0,53,Finished
+2026,13,Italian Grand Prix,sainz,Carlos Sainz,williams,Williams,13,13,13,0,53,Finished
+2026,13,Italian Grand Prix,lawson,Liam Lawson,red_bull,Red Bull,22,14,14,0,53,Finished
+2026,13,Italian Grand Prix,bearman,Oliver Bearman,haas,Haas F1 Team,11,15,15,0,53,Finished
+2026,13,Italian Grand Prix,ocon,Esteban Ocon,haas,Haas F1 Team,14,16,16,0,52,Lapped
+2026,13,Italian Grand Prix,albon,Alexander Albon,williams,Williams,20,17,17,0,52,Lapped
+2026,13,Italian Grand Prix,perez,Sergio Pérez,cadillac,Cadillac F1 Team,17,18,18,0,52,Lapped
+2026,13,Italian Grand Prix,bottas,Valtteri Bottas,cadillac,Cadillac F1 Team,16,19,19,0,51,Lapped
+2026,13,Italian Grand Prix,stroll,Lance Stroll,aston_martin,Aston Martin,18,20,R,0,26,Retired
+2026,13,Italian Grand Prix,alonso,Fernando Alonso,aston_martin,Aston Martin,21,21,R,0,23,Retired
+2026,13,Italian Grand Prix,leclerc,Charles Leclerc,ferrari,Ferrari,3,22,R,0,1,Retired
+2026,14,Spanish Grand Prix,antonelli,Andrea Kimi Antonelli,mercedes,Mercedes,2,1,1,25,57,Finished
+2026,14,Spanish Grand Prix,max_verstappen,Max Verstappen,red_bull,Red Bull,3,2,2,18,57,Finished
+2026,14,Spanish Grand Prix,norris,Lando Norris,mclaren,McLaren,1,3,3,15,57,Finished
+2026,14,Spanish Grand Prix,leclerc,Charles Leclerc,ferrari,Ferrari,5,4,4,12,57,Finished
+2026,14,Spanish Grand Prix,russell,George Russell,mercedes,Mercedes,6,5,5,10,57,Finished
+2026,14,Spanish Grand Prix,lawson,Liam Lawson,red_bull,Red Bull,8,6,6,8,57,Finished
+2026,14,Spanish Grand Prix,colapinto,Franco Colapinto,alpine,Alpine F1 Team,9,7,7,6,57,Finished
+2026,14,Spanish Grand Prix,piastri,Oscar Piastri,mclaren,McLaren,7,8,8,4,57,Finished
+2026,14,Spanish Grand Prix,arvid_lindblad,Arvid Lindblad,rb,RB F1 Team,10,9,9,2,56,Lapped
+2026,14,Spanish Grand Prix,hulkenberg,Nico Hülkenberg,audi,Audi,11,10,10,1,56,Lapped
+2026,14,Spanish Grand Prix,ocon,Esteban Ocon,haas,Haas F1 Team,13,11,11,0,56,Lapped
+2026,14,Spanish Grand Prix,gasly,Pierre Gasly,alpine,Alpine F1 Team,14,12,12,0,56,Lapped
+2026,14,Spanish Grand Prix,bortoleto,Gabriel Bortoleto,audi,Audi,12,13,13,0,56,Lapped
+2026,14,Spanish Grand Prix,tsunoda,Yuki Tsunoda,rb,RB F1 Team,15,14,14,0,56,Lapped
+2026,14,Spanish Grand Prix,albon,Alexander Albon,williams,Williams,16,15,15,0,56,Lapped
+2026,14,Spanish Grand Prix,bearman,Oliver Bearman,haas,Haas F1 Team,22,16,16,0,56,Lapped
+2026,14,Spanish Grand Prix,alonso,Fernando Alonso,aston_martin,Aston Martin,17,17,17,0,55,Lapped
+2026,14,Spanish Grand Prix,bottas,Valtteri Bottas,cadillac,Cadillac F1 Team,19,18,18,0,54,Lapped
+2026,14,Spanish Grand Prix,sainz,Carlos Sainz,williams,Williams,20,19,R,0,43,Retired
+2026,14,Spanish Grand Prix,perez,Sergio Pérez,cadillac,Cadillac F1 Team,18,20,R,0,31,Retired
+2026,14,Spanish Grand Prix,stroll,Lance Stroll,aston_martin,Aston Martin,21,21,R,0,12,Retired
+2026,14,Spanish Grand Prix,hamilton,Lewis Hamilton,ferrari,Ferrari,4,22,R,0,6,Retired
+2026,15,Azerbaijan Grand Prix,russell,George Russell,mercedes,Mercedes,1,1,1,25,51,Finished
+2026,15,Azerbaijan Grand Prix,max_verstappen,Max Verstappen,red_bull,Red Bull,8,2,2,18,51,Finished
+2026,15,Azerbaijan Grand Prix,hadjar,Isack Hadjar,red_bull,Red Bull,4,3,3,15,51,Finished
+2026,15,Azerbaijan Grand Prix,leclerc,Charles Leclerc,ferrari,Ferrari,2,4,4,12,51,Finished
+2026,15,Azerbaijan Grand Prix,antonelli,Andrea Kimi Antonelli,mercedes,Mercedes,16,5,5,10,51,Finished
+2026,15,Azerbaijan Grand Prix,hamilton,Lewis Hamilton,ferrari,Ferrari,6,6,6,8,51,Finished
+2026,15,Azerbaijan Grand Prix,arvid_lindblad,Arvid Lindblad,rb,RB F1 Team,15,7,7,6,51,Finished
+2026,15,Azerbaijan Grand Prix,ocon,Esteban Ocon,haas,Haas F1 Team,13,8,8,4,51,Finished
+2026,15,Azerbaijan Grand Prix,bearman,Oliver Bearman,haas,Haas F1 Team,10,9,9,2,51,Finished
+2026,15,Azerbaijan Grand Prix,sainz,Carlos Sainz,williams,Williams,14,10,10,1,51,Finished
+2026,15,Azerbaijan Grand Prix,hulkenberg,Nico Hülkenberg,audi,Audi,18,11,11,0,51,Finished
+2026,15,Azerbaijan Grand Prix,lawson,Liam Lawson,rb,RB F1 Team,11,12,12,0,51,Finished
+2026,15,Azerbaijan Grand Prix,piastri,Oscar Piastri,mclaren,McLaren,3,13,13,0,51,Finished
+2026,15,Azerbaijan Grand Prix,perez,Sergio Pérez,cadillac,Cadillac F1 Team,20,14,14,0,51,Finished
+2026,15,Azerbaijan Grand Prix,bortoleto,Gabriel Bortoleto,audi,Audi,17,15,15,0,51,Finished
+2026,15,Azerbaijan Grand Prix,bottas,Valtteri Bottas,cadillac,Cadillac F1 Team,19,16,16,0,49,Retired
+2026,15,Azerbaijan Grand Prix,colapinto,Franco Colapinto,alpine,Alpine F1 Team,9,17,R,0,36,Retired
+2026,15,Azerbaijan Grand Prix,gasly,Pierre Gasly,alpine,Alpine F1 Team,7,18,R,0,35,Retired
+2026,15,Azerbaijan Grand Prix,norris,Lando Norris,mclaren,McLaren,5,19,R,0,35,Retired
+2026,15,Azerbaijan Grand Prix,albon,Alexander Albon,williams,Williams,12,20,R,0,29,Retired
+2026,15,Azerbaijan Grand Prix,alonso,Fernando Alonso,aston_martin,Aston Martin,21,21,R,0,20,Retired
+2026,15,Azerbaijan Grand Prix,stroll,Lance Stroll,aston_martin,Aston Martin,22,22,R,0,7,Retired
+2026,16,Bahrain Grand Prix in Malaysia,max_verstappen,Max Verstappen,red_bull,Red Bull,1,1,1,25,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,antonelli,Andrea Kimi Antonelli,mercedes,Mercedes,3,2,2,18,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,hamilton,Lewis Hamilton,ferrari,Ferrari,2,3,3,15,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,leclerc,Charles Leclerc,ferrari,Ferrari,4,4,4,12,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,hadjar,Isack Hadjar,red_bull,Red Bull,8,5,5,10,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,piastri,Oscar Piastri,mclaren,McLaren,6,6,6,8,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,lawson,Liam Lawson,rb,RB F1 Team,11,7,7,6,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,alonso,Fernando Alonso,aston_martin,Aston Martin,12,8,8,4,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,norris,Lando Norris,mclaren,McLaren,5,9,9,2,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,arvid_lindblad,Arvid Lindblad,rb,RB F1 Team,22,10,10,1,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,hulkenberg,Nico Hülkenberg,audi,Audi,15,11,11,0,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,stroll,Lance Stroll,aston_martin,Aston Martin,14,12,12,0,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,colapinto,Franco Colapinto,alpine,Alpine F1 Team,21,13,13,0,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,bearman,Oliver Bearman,haas,Haas F1 Team,16,14,14,0,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,ocon,Esteban Ocon,haas,Haas F1 Team,17,15,15,0,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,gasly,Pierre Gasly,alpine,Alpine F1 Team,9,16,16,0,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,sainz,Carlos Sainz,williams,Williams,13,17,17,0,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,bortoleto,Gabriel Bortoleto,audi,Audi,10,18,18,0,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,perez,Sergio Pérez,cadillac,Cadillac F1 Team,20,19,19,0,55,Finished
+2026,16,Bahrain Grand Prix in Malaysia,russell,George Russell,mercedes,Mercedes,7,20,20,0,49,Retired
+2026,16,Bahrain Grand Prix in Malaysia,albon,Alexander Albon,williams,Williams,18,21,R,0,41,Retired
+2026,16,Bahrain Grand Prix in Malaysia,bottas,Valtteri Bottas,cadillac,Cadillac F1 Team,19,22,R,0,7,Retired
+2026,17,Singapore Grand Prix,max_verstappen,Max Verstappen,red_bull,Red Bull,1,1,1,25,62,Finished
+2026,17,Singapore Grand Prix,leclerc,Charles Leclerc,ferrari,Ferrari,2,2,2,18,62,Finished
+2026,17,Singapore Grand Prix,antonelli,Andrea Kimi Antonelli,mercedes,Mercedes,4,3,3,15,62,Finished
+2026,17,Singapore Grand Prix,norris,Lando Norris,mclaren,McLaren,5,4,4,12,62,Finished
+2026,17,Singapore Grand Prix,piastri,Oscar Piastri,mclaren,McLaren,6,5,5,10,62,Finished
+2026,17,Singapore Grand Prix,hamilton,Lewis Hamilton,ferrari,Ferrari,3,6,6,8,62,Finished
+2026,17,Singapore Grand Prix,lawson,Liam Lawson,rb,RB F1 Team,8,7,7,6,62,Finished
+2026,17,Singapore Grand Prix,hulkenberg,Nico Hülkenberg,audi,Audi,10,8,8,4,62,Finished
+2026,17,Singapore Grand Prix,russell,George Russell,mercedes,Mercedes,19,9,9,2,62,Finished
+2026,17,Singapore Grand Prix,hadjar,Isack Hadjar,red_bull,Red Bull,22,10,10,1,62,Finished
+2026,17,Singapore Grand Prix,gasly,Pierre Gasly,alpine,Alpine F1 Team,7,11,11,0,61,Lapped
+2026,17,Singapore Grand Prix,bearman,Oliver Bearman,haas,Haas F1 Team,11,12,12,0,61,Lapped
+2026,17,Singapore Grand Prix,ocon,Esteban Ocon,haas,Haas F1 Team,12,13,13,0,61,Lapped
+2026,17,Singapore Grand Prix,sainz,Carlos Sainz,williams,Williams,13,14,14,0,61,Lapped
+2026,17,Singapore Grand Prix,arvid_lindblad,Arvid Lindblad,rb,RB F1 Team,9,15,15,0,61,Lapped
+2026,17,Singapore Grand Prix,alonso,Fernando Alonso,aston_martin,Aston Martin,20,16,16,0,61,Lapped
+2026,17,Singapore Grand Prix,perez,Sergio Pérez,cadillac,Cadillac F1 Team,17,17,17,0,60,Lapped
+2026,17,Singapore Grand Prix,albon,Alexander Albon,williams,Williams,16,18,18,0,59,Retired
+2026,17,Singapore Grand Prix,bottas,Valtteri Bottas,cadillac,Cadillac F1 Team,18,19,19,0,59,Lapped
+2026,17,Singapore Grand Prix,stroll,Lance Stroll,aston_martin,Aston Martin,21,20,R,0,36,Retired
+2026,17,Singapore Grand Prix,colapinto,Franco Colapinto,alpine,Alpine F1 Team,15,21,R,0,29,Retired
+2026,17,Singapore Grand Prix,bortoleto,Gabriel Bortoleto,audi,Audi,14,22,R,0,7,Retired
+2026,18,United States Grand Prix,antonelli,Andrea Kimi Antonelli,mercedes,Mercedes,1,1,1,25,56,Finished
+2026,18,United States Grand Prix,leclerc,Charles Leclerc,ferrari,Ferrari,4,2,2,18,56,Finished
+2026,18,United States Grand Prix,max_verstappen,Max Verstappen,red_bull,Red Bull,2,3,3,15,56,Finished
+2026,18,United States Grand Prix,hamilton,Lewis Hamilton,ferrari,Ferrari,5,4,4,12,56,Finished
+2026,18,United States Grand Prix,norris,Lando Norris,mclaren,McLaren,8,5,5,10,56,Finished
+2026,18,United States Grand Prix,hadjar,Isack Hadjar,red_bull,Red Bull,3,6,6,8,56,Finished
+2026,18,United States Grand Prix,piastri,Oscar Piastri,mclaren,McLaren,7,7,7,6,56,Finished
+2026,18,United States Grand Prix,russell,George Russell,mercedes,Mercedes,6,8,8,4,56,Finished
+2026,18,United States Grand Prix,lawson,Liam Lawson,rb,RB F1 Team,9,9,9,2,56,Finished
+2026,18,United States Grand Prix,gasly,Pierre Gasly,alpine,Alpine F1 Team,10,10,10,1,56,Finished
+2026,18,United States Grand Prix,hulkenberg,Nico Hülkenberg,audi,Audi,11,11,11,0,56,Finished
+2026,18,United States Grand Prix,arvid_lindblad,Arvid Lindblad,rb,RB F1 Team,14,12,12,0,55,Lapped
+2026,18,United States Grand Prix,bortoleto,Gabriel Bortoleto,audi,Audi,21,13,13,0,55,Lapped
+2026,18,United States Grand Prix,ocon,Esteban Ocon,haas,Haas F1 Team,15,14,14,0,55,Lapped
+2026,18,United States Grand Prix,stroll,Lance Stroll,aston_martin,Aston Martin,22,15,15,0,55,Lapped
+2026,18,United States Grand Prix,alonso,Fernando Alonso,aston_martin,Aston Martin,12,16,16,0,55,Lapped
+2026,18,United States Grand Prix,albon,Alexander Albon,williams,Williams,17,17,17,0,55,Lapped
+2026,18,United States Grand Prix,sainz,Carlos Sainz,williams,Williams,16,18,18,0,55,Lapped
+2026,18,United States Grand Prix,perez,Sergio Pérez,cadillac,Cadillac F1 Team,18,19,19,0,55,Lapped
+2026,18,United States Grand Prix,bottas,Valtteri Bottas,cadillac,Cadillac F1 Team,19,20,R,0,48,Retired
+2026,18,United States Grand Prix,colapinto,Franco Colapinto,alpine,Alpine F1 Team,20,21,R,0,35,Retired
+2026,18,United States Grand Prix,bearman,Oliver Bearman,haas,Haas F1 Team,13,22,R,0,24,Retired
+2026,19,Mexico City Grand Prix,max_verstappen,Max Verstappen,red_bull,Red Bull,5,1,1,25,71,Finished
+2026,19,Mexico City Grand Prix,hamilton,Lewis Hamilton,ferrari,Ferrari,1,2,2,18,71,Finished
+2026,19,Mexico City Grand Prix,antonelli,Andrea Kimi Antonelli,mercedes,Mercedes,4,3,3,15,71,Finished
+2026,19,Mexico City Grand Prix,leclerc,Charles Leclerc,ferrari,Ferrari,3,4,4,12,71,Finished
+2026,19,Mexico City Grand Prix,norris,Lando Norris,mclaren,McLaren,6,5,5,10,71,Finished
+2026,19,Mexico City Grand Prix,russell,George Russell,mercedes,Mercedes,2,6,6,8,71,Finished
+2026,19,Mexico City Grand Prix,lawson,Liam Lawson,rb,RB F1 Team,22,7,7,6,71,Finished
+2026,19,Mexico City Grand Prix,bortoleto,Gabriel Bortoleto,audi,Audi,13,8,8,4,71,Finished
+2026,19,Mexico City Grand Prix,hadjar,Isack Hadjar,red_bull,Red Bull,7,9,9,2,71,Finished
+2026,19,Mexico City Grand Prix,ryo_hirakawa,Ryo Hirakawa,haas,Haas F1 Team,18,10,10,1,71,Finished
+2026,19,Mexico City Grand Prix,albon,Alexander Albon,williams,Williams,16,11,11,0,71,Finished
+2026,19,Mexico City Grand Prix,sainz,Carlos Sainz,williams,Williams,15,12,12,0,71,Finished
+2026,19,Mexico City Grand Prix,piastri,Oscar Piastri,mclaren,McLaren,12,13,13,0,71,Finished
+2026,19,Mexico City Grand Prix,hulkenberg,Nico Hülkenberg,audi,Audi,10,14,14,0,71,Finished
+2026,19,Mexico City Grand Prix,colapinto,Franco Colapinto,alpine,Alpine F1 Team,11,15,15,0,71,Finished
+2026,19,Mexico City Grand Prix,perez,Sergio Pérez,cadillac,Cadillac F1 Team,20,16,16,0,71,Finished
+2026,19,Mexico City Grand Prix,gasly,Pierre Gasly,alpine,Alpine F1 Team,9,17,17,0,71,Finished
+2026,19,Mexico City Grand Prix,arvid_lindblad,Arvid Lindblad,rb,RB F1 Team,8,18,R,0,58,Retired
+2026,19,Mexico City Grand Prix,bearman,Oliver Bearman,haas,Haas F1 Team,14,19,R,0,47,Retired
+2026,19,Mexico City Grand Prix,bottas,Valtteri Bottas,cadillac,Cadillac F1 Team,21,20,R,0,42,Retired
+2026,19,Mexico City Grand Prix,stroll,Lance Stroll,aston_martin,Aston Martin,19,21,R,0,5,Retired
+2026,19,Mexico City Grand Prix,alonso,Fernando Alonso,aston_martin,Aston Martin,17,22,R,0,5,Retired
+2026,20,Brazilian Grand Prix,norris,Lando Norris,mclaren,McLaren,1,1,1,25,71,Finished
+2026,20,Brazilian Grand Prix,max_verstappen,Max Verstappen,red_bull,Red Bull,21,2,2,18,71,Finished
+2026,20,Brazilian Grand Prix,hadjar,Isack Hadjar,red_bull,Red Bull,5,3,3,15,71,Finished
+2026,20,Brazilian Grand Prix,russell,George Russell,mercedes,Mercedes,7,4,4,12,71,Finished
+2026,20,Brazilian Grand Prix,antonelli,Andrea Kimi Antonelli,mercedes,Mercedes,2,5,5,10,71,Finished
+2026,20,Brazilian Grand Prix,piastri,Oscar Piastri,mclaren,McLaren,10,6,6,8,71,Finished
+2026,20,Brazilian Grand Prix,lawson,Liam Lawson,rb,RB F1 Team,3,7,7,6,71,Finished
+2026,20,Brazilian Grand Prix,leclerc,Charles Leclerc,ferrari,Ferrari,14,8,8,4,71,Finished
+2026,20,Brazilian Grand Prix,hamilton,Lewis Hamilton,ferrari,Ferrari,20,9,9,2,70,Lapped
+2026,20,Brazilian Grand Prix,hulkenberg,Nico Hülkenberg,audi,Audi,4,10,10,1,70,Lapped
+2026,20,Brazilian Grand Prix,arvid_lindblad,Arvid Lindblad,rb,RB F1 Team,18,11,11,0,70,Lapped
+2026,20,Brazilian Grand Prix,alonso,Fernando Alonso,aston_martin,Aston Martin,8,12,12,0,70,Lapped
+2026,20,Brazilian Grand Prix,colapinto,Franco Colapinto,alpine,Alpine F1 Team,13,13,13,0,70,Lapped
+2026,20,Brazilian Grand Prix,gasly,Pierre Gasly,alpine,Alpine F1 Team,15,14,14,0,70,Lapped
+2026,20,Brazilian Grand Prix,albon,Alexander Albon,williams,Williams,9,15,15,0,70,Lapped
+2026,20,Brazilian Grand Prix,bortoleto,Gabriel Bortoleto,audi,Audi,19,16,16,0,70,Lapped
+2026,20,Brazilian Grand Prix,bearman,Oliver Bearman,haas,Haas F1 Team,6,17,17,0,70,Lapped
+2026,20,Brazilian Grand Prix,perez,Sergio Pérez,cadillac,Cadillac F1 Team,22,18,18,0,69,Lapped
+2026,20,Brazilian Grand Prix,sainz,Carlos Sainz,williams,Williams,12,19,19,0,69,Lapped
+2026,20,Brazilian Grand Prix,rafael_camara,Rafael Camara,haas,Haas F1 Team,11,20,20,0,69,Lapped
+2026,20,Brazilian Grand Prix,stroll,Lance Stroll,aston_martin,Aston Martin,16,21,R,0,30,Retired
+2026,20,Brazilian Grand Prix,bottas,Valtteri Bottas,cadillac,Cadillac F1 Team,17,22,W,0,0,Did not start

@@ -240,12 +240,25 @@ def test_future_round_grid_is_championship_order():
     (The drivers array itself is sorted by expected position; check the
     grid values as a set/permutation of 1..n plus who holds slot 1.)"""
     doc = ri.build_race_intel(str(DB), str(DATASETS), 2026, 200, 42)
-    r12 = [r for r in doc["races"] if r["round"] == 12][0]
+    future = [r for r in doc['races'] if r['status'] == 'scheduled']
+    if not future:
+        pytest.skip('season has no unqualified rounds remaining')
+    r12 = future[0]
     grids = [d["grid"] for d in r12["drivers"]]
     assert sorted(grids) == list(range(1, len(grids) + 1))
+    entries = rs.load_entries(str(DB))
+    current = entries[entries.year == 2026]
+    active = set(current.loc[current['round'] == current['round'].max(), 'driverId'])
+    assert {driver['driverId'] for driver in r12['drivers']} == active
     p1 = [d for d in r12["drivers"] if d["grid"] == 1]
-    # Antonelli leads the 2026 championship through round 11
-    assert p1[0]["driverId"] == "antonelli"
+    # Derive the leader from the same point-in-time race-points source;
+    # a new result must not require changing a hardcoded driver assertion.
+    import sqlite3
+    with sqlite3.connect(DB) as con:
+        leader = con.execute('SELECT driverId FROM fact_race_entry WHERE year = ? '
+            'AND round < ? GROUP BY driverId ORDER BY SUM(points) DESC, driverId LIMIT 1',
+            (2026, r12['round'])).fetchone()[0]
+    assert p1[0]["driverId"] == leader
 
 
 @REAL
@@ -309,6 +322,8 @@ def test_future_probs_reproduce_simulator():
     per-driver RNG columns by list position, so a different order would
     silently change every driver's randomness."""
     doc = ri.build_race_intel(str(DB), str(DATASETS), 2026, 200, 42)
+    if doc['next_round'] is None:
+        pytest.skip('season complete; no future scenario to reproduce')
     race = [r for r in doc["races"]
             if r["round"] == doc["next_round"]][0]
     grid = sorted(((d["driverId"], d["grid"]) for d in race["drivers"]),
@@ -354,6 +369,17 @@ def test_api_season_shape(api):
     assert doc["season"] == 2026 and len(doc["races"]) == 2
     assert doc["next_round"] == 2
     assert "season_attribution" in doc
+
+
+def test_api_refresh_status_matches_served_coverage(api):
+    path = api.ARTIFACT_PATH.with_name('refresh_status.json')
+    status = {'season': 2026, 'results_through_round': 1,
+              'published_at': '2026-11-12T00:00:00+00:00'}
+    path.write_text(json.dumps(status), encoding='utf-8')
+    assert api._test_client().get('/api/race-intel/season/2026').get_json()['refresh'] == status
+    status['results_through_round'] = 99
+    path.write_text(json.dumps(status), encoding='utf-8')
+    assert api._test_client().get('/api/race-intel/season/2026').get_json()['refresh'] is None
 
 
 def test_api_race_and_drivers(api):

@@ -35,11 +35,20 @@ const previous = await (
 ).json();
 /** @type {Record<string, string>} */
 const aliases = { andreakimiantonelli: "kimiantonelli" };
+// OpenF1 has no headshot for this recent replacement. Use the portrait
+// linked by his official FIA F2 profile, keeping its provenance explicit.
+/** @type {Record<string, string>} */
+const officialFallbacks = {
+  rafaelcamara:
+    "https://res.cloudinary.com/prod-f2f3/d_common:f2:fallback.webp/c_fill,w_720/q_auto/v1770000000/common/f2/2026/invictaracing/rafcam01/2026invictaracingrafcam01right.webp",
+};
 /** @param {Buffer} bytes */
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const imageHashes = new Set();
 /** @type {Record<string, string>} */
-const manifest = {};
+const manifest = JSON.parse(
+  await readFile(new URL("src/data/driver-portraits.json", root), "utf8")
+);
 const sources = [];
 await mkdir(new URL("public/drivers/", root), { recursive: true });
 await mkdir(new URL("src/data/", root), { recursive: true });
@@ -53,9 +62,16 @@ for (const name of roster.active_drivers) {
         driver.headshot_url
     );
   const driver = find(current) ?? find(previous);
-  if (!driver?.headshot_url) throw new Error(`No verified portrait source for ${name}`);
-  const url = new URL(driver.headshot_url);
-  if (url.protocol !== "https:" || url.hostname !== "media.formula1.com")
+  const source = driver?.headshot_url ?? officialFallbacks[key];
+  if (!source) throw new Error(`No verified portrait source for ${name}`);
+  const url = new URL(source);
+  const officialF2 =
+    url.hostname === "res.cloudinary.com" &&
+    url.pathname.startsWith("/prod-f2f3/");
+  if (
+    url.protocol !== "https:" ||
+    (url.hostname !== "media.formula1.com" && !officialF2)
+  )
     throw new Error(`Unexpected portrait host for ${name}`);
   const bytes = Buffer.from(await (await get(url)).arrayBuffer());
   if (imageHashes.has(hash(bytes)))
@@ -78,7 +94,8 @@ await writeFile(
   new URL("public/drivers/sources.json", root),
   JSON.stringify(
     {
-      provider: "OpenF1 driver metadata; Formula 1 media portraits",
+      provider:
+        "OpenF1 driver metadata; Formula 1 media portraits; official FIA F2 profile for Rafael Camara",
       retrieved: new Date().toISOString(),
       portraits: sources,
     },

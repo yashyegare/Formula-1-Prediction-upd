@@ -1,6 +1,6 @@
 name: Scheduled data refresh
 
-# Nightly data pipeline: fetch the latest Jolpica data (results, quali,
+# Six-hour data pipeline: fetch the latest Jolpica data (results, quali,
 # lap times), rebuild every derived layer, and commit the diff. This is
 # what keeps the serving artifacts current without a human in the loop:
 # a new race result flows into the canonical DB, the manifest, the race
@@ -13,7 +13,7 @@ name: Scheduled data refresh
 
 on:
   schedule:
-    - cron: "0 4 * * *" # 04:00 UTC daily — after Jolpica's post-race updates
+    - cron: "17 */6 * * *" # Catch published race results within six hours
   workflow_dispatch: {} # manual trigger for testing
 
 concurrency:
@@ -29,6 +29,7 @@ jobs:
   refresh:
     name: Fetch, rebuild, commit
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: model-notebooks
@@ -42,7 +43,7 @@ jobs:
           cache-dependency-path: model-notebooks/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt pytest
 
       - name: Restore the Jolpica response cache
         # Completed rounds never change, so a warm cache turns the nightly
@@ -61,9 +62,11 @@ jobs:
         # Lap data is fetched separately by the same script family the
         # Phase-2 build consumes.
         run: |
-          python fetch_jolpica_data.py --start-year 2018 --end-year 2026 \
-            --out ./datasets --cache-dir ./.jolpica_cache
-          python fetch_lap_pace.py --start-year 2018 --end-year 2026 \
+          YEAR=$(date -u +%Y)
+          echo "SEASON=$YEAR" >> "$GITHUB_ENV"
+          python fetch_jolpica_data.py --start-year "$YEAR" --end-year "$YEAR" \
+            --out ./datasets --cache-dir ./.jolpica_cache --merge-output
+          python fetch_lap_pace.py --start-year "$YEAR" --end-year "$YEAR" \
             --out ./datasets --cache-dir ./.jolpica_cache
           python fetch_lap_pace.py --out ./datasets --finalize
 
@@ -79,9 +82,10 @@ jobs:
         run: |
           python race_intelligence.py --db datasets/f1_canonical.db \
             --datasets ./datasets --out datasets/race_intel.json \
-            --season 2026 --sims 2000
+            --season "$SEASON" --sims 2000
           python lap_curves.py --db datasets/f1_canonical.db \
-            --season 2026 --sims 400 --out datasets/lap_curves.json
+            --season "$SEASON" --sims 400 --out datasets/lap_curves.json
+          python verify_intel_refresh.py --datasets datasets
 
       - name: Verify the refreshed artifacts still serve their contract
         # A refresh that produces a corrupt or schema-drifted artifact

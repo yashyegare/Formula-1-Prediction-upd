@@ -495,6 +495,61 @@
   scrollbar-width: thin;
   scrollbar-color: #b3bea6 transparent;
 }
+.ri-snapshot-time {
+  display: block;
+  margin-top: 6px;
+}
+.ri-evaluation-table {
+  width: 100%;
+  min-width: 500px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.ri-evaluation-table caption {
+  padding: 14px;
+  text-align: left;
+  color: #56624c;
+  font-size: 13px;
+}
+.ri-evaluation-table th,
+.ri-evaluation-table td {
+  text-align: left;
+  padding: 15px;
+  border-bottom: 1px solid #e0e4dc;
+}
+.ri-evaluation-table thead {
+  background: #f1f4ed;
+}
+.ri-evaluation-ci {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #46523f;
+}
+.ri-calibration-title {
+  font-size: 18px;
+  margin: 28px 0 16px;
+}
+.ri-calibration-list {
+  display: grid;
+  gap: 8px;
+}
+.ri-calibration-list > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+  padding: 14px;
+  background: #f5f7f1;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.ri-calibration-list strong {
+  margin-right: auto;
+}
+.ri-calibration-list small {
+  color: #56624c;
+  font-size: 12px;
+}
 .ri-outcomes-table {
   width: 100%;
   min-width: 850px;

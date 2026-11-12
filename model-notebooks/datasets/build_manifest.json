@@ -2,60 +2,60 @@
   "canonical": {
     "dim_circuit": 33,
     "dim_constructor": 18,
-    "dim_driver": 44,
+    "dim_driver": 46,
     "dim_status": 54,
-    "fact_championship_snapshot": 5687,
-    "fact_lap": 201811,
-    "fact_pit_stop": 6376,
-    "fact_quali_entry": 3694,
+    "fact_championship_snapshot": 5996,
+    "fact_lap": 212650,
+    "fact_pit_stop": 6778,
+    "fact_quali_entry": 3890,
     "fact_race": 196,
-    "fact_race_entry": 3700,
-    "v_driver_race_evidence": 3596,
-    "v_race_entry_outcome": 3700,
-    "v_race_lap_evidence": 11040,
-    "v_race_sc_exposure": 184,
-    "v_running_position_gains": 3602
+    "fact_race_entry": 3898,
+    "v_driver_race_evidence": 3790,
+    "v_race_entry_outcome": 3898,
+    "v_race_lap_evidence": 11588,
+    "v_race_sc_exposure": 193,
+    "v_running_position_gains": 3798
   },
   "sources": {
     "circuits.csv": {
       "rows": 33,
-      "sha256": "cfbf02faff19b90d70b50105387f50d0bf9e5f19fca545e477dfc7f3995d3091"
+      "sha256": "258a3cb2f0a09d036541923e5b3dc833576a5946416bd0d6bb2eb0fd6b1c01bc"
     },
     "constructor_standings.csv": {
-      "rows": 1851,
-      "sha256": "22db224b15c3650795270f4f44998341868d66e8f3ad1d187f74412e232bc762"
+      "rows": 1950,
+      "sha256": "2e1cd28297388ffcf76a4c2e37f62c2e8f2c7fd96658b663d35d7b67f5ae9cce"
     },
     "constructors.csv": {
       "rows": 18,
-      "sha256": "181eaa106e428f8bfbfd71bcd7fb7875cc5c84d35b27b5535a6c366f32ec46d9"
+      "sha256": "f8f7197db749162af28f28e3eb46f806399bf8b6e0706a706491b726526756af"
     },
     "driver_standings.csv": {
-      "rows": 3836,
-      "sha256": "6423de0ce9614922ae380313725881279d7dc49cc33e92e70941ea2ca85b39d1"
+      "rows": 4046,
+      "sha256": "a963be504ca19eb552953b17e4d1e9d0c83cbbde8de2ab6abcb3f0def670b3bb"
     },
     "drivers.csv": {
-      "rows": 44,
-      "sha256": "18ffc23cef001451e5cf69c3a37082c5159cd44a4f9da644321d4b3a2c5b3878"
+      "rows": 46,
+      "sha256": "bdbeb4a105c4a5a38dc80b97bc0b9f28b50026d59346d2bb3b15d3e458767ed9"
     },
     "lap_times_jolpica.csv": {
-      "rows": 201811,
-      "sha256": "9e5f02cb99d488984614229e8ca2f3364dee54fd0a20ef25be742315e1763eb6"
+      "rows": 212650,
+      "sha256": "a6e7ac20f0704ef5a933f3ae5ceecff4caa8b2a763fb208b2e81d0623bfa85d6"
     },
     "pit_stops_jolpica.csv": {
-      "rows": 6376,
-      "sha256": "de75930ad195b5ea8e8a63ed0e70c3317dfbc08461d1783ec15a50ffe0f1054c"
+      "rows": 6778,
+      "sha256": "15fb4be58582bf487d692cc2086ec41bcde7b91974949c2d661126b57165849f"
     },
     "qualifying.csv": {
-      "rows": 3694,
-      "sha256": "4ca00109cddb8406f49a1cd39a311aab76861d7e4fc3e313fa4103dc58f92b41"
+      "rows": 3890,
+      "sha256": "1786fef03212e386ba09430a53bee57b6fffb3f6b17ba257804ac267784ff689"
     },
     "races.csv": {
       "rows": 196,
       "sha256": "bc52c4029ad3a8bed0b27077efc5cd3451b5f3e099219463840164654c73ca45"
     },
     "results.csv": {
-      "rows": 3700,
-      "sha256": "ba78a9e965aaf16660e7fabec716a928b488b2d9945edfaed0f3f0e1b7f9400c"
+      "rows": 3898,
+      "sha256": "64facf2c8815604c7032a636d4e163e57f5f579b5d46bc68bccd81ddb7af0dbe"
     }
   }
 }

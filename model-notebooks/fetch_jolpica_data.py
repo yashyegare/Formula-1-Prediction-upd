@@ -26,6 +26,7 @@ import argparse
 import json
 import os
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
@@ -47,9 +48,20 @@ def get(session, cache_dir, path, params=None):
     cache_key = path.replace("/", "_") + (("_" + "_".join(f"{k}{v}" for k, v in (params or {}).items())) if params else "")
     cache_file = Path(cache_dir) / f"{cache_key}.json"
     if cache_file.exists():
-        return json.loads(cache_file.read_text())
+        cached = json.loads(cache_file.read_text())
+        # Empty future-race responses must never freeze a race permanently.
+        # The current calendar changes too; completed lap pages stay reusable.
+        current = path.split('/')[0] == str(datetime.now(timezone.utc).year)
+        age = time.time() - cache_file.stat().st_mtime
+        calendar = '/' not in path.strip('/')
+        mutable = current and (calendar or any(k in path for k in
+                   ('results', 'qualifying', 'Standings')))
+        ttl = 3600 if calendar else 7 * 86400
+        if int(cached.get('MRData', {}).get('total', 0)) > 0 and not (mutable and age > ttl):
+            return cached
 
-    url = f"{BASE}/{path}"
+    endpoint = path if path.endswith(('/', '.json')) else path + '/'
+    url = f"{BASE}/{endpoint}"
     for attempt in range(6):
         try:
             resp = session.get(url, params=params, timeout=15)
@@ -62,7 +74,10 @@ def get(session, cache_dir, path, params=None):
             time.sleep(wait)
             continue
         if resp.status_code == 429:
-            wait = 5 * (attempt + 1)
+            try:
+                wait = min(60, max(5 * (attempt + 1), float(resp.headers.get('Retry-After', 0))))
+            except ValueError:
+                wait = 5 * (attempt + 1)
             print(f"  rate limited, waiting {wait}s...")
             time.sleep(wait)
             continue
@@ -76,7 +91,8 @@ def get(session, cache_dir, path, params=None):
             continue
         resp.raise_for_status()
         data = resp.json()
-        cache_file.write_text(json.dumps(data))
+        if int(data.get('MRData', {}).get('total', 0)) > 0:
+            cache_file.write_text(json.dumps(data))
         time.sleep(SLEEP)
         return data
     raise RuntimeError(f"Failed to fetch {url} after retries")
@@ -135,6 +151,8 @@ def main():
     ap.add_argument("--end-year", type=int, default=2026)
     ap.add_argument("--out", default="./datasets")
     ap.add_argument("--cache-dir", default="./.jolpica_cache")
+    ap.add_argument("--merge-output", action="store_true",
+                    help="Replace only requested years, preserving historical rows")
     args = ap.parse_args()
 
     Path(args.out).mkdir(parents=True, exist_ok=True)
@@ -261,14 +279,27 @@ def main():
                 })
 
     import pandas as pd
-    pd.DataFrame(races_rows).to_csv(f"{args.out}/races.csv", index=False)
-    pd.DataFrame(results_rows).to_csv(f"{args.out}/results.csv", index=False)
-    pd.DataFrame(quali_rows).to_csv(f"{args.out}/qualifying.csv", index=False)
-    pd.DataFrame(driver_standings_rows).to_csv(f"{args.out}/driver_standings.csv", index=False)
-    pd.DataFrame(constructor_standings_rows).to_csv(f"{args.out}/constructor_standings.csv", index=False)
-    pd.DataFrame(list(circuits_seen.values())).to_csv(f"{args.out}/circuits.csv", index=False)
-    pd.DataFrame(list(drivers_seen.values())).to_csv(f"{args.out}/drivers.csv", index=False)
-    pd.DataFrame(list(constructors_seen.values())).to_csv(f"{args.out}/constructors.csv", index=False)
+    outputs = {'races': races_rows, 'results': results_rows, 'qualifying': quali_rows,
+               'driver_standings': driver_standings_rows,
+               'constructor_standings': constructor_standings_rows,
+               'circuits': list(circuits_seen.values()), 'drivers': list(drivers_seen.values()),
+               'constructors': list(constructors_seen.values())}
+    for name, rows in outputs.items():
+        target = Path(args.out) / f'{name}.csv'
+        frame = pd.DataFrame(rows)
+        if args.merge_output and target.exists():
+            # Preserve historical source strings byte-for-byte in CSV (e.g.
+            # 25 points must not become 25.0 after dtype inference/concat).
+            previous = pd.read_csv(target, dtype=str, keep_default_na=False)
+            if 'year' in previous:
+                previous = previous[~pd.to_numeric(previous.year).between(args.start_year, args.end_year)]
+            if frame.empty:
+                frame = previous.iloc[:0].copy()
+            frame = pd.concat([previous, frame], ignore_index=True)
+            if 'year' not in frame:
+                frame = frame.drop_duplicates(subset=[{'circuits': 'circuitId',
+                    'drivers': 'driverId', 'constructors': 'constructorId'}[name]], keep='last')
+        frame.to_csv(target, index=False, lineterminator='\n')
 
     print("\nDone.")
     print(f"  races: {len(races_rows)}, results: {len(results_rows)}, qualifying: {len(quali_rows)}")

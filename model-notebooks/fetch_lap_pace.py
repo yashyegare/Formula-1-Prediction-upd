@@ -111,11 +111,16 @@ def finalize(out_dir):
     """Concat all fragments into the final joinable CSVs."""
     for kind, header in (("laps", LAPS_HEADER), ("pitstops", PITSTOPS_HEADER)):
         frags = sorted(_frag_dir(out_dir, kind).glob("*.csv"))
-        frames = [pd.read_csv(f) for f in frags if f.stat().st_size > 0]
+        frames = [pd.read_csv(f, dtype=str, keep_default_na=False) for f in frags if f.stat().st_size > 0]
         combined = (pd.concat(frames, ignore_index=True) if frames
                     else pd.DataFrame(columns=header))
         out_file = Path(out_dir) / ("lap_times_jolpica.csv" if kind == "laps"
                                     else "pit_stops_jolpica.csv")
+        if out_file.exists():
+            previous = pd.read_csv(out_file, dtype=str, keep_default_na=False)
+            existing = set(zip(previous.year, previous['round']))
+            fresh = [(y, r) not in existing for y, r in zip(combined.year, combined['round'])]
+            combined = pd.concat([previous, combined.loc[fresh]], ignore_index=True)
         combined.to_csv(out_file, index=False, lineterminator="\n")
         print(f"{out_file.name}: {len(combined)} rows from {len(frags)} races")
 
@@ -147,6 +152,11 @@ def main():
 
     session = requests.Session()
     session.headers.update({"User-Agent": "f1-predictor-lap-pace/1.0"})
+    existing = {}
+    for kind, filename in [('laps', 'lap_times_jolpica.csv'), ('pitstops', 'pit_stops_jolpica.csv')]:
+        path = Path(args.out) / filename
+        existing[kind] = set(map(tuple, pd.read_csv(path, usecols=['year', 'round'])
+            .drop_duplicates().to_numpy())) if path.exists() else set()
 
     already = sum(1 for r in races if _frag_path(args.out, "laps", int(r["year"]), int(r["round"])).exists())
     print(f"{len(races)} races to consider; {already} already fetched")
@@ -162,7 +172,7 @@ def main():
             year, rnd = int(race["year"]), int(race["round"])
 
             laps_path = _frag_path(args.out, "laps", year, rnd)
-            if not laps_path.exists():
+            if not laps_path.exists() and (year, rnd) not in existing['laps']:
                 try:
                     rows = fetch_race_laps(session, args.cache_dir, year, rnd)
                 except Exception as exc:
@@ -173,12 +183,15 @@ def main():
                     skipped.append((i, race))
                     print(f"[{i+1}/{len(races)}] {year}/{rnd}: laps failed ({exc}); will retry next pass")
                     continue
+                if not rows:
+                    skipped.append((i, race))
+                    continue
                 _write_atomic(laps_path, LAPS_HEADER, rows)
                 n_rows += len(rows)
                 print(f"[{i+1}/{len(races)}] {year}/{rnd}: {len(rows)} lap rows")
 
             pits_path = _frag_path(args.out, "pitstops", year, rnd)
-            if not pits_path.exists():
+            if not pits_path.exists() and (year, rnd) not in existing['pitstops']:
                 try:
                     rows = fetch_race_pitstops(session, args.cache_dir, year, rnd)
                 except Exception as exc:
@@ -194,6 +207,8 @@ def main():
             time.sleep(60)
 
     elapsed = time.time() - started
+    if remaining:
+        raise RuntimeError(f'{len(remaining)} races have incomplete lap/pit data; artifacts were not finalized')
     print(f"done in {elapsed/60:.1f} min - {n_rows} new lap rows - "
           f"{len(remaining)} race(s) permanently failed"
           if remaining else

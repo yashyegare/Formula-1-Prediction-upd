@@ -84,6 +84,52 @@ export const intelSeasonSchema = z.object({
     evidence: z.record(z.string(), z.number()),
   }),
   track_error: trackErrorSchema.optional().catch(undefined),
+  refresh: z
+    .object({
+      published_at: z.string().datetime({ offset: true }),
+      results_through_round: z.number().int(),
+    })
+    .nullable()
+    .optional()
+    .catch(undefined),
+  evaluation: z
+    .object({
+      training_through_year: z.number().int(),
+      results_through_round: z.number().int(),
+      n_races: z.number().int().positive(),
+      n_entries: z.number().int().positive(),
+      model: z.object({
+        brier: z.number().finite(),
+        log_loss: z.number().finite(),
+        position_mae: z.number().finite(),
+      }),
+      global_rates: z.object({
+        brier: z.number().finite(),
+        log_loss: z.number().finite(),
+      }),
+      starting_grid: z.object({
+        brier: z.number().finite(),
+        log_loss: z.number().finite(),
+        position_mae: z.number().finite(),
+      }),
+      brier_delta_vs_global_95ci: z.tuple([
+        z.number().finite(),
+        z.number().finite(),
+      ]),
+      podium_calibration: z.array(
+        z.object({
+          lower: probability,
+          upper: probability,
+          n: z.number().int(),
+          predicted: probability,
+          observed: probability,
+        })
+      ),
+      limitations: z.string(),
+    })
+    .nullable()
+    .optional()
+    .catch(undefined),
 });
 export const intelCalendarSchema = z.object({
   season: z.number().int(),

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { postmortemSchema } from "src/lib/personalIntel";
 
 /* Mirrors GET /api/me/prediction/postmortem (flask-app/predictions_api.py) */
 
@@ -90,7 +91,10 @@ const PostmortemPanel = ({ season }: { season: number }) => {
             message: body?.error ?? `API ${res.status}`,
           });
         }
-        if (!cancelled) setState({ kind: "ready", doc: body });
+        const parsed = postmortemSchema.safeParse(body);
+        if (!parsed.success || parsed.data.season !== season)
+          throw new Error("Invalid postmortem response");
+        if (!cancelled) setState({ kind: "ready", doc: parsed.data });
       })
       .catch(() => {
         if (!cancelled)

@@ -382,7 +382,7 @@ class TestRealBuild:
         assert con.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         con.close()
 
-    def test_2026_baseline_accuracy_matches_documented(self):
+    def test_baseline_accuracy_matches_source_join(self):
         con = sqlite3.connect(str(REAL_DB))
         rows = con.execute("""
             SELECT q.position, e.position FROM fact_race_entry e
@@ -392,7 +392,13 @@ class TestRealBuild:
         con.close()
         bucket = lambda p: 1 if p < 4 else (3 if p > 10 else 2)
         acc = sum(bucket(qp) == bucket(a) for qp, a in rows) / len(rows)
-        assert acc == pytest.approx(0.686, abs=1e-3)
+        source = pd.read_csv(MODEL_DIR / 'datasets' / 'results.csv')
+        quali = pd.read_csv(MODEL_DIR / 'datasets' / 'qualifying.csv')
+        joined = source[source.year == 2026].merge(quali[quali.year == 2026],
+            on=['year', 'round', 'driverId'], suffixes=('_race', '_quali'))
+        expected = (joined.position_race.map(bucket) == joined.position_quali.map(bucket)).mean()
+        assert len(rows) == len(joined)
+        assert acc == pytest.approx(expected, abs=1e-12)
 
     def test_2026_statuses_are_generic(self):
         """The Phase-1 blocker, visible as data: 2026 DNF statuses are

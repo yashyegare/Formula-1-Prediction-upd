@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { reconcileSchema } from "src/lib/personalIntel";
 
 /* Mirrors GET /api/me/prediction/reconcile (flask-app/predictions_api.py) */
 
@@ -79,7 +80,10 @@ const ReconcilePanel = ({ season }: { season: number }) => {
             message: body?.error ?? `API ${res.status}`,
           });
         }
-        if (!cancelled) setState({ kind: "ready", doc: body });
+        const parsed = reconcileSchema.safeParse(body);
+        if (!parsed.success || parsed.data.season !== season)
+          throw new Error("Invalid reconciliation response");
+        if (!cancelled) setState({ kind: "ready", doc: parsed.data });
       })
       .catch(() => {
         if (!cancelled)

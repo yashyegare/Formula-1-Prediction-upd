@@ -73,6 +73,7 @@ import numpy as np
 import pandas as pd
 
 import race_simulator as rs
+from intel_evaluation import evaluate
 from error_decomposition import build_decompositions, summarize
 
 
@@ -317,7 +318,10 @@ def _grid_order_for_future(season_entries: pd.DataFrame,
         con.close()
     ctor_rank = {c: i + 1 for i, c in enumerate(
         ctor_pts.sort_values("points", ascending=False)["constructorId"])}
-    drv = standings.copy()
+    # A replacement must replace a seat, not enlarge every future grid.
+    # Until qualifying identifies entrants, use the latest completed field.
+    active = set(season_entries.loc[season_entries['round'] == last_rnd, 'driverId'])
+    drv = standings[standings.driverId.isin(active)].copy()
     drv["ctor"] = drv["driverId"].map(ctor_of)
     drv["ctor_rank"] = drv["ctor"].map(ctor_rank).fillna(99)
     drv = drv.sort_values(["ctor_rank", "rank"], kind="mergesort")
@@ -516,6 +520,7 @@ def build_race_intel(db_path: str, datasets_dir: str, season: int,
         "races": sorted(races, key=lambda r: r["round"]),
         "season_attribution": season_summary,
         "track_error": _track_error_insight(races),
+        "evaluation": evaluate(races, train, season),
     }
 
 

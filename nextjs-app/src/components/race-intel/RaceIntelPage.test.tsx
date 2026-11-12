@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import RaceIntelPage from "../../pages/race-intel";
+import axe from "axe-core";
 
 const navigation = vi.hoisted(() => ({
   pathname: "/race-intel",
@@ -116,6 +117,21 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("Race Intel end-to-end presentation", () => {
+  it("passes automated WCAG structure, names and form checks", async () => {
+    await act(async () => root.render(<RaceIntelPage />));
+    await waitForText("Driver outcomes");
+    const result = await axe.run(host, {
+      runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] },
+      // jsdom has no layout engine; contrast needs a rendered-browser audit.
+      rules: { "color-contrast": { enabled: false } },
+    });
+    expect(
+      result.violations.map((v) => ({
+        id: v.id,
+        nodes: v.nodes.map((n) => n.target),
+      }))
+    ).toEqual([]);
+  });
   it("opens completed analysis when the official calendar is ahead and shows inclusive probabilities", async () => {
     await act(async () => root.render(<RaceIntelPage />));
     await waitForText("Driver outcomes");
