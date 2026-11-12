@@ -488,6 +488,7 @@
 }
 .ri-table-scroll {
   width: 100%;
+  max-height: 720px;
   overflow-x: auto;
   border: 1px solid #e0e4dc;
   border-radius: 8px;
@@ -502,6 +503,9 @@
   table-layout: auto;
 }
 .ri-outcomes-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   background: #f1f4ed;
   padding: 15px 12px;
   color: #56624c;
@@ -559,6 +563,11 @@
   padding: 2px 0;
 }
 .ri-driver-button .lab-driver-avatar {
+  position: relative;
+  overflow: hidden;
+  display: block;
+  border: 1px solid #d1d9c9;
+  border-radius: 8px;
   width: 36px;
   height: 42px;
   flex: 0 0 36px;
@@ -1079,7 +1088,7 @@
     font-size: 44px;
   }
   .ri-round-stamp span {
-    font-size: 8px;
+    font-size: 11px;
   }
   .ri-weekend-copy {
     flex: 1;
@@ -1106,7 +1115,7 @@
     padding: 15px 12px;
   }
   .ri-stat-grid section > span {
-    font-size: 8px;
+    font-size: 11px;
     letter-spacing: 0.04em;
     line-height: 1.6;
   }
@@ -1165,7 +1174,7 @@
     padding: 10px !important;
   }
   .ri-reading-note p {
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.8;
   }
   .ri-chart-toolbar {

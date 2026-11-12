@@ -131,7 +131,7 @@ export default function ReplayPanel({
 }) {
   const [attempt, setAttempt] = useState(0);
   const [metric, setMetric] = useState<ReplayMetric>("podium");
-  const [lap, setLap] = useState(0);
+  const [lap, setLap] = useState<number | null>(null);
   const resource = useIntelResource(
     race.status === "raced"
       ? `/api/race-intel/curves/${race.year}/${race.round}`
@@ -140,6 +140,16 @@ export default function ReplayPanel({
     attempt
   );
   const doc = resource.data;
+  const driverLabel = (driver: Replay["drivers"][number]) =>
+    race.drivers.find((entry) => entry.driverId === driver.driverId)?.surname ||
+    driver.surname ||
+    driver.driverCode ||
+    driver.driverId.replace(/_/g, " ");
+  const effectiveSelected = doc?.drivers.some(
+    (driver) => driver.driverId === selected
+  )
+    ? selected
+    : null;
   const shown = useMemo(
     () =>
       doc
@@ -148,12 +158,12 @@ export default function ReplayPanel({
             [...race.drivers]
               .sort((a, b) => a.expected_position - b.expected_position)
               .map((d) => d.driverId),
-            selected
+            effectiveSelected
           )
         : [],
-    [doc, race.drivers, selected]
+    [doc, race.drivers, effectiveSelected]
   );
-  const currentLap = doc ? Math.min(lap || doc.n_laps, doc.n_laps) : 0;
+  const currentLap = doc ? Math.min(lap ?? doc.n_laps, doc.n_laps) : 0;
   const metricIndex = REPLAY_METRICS[metric].index;
   return (
     <section className="ri-panel" aria-labelledby="replay-heading">
@@ -221,13 +231,13 @@ export default function ReplayPanel({
                 <label>
                   Focus driver
                   <select
-                    value={selected ?? ""}
+                    value={effectiveSelected ?? ""}
                     onChange={(event) => onSelect(event.target.value || null)}
                   >
                     <option value="">Model leaders</option>
                     {doc.drivers.map((driver) => (
                       <option value={driver.driverId} key={driver.driverId}>
-                        {driver.surname || driver.driverCode || driver.driverId}
+                        {driverLabel(driver)}
                       </option>
                     ))}
                   </select>
@@ -237,7 +247,7 @@ export default function ReplayPanel({
                 drivers={shown}
                 nLaps={doc.n_laps}
                 metric={metric}
-                selected={selected}
+                selected={effectiveSelected}
                 lap={currentLap}
               />
               <div className="ri-lap-control">
@@ -247,7 +257,7 @@ export default function ReplayPanel({
                 <input
                   id="replay-lap"
                   type="range"
-                  min={1}
+                  min={0}
                   max={doc.n_laps}
                   value={currentLap}
                   onChange={(event) => setLap(Number(event.target.value))}
@@ -269,9 +279,7 @@ export default function ReplayPanel({
                       key={driver.driverId}
                       style={{ borderLeftColor: curveColor(driver.driverId) }}
                     >
-                      <dt>
-                        {driver.surname || driver.driverCode || driver.driverId}
-                      </dt>
+                      <dt>{driverLabel(driver)}</dt>
                       <dd>
                         {point ? percent(point[metricIndex]) : "No sample"}
                         <small>
